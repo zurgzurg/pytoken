@@ -84,6 +84,27 @@ class simple07(unittest.TestCase):
         return True
     pass
 
+class simple08(unittest.TestCase):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.token("[abcd]", 1)
+        obj.token("g", 2)
+        obj.compile()
+
+        tok = obj.parse("a")
+        self.assert_(tok == 1)
+        tok = obj.parse("b")
+        self.assert_(tok == 1)
+        tok = obj.parse("c")
+        self.assert_(tok == 1)
+        tok = obj.parse("d")
+        self.assert_(tok == 1)
+        tok = obj.parse("g")
+        self.assert_(tok == 2)
+
+        return True
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
