@@ -10,11 +10,15 @@ class node(object):
         self.priority     = None
         return
 
-    def must_get_next_node(self, ch):
-        if not self.next_tbl.has_key(ch):
-            self.next_tbl[ch] = node()
-        result = self.next_tbl[ch]
-        return result
+    def must_get_next_node(self, ch_str):
+        assert type(ch_str) is str
+        ch0 = ch_str[0]
+        if not self.next_tbl.has_key(ch0):
+            self.next_tbl[ch0] = node()
+        the_node = self.next_tbl[ch0]
+        for ch in ch_str[1:]:
+            self.next_tbl[ch] = the_node
+        return the_node
 
     def maybe_get_next_node(self, ch):
         if not self.next_tbl.has_key(ch):
