@@ -159,19 +159,23 @@ class lexer(object):
             pat = pat[1:]
             if ch in special_chars:
                 result.append(char2sym[ch])
+            elif ch == '\\':
+                ch  = pat[0]
+                pat = pat[1:]
+                self.tokenize_helper(ch, result)
             else:
-                if len(result) == 0:
-                    result.append(ch)
-                else:
-                    last_item = result[-1]
-                    if type(last_item) is int:
-                        result.append(ch)
-                    else:
-                        last_str = result[-1]
-                        last_str = last_str + ch
-                        result[-1] = last_str
+                self.tokenize_helper(ch, result)
             pass
         return result
+
+    def tokenize_helper(self, ch, result):
+        if len(result)==0 or type(result[-1]) is int:
+            result.append(ch)
+        else:
+            last_str = result[-1]
+            last_str = last_str + ch
+            result[-1] = last_str
+        return
 
     #######################################
     ##

@@ -284,6 +284,14 @@ class simple24(lex_test):
         return
     pass
 
+class simple25(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("""\|a""")
+        self.assert_(info[0] == """|a""")
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
