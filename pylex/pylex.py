@@ -48,6 +48,24 @@ class node(object):
 
 ###################################################################
 ###################################################################
+LPAREN   = 1
+RPAREN   = 2
+LBRACKET = 3
+RBRACKET = 4
+PIPE     = 5
+PLUS     = 6
+STAR     = 7
+
+char2sym = {
+    '('  : LPAREN,
+    ')'  : RPAREN,
+    '['  : LBRACKET,
+    ']'  : RBRACKET,
+    '|'  : PIPE,
+    '+'  : PLUS,
+    '*'  : STAR
+    }
+
 class lexer(object):
     def __init__(self):
         self.pats        = []
@@ -123,6 +141,37 @@ class lexer(object):
                   + "end of string." + self.cur_pattern
             
         return ((ch, ch3), pat_next)
+
+    #######################################
+    ##
+    ## pattern parsing
+    ##
+    #######################################
+    def parse_pattern(self, pat):
+        pass
+
+    def tokenize_pattern(self, pat):
+        result = []
+
+        special_chars = char2sym.keys()
+        while len(pat) > 0:
+            ch = pat[0]
+            pat = pat[1:]
+            if ch in special_chars:
+                result.append(char2sym[ch])
+            else:
+                if len(result) == 0:
+                    result.append(ch)
+                else:
+                    last_item = result[-1]
+                    if type(last_item) is int:
+                        result.append(ch)
+                    else:
+                        last_str = result[-1]
+                        last_str = last_str + ch
+                        result[-1] = last_str
+            pass
+        return result
 
     #######################################
     ##

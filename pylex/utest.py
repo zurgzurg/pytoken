@@ -6,6 +6,7 @@ import pdb
 
 import pylex
 
+
 class lex_test(unittest.TestCase):
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
@@ -187,10 +188,101 @@ class simple15(lex_test):
 class simple16(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        obj.define_token("(cat)", 2)
-        obj.compile()
-        self.check_token(obj, "cat", 2)
+        info = obj.tokenize_pattern("a")
+        self.assert_(type(info) == list)
+        self.assert_(len(info)==1 and info[0] == 'a')
         return
+    pass
+
+class simple17(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("aa")
+        self.assert_(type(info) == list)
+        self.assert_(len(info)==1 and info[0] == 'aa')
+        return
+    pass
+
+class simple18(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("(aa)")
+        self.assert_(info[0] == pylex.LPAREN)
+        self.assert_(info[1] == 'aa')
+        self.assert_(info[2] == pylex.RPAREN)
+        return
+    pass
+
+class simple19(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("[ab]")
+        self.assert_(info[0] == pylex.LBRACKET)
+        self.assert_(info[1] == 'ab')
+        self.assert_(info[2] == pylex.RBRACKET)
+        return
+    pass
+
+class simple20(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("[abcd]")
+        self.assert_(info[0] == pylex.LBRACKET)
+        self.assert_(info[1] == 'abcd')
+        self.assert_(info[2] == pylex.RBRACKET)
+        return
+    pass
+
+class simple21(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("[abcd]eee")
+        self.assert_(info[0] == pylex.LBRACKET)
+        self.assert_(info[1] == 'abcd')
+        self.assert_(info[2] == pylex.RBRACKET)
+        self.assert_(info[3] == 'eee')
+        return
+    pass
+
+class simple22(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("a|b")
+        self.assert_(info[0] == 'a')
+        self.assert_(info[1] == pylex.PIPE)
+        self.assert_(info[2] == 'b')
+        return
+    pass
+
+class simple23(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("(aa)|(bb)")
+        self.assert_(info[0] == pylex.LPAREN)
+        self.assert_(info[1] == 'aa')
+        self.assert_(info[2] == pylex.RPAREN)
+        self.assert_(info[3] == pylex.PIPE)
+        self.assert_(info[4] == pylex.LPAREN)
+        self.assert_(info[5] == 'bb')
+        self.assert_(info[6] == pylex.RPAREN)
+        return
+    pass
+
+class simple24(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("((aa)|(bb))")
+        self.assert_(info[0] == pylex.LPAREN)
+        self.assert_(info[1] == pylex.LPAREN)
+        self.assert_(info[2] == 'aa')
+        self.assert_(info[3] == pylex.RPAREN)
+        self.assert_(info[4] == pylex.PIPE)
+        self.assert_(info[5] == pylex.LPAREN)
+        self.assert_(info[6] == 'bb')
+        self.assert_(info[7] == pylex.RPAREN)
+        self.assert_(info[8] == pylex.RPAREN)
+        return
+    pass
 
 if __name__=="__main__":
     unittest.main()
