@@ -55,6 +55,7 @@ RBRACKET = 4
 PIPE     = 5
 PLUS     = 6
 STAR     = 7
+TEXT     = 8
 
 char2sym = {
     '('  : LPAREN,
@@ -65,6 +66,8 @@ char2sym = {
     '+'  : PLUS,
     '*'  : STAR
     }
+
+all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, PLUS)
 
 class lexer(object):
     def __init__(self):
@@ -146,10 +149,105 @@ class lexer(object):
     ##
     ## pattern parsing
     ##
+    ## a            --> (TEXT  "a")
+    ## ab           --> (TEXT  "ab")
+    ## a*           --> (STAR "a")
+    ## a|b          --> (PIPE "a" "b")
+    ## aa|ba        --> (TEXT "a" (PIPE "a" "b") "a")
+    ## (aaa)|(bbb)  --> (PIPE "aaa" "bbb")
+    ## (a|b)*       --> (STAR (PIPE "a" "b"))
+    ## [abcd]       --> (PIPE "a" "b" "c" "d")
+    ## (a)          --> (TEXT "a")
+    ##
     #######################################
     def parse_pattern(self, pat):
-        pass
+        self.all_toks     = None
+        self.next_token   = None
+        self.parse_result = []
 
+        self.all_toks = self.tokenize_pattern(pat)
+        if len(self.all_toks) == 0:
+            return tuple(self.parse_result)
+
+        first_tok = True
+        self.get_next_token()
+        
+        done = False
+        while (not done and self.all_toks) or first_tok:
+            item = self.parse_top()
+            self.parse_result.append(item)
+            first_tok = False
+        return self.parse_result
+
+    def parse_top(self):
+        if type(self.next_token) is str:
+            result = self.parse_text()
+        elif self.next_token == LPAREN:
+            result = self.parse_group()
+        elif self.next_token == LBRACKET:
+            result = self.parse_char_class()
+        else:
+            raise RuntimeError, "Unexpected char type" + self.next_token
+        return result
+
+    def parse_text(self):
+        s1 = self.next_token
+        self.consume(TEXT)
+        if self.next_token == STAR:
+            self.consume(STAR)
+            return (STAR, s1)
+        elif self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, s1, p2)
+        elif self.next_token == None:
+            return (TEXT, s1)
+        return None
+
+    def parse_group(self):
+        self.consume(LPAREN)
+        result = parse_top()
+        self.consume(RPAREN)
+        return result
+
+    def parse_char_class(self):
+        self.consume(LBRACKET)
+        txt = self.next_token
+        self.consume(TEXT)
+        tmp = [PIPE]
+        for c in txt:
+            tmp.append(c)
+        self.consume(RBRACKET)
+        return tuple(tmp)
+
+    ######
+
+    def consume(self, expected):
+        if expected == TEXT:
+            if type(self.next_token) is str:
+                self.get_next_token()
+                return
+            raise RuntimeError, "Expected normal text, but got" \
+                  + self.next_token
+        assert expected in all_special_syms
+        if self.next_token not in char2sym \
+           or char2sym[self.next_token] != expected:
+            raise RuntimeError, "did not expect actual char" + self.next_token
+        self.get_next_token()
+        return
+
+    def get_next_token(self):
+        if not self.all_toks:
+            self.next_token = None
+            return
+        self.next_token = self.all_toks.pop(0)
+        return
+
+    #######################################
+    ##
+    ## regexp tokens
+    ##
+    #######################################
     def tokenize_pattern(self, pat):
         result = []
 

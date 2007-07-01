@@ -292,6 +292,31 @@ class simple25(lex_test):
         return
     pass
 
+class simple26(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("""a*""")
+        self.assert_(info[0] == """a""")
+        self.assert_(info[1] == pylex.STAR)
+        return
+    pass
+
+class simple27(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.tokenize_pattern("""a\*""")
+        self.assert_(info[0] == """a*""")
+        return
+    pass
+
+class simple28(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.parse_pattern("""a""")
+        self.assert_(info[0] == (pylex.TEXT, "a"))
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
