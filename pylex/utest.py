@@ -329,7 +329,16 @@ class simple30(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         info = obj.parse_pattern("""a|b""")
-        self.assert_(info[0] == (pylex.PIPE, "a", (pylex.TEXT,"b")))
+        self.assert_(info[0] == (pylex.PIPE, "a", (pylex.TEXT, "b")))
+        return
+    pass
+
+class simple31(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        #pdb.set_trace()
+        info = obj.parse_pattern("""a|(bb)""")
+        self.assert_(info[0] == (pylex.PIPE, "a", (pylex.TEXT, "bb")))
         return
     pass
 

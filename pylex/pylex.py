@@ -226,11 +226,11 @@ class lexer(object):
             return (PIPE, s1, p2)
         elif self.next_token == None:
             return (TEXT, s1)
-        return None
+        return (TEXT, s1)
 
     def parse_group(self):
         self.consume(LPAREN)
-        result = parse_top()
+        result = self.parse_top()
         self.consume(RPAREN)
         return result
 
