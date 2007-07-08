@@ -211,7 +211,6 @@ class lexer(object):
         elif self.next_token == LBRACKET:
             result = self.parse_char_class()
         else:
-            pdb.set_trace()
             txt_rep = self.get_cur_token_as_string()
             raise RuntimeError, "Unexpected token: " + txt_rep
         return result
@@ -248,6 +247,10 @@ class lexer(object):
         for c in txt:
             tmp.append(c)
         self.consume(RBRACKET)
+        if self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, tuple(tmp), p2)
         return tuple(tmp)
 
     ######
