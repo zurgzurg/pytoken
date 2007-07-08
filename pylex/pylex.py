@@ -1,3 +1,5 @@
+import pdb
+
 class node(object):
     next_avail_num = 0
     __slots__ = ["name", "next_tbl", "action", "is_accepting", "priority"]
@@ -65,6 +67,28 @@ char2sym = {
     '|'  : PIPE,
     '+'  : PLUS,
     '*'  : STAR
+    }
+
+sym2name = {
+    LPAREN   : "left paren",
+    RPAREN   : "right paren",
+    LBRACKET : "left bracket",
+    RBRACKET : "right bracket",
+    PIPE     : "pipe",
+    PLUS     : "plus",
+    STAR     : "star",
+    TEXT     : "text"
+    }
+
+sym2char = {
+    LPAREN   : "(",
+    RPAREN   : ")",
+    LBRACKET : "[",
+    RBRACKET : "]",
+    PIPE     : "|",
+    PLUS     : "+",
+    STAR     : "*",
+    TEXT     : None
     }
 
 all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, PLUS)
@@ -230,9 +254,12 @@ class lexer(object):
             raise RuntimeError, "Expected normal text, but got" \
                   + self.next_token
         assert expected in all_special_syms
-        if self.next_token not in char2sym \
-           or char2sym[self.next_token] != expected:
-            raise RuntimeError, "did not expect actual char" + self.next_token
+        if self.next_token != expected:
+            if type(self.next_token) is int:
+                txt_rep = sym2char[self.next_token]
+            else:
+                txt_rep = self.next_token
+            raise RuntimeError, "did not expect actual char" + txt_rep
         self.get_next_token()
         return
 
