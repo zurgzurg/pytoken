@@ -211,7 +211,9 @@ class lexer(object):
         elif self.next_token == LBRACKET:
             result = self.parse_char_class()
         else:
-            raise RuntimeError, "Unexpected char type" + self.next_token
+            pdb.set_trace()
+            txt_rep = self.get_cur_token_as_string()
+            raise RuntimeError, "Unexpected token: " + txt_rep
         return result
 
     def parse_text(self):
@@ -230,9 +232,13 @@ class lexer(object):
 
     def parse_group(self):
         self.consume(LPAREN)
-        result = self.parse_top()
+        p1 = self.parse_top()
         self.consume(RPAREN)
-        return result
+        if self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, p1, p2)
+        return p1
 
     def parse_char_class(self):
         self.consume(LBRACKET)
@@ -251,14 +257,11 @@ class lexer(object):
             if type(self.next_token) is str:
                 self.get_next_token()
                 return
-            raise RuntimeError, "Expected normal text, but got" \
-                  + self.next_token
+            txt_rep = self.get_cur_token_as_string()
+            raise RuntimeError, "Expected normal text, but got" + txt_rep
         assert expected in all_special_syms
         if self.next_token != expected:
-            if type(self.next_token) is int:
-                txt_rep = sym2char[self.next_token]
-            else:
-                txt_rep = self.next_token
+            txt_rep = self.get_cur_token_as_string()
             raise RuntimeError, "did not expect actual char" + txt_rep
         self.get_next_token()
         return
@@ -269,6 +272,12 @@ class lexer(object):
             return
         self.next_token = self.all_toks.pop(0)
         return
+
+    def get_cur_token_as_string(self):
+        if type(self.next_token) is str:
+            return "text=" + self.next_token
+        assert type(self.next_token) is int
+        return "symbol=\'%s\'" % sym2char[self.next_token]
 
     #######################################
     ##

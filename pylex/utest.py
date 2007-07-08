@@ -342,6 +342,16 @@ class simple31(lex_test):
         return
     pass
 
+class simple32(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.parse_pattern("""(aa)|(bb)""")
+        self.assert_(info[0] == (pylex.PIPE,
+                                 (pylex.TEXT, "aa"),
+                                 (pylex.TEXT, "bb")))
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
