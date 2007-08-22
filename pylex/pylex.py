@@ -169,6 +169,12 @@ class lexer(object):
             
         return ((ch, ch3), pat_next)
 
+    ######################################
+    ##
+    ## NFA stuff
+    ##
+    ######################################
+
     #######################################
     ##
     ## pattern parsing
@@ -284,7 +290,7 @@ class lexer(object):
 
     #######################################
     ##
-    ## regexp tokens
+    ## tokenizer
     ##
     #######################################
     def tokenize_pattern(self, pat):
