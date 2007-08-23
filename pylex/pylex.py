@@ -48,6 +48,33 @@ class node(object):
 
     pass
 
+class nfa(object):
+    def __init__(self):
+        self.trans_tbl        = {}
+        self.states           = []
+        self.next_avail_state = 1
+        self.init_state       = 0
+        self.accepting_states = []
+        return
+
+    def get_new_state(self):
+        s = self.next_avail_state
+        self.next_avail_state += 1
+        return s
+
+    def add_edge(self, cur_state, ch, next_state):
+        k = (cur_state, ch) 
+        if k not in self.trans_tbl:
+            self.trans_tbl[k] = []
+        l = self.trans_tbl[k]
+        if next_state not in l:
+            l.append(next_state)
+        return
+
+    pass
+
+
+
 ###################################################################
 ###################################################################
 LPAREN   = 1
@@ -97,6 +124,7 @@ class lexer(object):
     def __init__(self):
         self.pats        = []
         self.start       = node()
+        self.nfa_obj     = None
         self.cur_result  = None
         self.cur_pattern = None
         return
@@ -174,6 +202,29 @@ class lexer(object):
     ## NFA stuff
     ##
     ######################################
+    def compile_to_nfa(self):
+        assert self.nfa_obj is None
+
+        self.nfa_obj = nfa()
+        obj = self.nfa_obj
+
+        for pat, action in self.pats:
+            cur_state = obj.init_state
+            parse_info = self.parse_pattern(pat)
+            for item in parse_info:
+                if item[0] == TEXT:
+                    for ch in item[1]:
+                        next_state = obj.get_new_state()
+                        obj.add_edge(cur_state, ch, next_state)
+                        cur_state = next_state
+                elif item[0] == STAR:
+                    pass
+                elif item[0] == PIPE:
+                    pass
+                else:
+                    raise RuntimeError, "Unexpected parse node type"
+                
+        return
 
     #######################################
     ##

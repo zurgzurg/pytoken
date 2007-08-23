@@ -362,6 +362,55 @@ class simple33(lex_test):
         return
     pass
 
+class simple34(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""a""",  "tok1")
+        obj.define_token("""aa""", "tok2")
+        obj.compile_to_nfa()
+        return
+    pass
+
+class simple35(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""a""",  "tok1")
+        obj.define_token("""aa""", "tok2")
+        obj.compile_to_nfa()
+        return
+    pass
+
+class simple36(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""a""",  "tok1")
+        obj.compile_to_nfa()
+        self.assert_(obj.nfa_obj is not None)
+        return
+    pass
+
+class simple37(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""a""",  "tok1")
+        obj.compile_to_nfa()
+        k = (0, "a")
+        self.assert_(k in obj.nfa_obj.trans_tbl)
+        return
+    pass
+
+class simple38(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""a""",  "tok1")
+        obj.compile_to_nfa()
+
+        s0 = obj.nfa_obj.init_state
+        s1 = obj.nfa_obj.trans_tbl[(s0, "a")]
+        self.assert_(s1 in obj.nfa_obj.accepting_states)
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
