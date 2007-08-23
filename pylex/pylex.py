@@ -71,6 +71,11 @@ class nfa(object):
             l.append(next_state)
         return
 
+    def set_accepting_state(self, state):
+        if state not in self.accepting_states:
+            self.accepting_states.append(state)
+        return
+
     pass
 
 
@@ -217,6 +222,7 @@ class lexer(object):
                         next_state = obj.get_new_state()
                         obj.add_edge(cur_state, ch, next_state)
                         cur_state = next_state
+                    obj.set_accepting_state(cur_state)
                 elif item[0] == STAR:
                     pass
                 elif item[0] == PIPE:

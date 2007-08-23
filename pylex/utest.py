@@ -407,7 +407,20 @@ class simple38(lex_test):
 
         s0 = obj.nfa_obj.init_state
         s1 = obj.nfa_obj.trans_tbl[(s0, "a")]
-        self.assert_(s1 in obj.nfa_obj.accepting_states)
+        self.assert_(s1[0] in obj.nfa_obj.accepting_states)
+        return
+    pass
+
+class simple39(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.define_token("""ab""",  "tok1")
+        obj.compile_to_nfa()
+
+        s0 = obj.nfa_obj.init_state
+        s1 = obj.nfa_obj.trans_tbl[(s0, "a")][0]
+        s2 = obj.nfa_obj.trans_tbl[(s1, "b")][0]
+        self.assert_(s2 in obj.nfa_obj.accepting_states)
         return
     pass
 
