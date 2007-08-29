@@ -424,6 +424,27 @@ class simple39(lex_test):
         return
     pass
 
+#class simple40(lex_test):
+#    def runTest(self):
+#        obj = pylex.lexer()
+#        obj.define_token("""a|b""",  "tok1")
+#        obj.compile_to_nfa()
+#        s0 = obj.nfa_obj.init_state
+#        s1 = obj.nfa_obj.trans_tbl[(s0, "a")]
+#        s2 = obj.nfa_obj.trans_tbl[(s0, "b")]
+#        self.assert_(len(s1) == 1)
+#        self.assert_(len(s2) == 1)
+#        return
+#    pass
+
+class simple40(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.parse_pattern_rpn("""a|b""")
+        self.assert_( pylex.struct_equal(info, ("a", "b", pylex.PIPE)) )
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 

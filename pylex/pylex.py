@@ -76,6 +76,20 @@ class nfa(object):
             self.accepting_states.append(state)
         return
 
+    def add_sequence(self, state0, txt):
+        cur_state = state0
+        for ch in txt:
+            n_state = self.get_new_state()
+            self.add_edge(cur_state, ch, n_state)
+            cur_state = n_state
+        return cur_state
+
+    def add_choice(self, start, end, txt_list):
+        for txt in txt_list:
+            last_state = self.add_sequence(start, txt[:-1])
+            self.add_edge(last_state, txt[-1], end)
+        return
+    
     pass
 
 
@@ -218,19 +232,22 @@ class lexer(object):
             parse_info = self.parse_pattern(pat)
             for item in parse_info:
                 if item[0] == TEXT:
-                    for ch in item[1]:
-                        next_state = obj.get_new_state()
-                        obj.add_edge(cur_state, ch, next_state)
-                        cur_state = next_state
+                    cur_state = obj.add_sequence(cur_state, item[1])
                     obj.set_accepting_state(cur_state)
                 elif item[0] == STAR:
                     pass
                 elif item[0] == PIPE:
-                    pass
+                    pdb.set_trace()
+                    start = cur_state
+                    end = obj.get_new_state()
+                    obj.add_choice(start, end, item[1:])
                 else:
                     raise RuntimeError, "Unexpected parse node type"
                 
         return
+
+    def parse_pattern_rpn(self, pat):
+        return ("a", "b", PIPE)
 
     #######################################
     ##
@@ -239,8 +256,8 @@ class lexer(object):
     ## a            --> (TEXT  "a")
     ## ab           --> (TEXT  "ab")
     ## a*           --> (STAR "a")
-    ## a|b          --> (PIPE "a" "b")
-    ## aa|ba        --> (TEXT "a" (PIPE "a" "b") "a")
+    ## a|b          --> (PIPE "a" (TEXT "b"))
+    ## aa|ba        --> (TEXT "a" (PIPE "a" (TEXT "b")) "a")
     ## (aaa)|(bbb)  --> (PIPE "aaa" "bbb")
     ## (a|b)*       --> (STAR (PIPE "a" "b"))
     ## [abcd]       --> (PIPE "a" "b" "c" "d")
@@ -423,3 +440,26 @@ class lexer(object):
 
     pass
 
+def struct_equal(s1, s2):
+    if len(s1) != len(s2):
+        return False
+    n_items = len(s1)
+    idx = 0
+    while idx < n_items:
+        s1_obj = s1[idx]
+        s2_obj = s2[idx]
+        idx += 1
+                    
+        if type(s1_obj) is not type(s2_obj):
+            return False
+        obj_type = type(s1_obj)
+
+        if obj_type is str or obj_type is int:
+            if s1_obj != s2_obj:
+                return False
+        else:
+            assert obj_type is list or obj_type is tuple
+            if not struct_equal(s1_obj, s2_obj):
+                return False
+        pass
+    return True
