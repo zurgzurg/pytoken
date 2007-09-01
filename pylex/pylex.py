@@ -264,7 +264,10 @@ class lexer(object):
         done = False
         while (not done and self.all_toks) or first_tok:
             item = self.parse_top_rpn()
-            self.parse_result.append(item)
+            if type(item) is str:
+                self.parse_result.append(item)
+            else:
+                self.parse_result.extend(item)
             first_tok = False
         return self.parse_result
 
@@ -288,19 +291,19 @@ class lexer(object):
             return (STAR, s1)
         elif self.next_token == PIPE:
             self.consume(PIPE)
-            p2 = self.parse_top()
-            return (PIPE, s1, p2)
+            p2 = self.parse_top_rpn()
+            return (s1, p2, PIPE)
         elif self.next_token == None:
             return s1
         return s1
 
     def parse_group_rpn(self):
         self.consume(LPAREN)
-        p1 = self.parse_top()
+        p1 = self.parse_top_rpn()
         self.consume(RPAREN)
         if self.next_token == PIPE:
             self.consume(PIPE)
-            p2 = self.parse_top()
+            p2 = self.parse_top_rpn()
             return (PIPE, p1, p2)
         return p1
 
@@ -314,7 +317,7 @@ class lexer(object):
         self.consume(RBRACKET)
         if self.next_token == PIPE:
             self.consume(PIPE)
-            p2 = self.parse_top()
+            p2 = self.parse_top_rpn()
             return (PIPE, tuple(tmp), p2)
         return tuple(tmp)
 

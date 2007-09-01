@@ -454,6 +454,14 @@ class simple41(lex_test):
         return
     pass
 
+class simple42(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.parse_pattern_rpn("""a|b""")
+        self.assert_( pylex.struct_equal(info, ("a", "b", PIPE)) )
+        return
+    pass
+
 if __name__=="__main__":
     unittest.main()
 
