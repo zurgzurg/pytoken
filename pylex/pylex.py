@@ -291,8 +291,8 @@ class lexer(object):
             p2 = self.parse_top()
             return (PIPE, s1, p2)
         elif self.next_token == None:
-            return (TEXT, s1)
-        return (s1,)
+            return s1
+        return s1
 
     def parse_group_rpn(self):
         self.consume(LPAREN)

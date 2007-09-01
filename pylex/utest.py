@@ -442,7 +442,15 @@ class simple40(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         info = obj.parse_pattern_rpn("""a""")
-        self.assert_( pylex.struct_equal(info, ("a")) )
+        self.assert_( pylex.struct_equal(info, ("a",)) )
+        return
+    pass
+
+class simple41(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        info = obj.parse_pattern_rpn("""ab""")
+        self.assert_( pylex.struct_equal(info, ("ab",)) )
         return
     pass
 
