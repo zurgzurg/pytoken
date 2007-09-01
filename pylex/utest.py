@@ -6,6 +6,7 @@ import pdb
 
 import pylex
 
+from pylex import PIPE
 
 class lex_test(unittest.TestCase):
     def check_token(self, obj, txt, exp):
@@ -440,8 +441,8 @@ class simple39(lex_test):
 class simple40(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.parse_pattern_rpn("""a|b""")
-        self.assert_( pylex.struct_equal(info, ("a", "b", pylex.PIPE)) )
+        info = obj.parse_pattern_rpn("""a""")
+        self.assert_( pylex.struct_equal(info, ("a")) )
         return
     pass
 

@@ -246,8 +246,77 @@ class lexer(object):
                 
         return
 
+    #######################################
+    ## R P N
+    #######################################
     def parse_pattern_rpn(self, pat):
-        return ("a", "b", PIPE)
+        self.all_toks     = None
+        self.next_token   = None
+        self.parse_result = []
+
+        self.all_toks = self.tokenize_pattern(pat)
+        if len(self.all_toks) == 0:
+            return tuple(self.parse_result)
+
+        first_tok = True
+        self.get_next_token()
+        
+        done = False
+        while (not done and self.all_toks) or first_tok:
+            item = self.parse_top_rpn()
+            self.parse_result.append(item)
+            first_tok = False
+        return self.parse_result
+
+    def parse_top_rpn(self):
+        if type(self.next_token) is str:
+            result = self.parse_text_rpn()
+        elif self.next_token == LPAREN:
+            result = self.parse_group_rpn()
+        elif self.next_token == LBRACKET:
+            result = self.parse_char_class_rpn()
+        else:
+            txt_rep = self.get_cur_token_as_string()
+            raise RuntimeError, "Unexpected token: " + txt_rep
+        return result
+
+    def parse_text_rpn(self):
+        s1 = self.next_token
+        self.consume(TEXT)
+        if self.next_token == STAR:
+            self.consume(STAR)
+            return (STAR, s1)
+        elif self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, s1, p2)
+        elif self.next_token == None:
+            return (TEXT, s1)
+        return (s1,)
+
+    def parse_group_rpn(self):
+        self.consume(LPAREN)
+        p1 = self.parse_top()
+        self.consume(RPAREN)
+        if self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, p1, p2)
+        return p1
+
+    def parse_char_class_rpn(self):
+        self.consume(LBRACKET)
+        txt = self.next_token
+        self.consume(TEXT)
+        tmp = [PIPE]
+        for c in txt:
+            tmp.append(c)
+        self.consume(RBRACKET)
+        if self.next_token == PIPE:
+            self.consume(PIPE)
+            p2 = self.parse_top()
+            return (PIPE, tuple(tmp), p2)
+        return tuple(tmp)
 
     #######################################
     ##
