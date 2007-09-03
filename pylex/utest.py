@@ -6,7 +6,7 @@ import pdb
 
 import pylex
 
-from pylex import PIPE, STAR, CCAT
+from pylex import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
 
 class lex_test(unittest.TestCase):
     def check_token(self, obj, txt, exp):
@@ -14,152 +14,135 @@ class lex_test(unittest.TestCase):
         self.assert_(tok == exp)
         return
     def check_structure(self, act, exp):
-        self.assert_( pylex.struct_equal(act, exp),
-                      str(act) + " != " + str(exp))
+        if pylex.struct_equal(act, exp):
+            return
+        act_str = pylex.make_string_from_token_list(act)
+        exp_str = pylex.make_string_from_token_list(exp)
+        self.assert_(False, act_str + " != " + exp_str)
         return
     pass
 
-class simple01(unittest.TestCase):
-    def runTest(self):
-        return True
-    pass
-
-class simple02(unittest.TestCase):
+################################################################
+## token tests
+################################################################
+class tokens01(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        self.assert_(obj is not None)
-        return True
-    pass
-
-############################################
-
-class simple16(lex_test):
-    def runTest(self):
-        obj = pylex.lexer()
-        info = obj.tokenize_pattern("a")
-        self.assert_(type(info) == list)
-        self.assert_(len(info)==1 and info[0] == 'a')
+        act = obj.tokenize_pattern("a")
+        exp = ("a")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple17(lex_test):
+class tokens02(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("aa")
-        self.assert_(type(info) == list)
-        self.assert_(len(info)==1 and info[0] == 'aa')
+        act = obj.tokenize_pattern("ab")
+        exp = ("a", CCAT, "b")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple18(lex_test):
+class tokens03(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("(aa)")
-        self.assert_(info[0] == pylex.LPAREN)
-        self.assert_(info[1] == 'aa')
-        self.assert_(info[2] == pylex.RPAREN)
+        act = obj.tokenize_pattern("abc")
+        exp = ("a", CCAT, "b", CCAT, "c")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple19(lex_test):
+class tokens04(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("[ab]")
-        self.assert_(info[0] == pylex.LBRACKET)
-        self.assert_(info[1] == 'ab')
-        self.assert_(info[2] == pylex.RBRACKET)
+        act = obj.tokenize_pattern("abc")
+        exp = ("a", CCAT, "b", CCAT, "c")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple20(lex_test):
+class tokens04(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("[abcd]")
-        self.assert_(info[0] == pylex.LBRACKET)
-        self.assert_(info[1] == 'abcd')
-        self.assert_(info[2] == pylex.RBRACKET)
+        act = obj.tokenize_pattern("a|b")
+        exp = ("a", PIPE, "b")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple21(lex_test):
+class tokens05(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("[abcd]eee")
-        self.assert_(info[0] == pylex.LBRACKET)
-        self.assert_(info[1] == 'abcd')
-        self.assert_(info[2] == pylex.RBRACKET)
-        self.assert_(info[3] == 'eee')
+        act = obj.tokenize_pattern("a|bc")
+        exp = ("a", PIPE, "b", CCAT, "c")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple22(lex_test):
+class tokens06(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("a|b")
-        self.assert_(info[0] == 'a')
-        self.assert_(info[1] == pylex.PIPE)
-        self.assert_(info[2] == 'b')
+        act = obj.tokenize_pattern("[ab]")
+        exp = (LPAREN, "a", PIPE, "b", RPAREN)
+        self.check_structure(act, exp)
         return
     pass
 
-class simple23(lex_test):
+class tokens07(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("(aa)|(bb)")
-        self.assert_(info[0] == pylex.LPAREN)
-        self.assert_(info[1] == 'aa')
-        self.assert_(info[2] == pylex.RPAREN)
-        self.assert_(info[3] == pylex.PIPE)
-        self.assert_(info[4] == pylex.LPAREN)
-        self.assert_(info[5] == 'bb')
-        self.assert_(info[6] == pylex.RPAREN)
+        act = obj.tokenize_pattern("[a]")
+        exp = (LPAREN, "a", RPAREN)
+        self.check_structure(act, exp)
         return
     pass
 
-class simple24(lex_test):
+class tokens08(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("((aa)|(bb))")
-        self.assert_(info[0] == pylex.LPAREN)
-        self.assert_(info[1] == pylex.LPAREN)
-        self.assert_(info[2] == 'aa')
-        self.assert_(info[3] == pylex.RPAREN)
-        self.assert_(info[4] == pylex.PIPE)
-        self.assert_(info[5] == pylex.LPAREN)
-        self.assert_(info[6] == 'bb')
-        self.assert_(info[7] == pylex.RPAREN)
-        self.assert_(info[8] == pylex.RPAREN)
+        act = obj.tokenize_pattern("a(b|c)")
+        exp = ("a", LPAREN, "b", PIPE, "c", RPAREN)
+        self.check_structure(act, exp)
         return
     pass
 
-class simple25(lex_test):
+class tokens09(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("""\|a""")
-        self.assert_(info[0] == """|a""")
+        act = obj.tokenize_pattern("a(bd|c)")
+        exp = ("a", LPAREN, "b", CCAT, "d", PIPE, "c", RPAREN)
+        self.check_structure(act, exp)
         return
     pass
 
-class simple26(lex_test):
+class tokens10(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("""a*""")
-        self.assert_(info[0] == """a""")
-        self.assert_(info[1] == pylex.STAR)
+        act = obj.tokenize_pattern("abd|c")
+        exp = ("a", CCAT, "b", CCAT, "d", PIPE, "c")
+        self.check_structure(act, exp)
         return
     pass
 
-class simple27(lex_test):
+
+
+##############################################################
+class errtest01(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        info = obj.tokenize_pattern("""a\*""")
-        self.assert_(info[0] == """a*""")
+        self.assertRaises( RuntimeError, obj.tokenize_pattern, "[")
         return
     pass
+
+class errtest02(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        self.assertRaises( RuntimeError, obj.tokenize_pattern, "(")
+        return
+    pass
+
 
 ##############################################################
 
 if __name__=="__main__":
     unittest.main()
-
-    

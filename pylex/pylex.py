@@ -117,15 +117,15 @@ char2sym = {
     }
 
 sym2name = {
-    LPAREN   : "left paren",
-    RPAREN   : "right paren",
-    LBRACKET : "left bracket",
-    RBRACKET : "right bracket",
-    PIPE     : "pipe",
-    PLUS     : "plus",
-    STAR     : "star",
-    TEXT     : "text",
-    CCAT     : "concat"
+    LPAREN   : "LP",
+    RPAREN   : "RP",
+    LBRACKET : "LB",
+    RBRACKET : "RB",
+    PIPE     : "PIPE",
+    PLUS     : "PLUS",
+    STAR     : "STAR",
+    TEXT     : "TEXT",
+    CCAT     : "CCAT"
     }
 
 sym2char = {
@@ -192,11 +192,9 @@ class lexer(object):
     #######################################
     def parse_pattern(self, pat):
         self.all_toks     = None
-        self.next_token   = None
+        self.cur_token    = None
         self.nfa_stack    = []
         self.operators    = []
-
-        self.parse_result = []
 
         self.all_toks = self.tokenize_pattern(pat)
         if len(self.all_toks) == 0:
@@ -207,10 +205,10 @@ class lexer(object):
         
         done = False
         while (not done and self.all_toks) or first_tok:
-            if type(self.next_token) is str:
-                self.operands.append(self.next_token)
+            if type(self.cur_token) is str:
+                self.operands.append(self.cur_token)
                 self.get_next_token()
-            elif self.next_token in all_special_syms:
+            elif self.cur_token in all_special_syms:
                 pass
 
         return self.parse_result
@@ -219,13 +217,13 @@ class lexer(object):
 
     def consume(self, expected):
         if expected == TEXT:
-            if type(self.next_token) is str:
+            if type(self.cur_token) is str:
                 self.get_next_token()
                 return
             txt_rep = self.get_cur_token_as_string()
             raise RuntimeError, "Expected normal text, but got" + txt_rep
         assert expected in all_special_syms
-        if self.next_token != expected:
+        if self.cur_token != expected:
             txt_rep = self.get_cur_token_as_string()
             raise RuntimeError, "did not expect actual char" + txt_rep
         self.get_next_token()
@@ -233,16 +231,16 @@ class lexer(object):
 
     def get_next_token(self):
         if not self.all_toks:
-            self.next_token = None
+            self.cur_token = None
             return
-        self.next_token = self.all_toks.pop(0)
+        self.cur_token = self.all_toks.pop(0)
         return
 
     def get_cur_token_as_string(self):
-        if type(self.next_token) is str:
-            return "text=" + self.next_token
-        assert type(self.next_token) is int
-        return "symbol=\'%s\'" % sym2char[self.next_token]
+        if type(self.cur_token) is str:
+            return "text=" + self.cur_token
+        assert type(self.cur_token) is int
+        return "symbol=\'%s\'" % sym2char[self.cur_token]
 
     #######################################
     ##
@@ -252,29 +250,54 @@ class lexer(object):
     def tokenize_pattern(self, pat):
         result = []
 
+        n_paren = 0
         special_chars = char2sym.keys()
         while len(pat) > 0:
             ch = pat[0]
             pat = pat[1:]
-            if ch in special_chars:
-                result.append(char2sym[ch])
-            elif ch == '\\':
+
+            if ch == '\\':
                 ch  = pat[0]
                 pat = pat[1:]
-                self.tokenize_helper(ch, result)
-            else:
-                self.tokenize_helper(ch, result)
-            pass
-        return result
+                result.append(ch)
 
-    def tokenize_helper(self, ch, result):
-        if len(result)==0 or type(result[-1]) is int:
-            result.append(ch)
-        else:
-            last_str = result[-1]
-            last_str = last_str + ch
-            result[-1] = last_str
-        return
+            elif ch == '[':
+                result.append(LPAREN)
+                need_pipe = False
+                end_found = False
+                while len(pat) > 0:
+                    ch = pat[0]
+                    pat = pat[1:]
+
+                    if ch == ']':
+                        end_found = True
+                        result.append(RPAREN)
+                        break
+                    else:
+                        if need_pipe:
+                            result.append(PIPE)
+                        result.append(ch)
+                        need_pipe = True
+                    pass
+                if not end_found:
+                    raise RuntimeError, "'[' without matching ']'"
+
+            elif ch in special_chars:
+                if ch == '(':
+                    n_paren += 1
+                elif ch == ')':
+                    n_paren -= 1
+                result.append(char2sym[ch])
+
+            else:
+                if len(result) > 0 and type( result[-1] ) is str:
+                    result.append(CCAT)
+                result.append(ch)
+            pass
+
+        if n_paren != 0:
+            raise RuntimeError, "Unbalanced parens found"
+        return result
 
     pass
 
@@ -301,3 +324,13 @@ def struct_equal(s1, s2):
                 return False
         pass
     return True
+
+def make_string_from_token_list(tlist):
+    tmp = []
+    for tok in tlist:
+        if type(tok) is str:
+            tmp.append(tok)
+        else:
+            tmp.append( sym2name[tok] )
+    result = "[%s]" % ",".join(tmp)
+    return result
