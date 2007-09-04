@@ -151,7 +151,33 @@ class tokens13(lex_test):
         return
     pass
 
+class tokens14(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.tokenize_pattern("ab*")
+        exp = ("a", CCAT, "b", STAR)
+        self.check_structure(act, exp)
+        return
+    pass
 
+class tokens15(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.tokenize_pattern("acb*")
+        exp = ("a", CCAT, 'c', CCAT, "b", STAR)
+        self.check_structure(act, exp)
+        return
+    pass
+
+##############################################################
+class postfix01(lex_test):
+    def runTest(lex_test):
+        obj = pylex.lexer()
+        act = obj.parse_pattern("a")
+        exp = ("a")
+        self.check_structure(act, exp)
+        return
+    pass
 
 ##############################################################
 class errtest01(lex_test):
@@ -167,7 +193,6 @@ class errtest02(lex_test):
         self.assertRaises( RuntimeError, obj.tokenize_pattern, "(")
         return
     pass
-
 
 ##############################################################
 
