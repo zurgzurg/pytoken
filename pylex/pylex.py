@@ -262,6 +262,8 @@ class lexer(object):
                 result.append(ch)
 
             elif ch == '[':
+                if len(result) > 0 and type( result[-1] ) is str:
+                    result.append(CCAT)
                 result.append(LPAREN)
                 need_pipe = False
                 end_found = False
@@ -282,15 +284,20 @@ class lexer(object):
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
 
-            elif ch in special_chars:
+            elif ch in ('(', ')', '|', '*', '+'):
                 if ch == '(':
                     n_paren += 1
                 elif ch == ')':
                     n_paren -= 1
+
+                if len(result) > 0 and ch == '(' and type( result[-1] ) is str:
+                    result.append(CCAT)
+
                 result.append(char2sym[ch])
 
             else:
-                if len(result) > 0 and type( result[-1] ) is str:
+                if len(result) > 0 and (type( result[-1] ) is str
+                                        or result[-1] == RPAREN):
                     result.append(CCAT)
                 result.append(ch)
             pass

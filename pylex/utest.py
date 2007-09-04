@@ -101,7 +101,7 @@ class tokens08(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         act = obj.tokenize_pattern("a(b|c)")
-        exp = ("a", LPAREN, "b", PIPE, "c", RPAREN)
+        exp = ("a", CCAT, LPAREN, "b", PIPE, "c", RPAREN)
         self.check_structure(act, exp)
         return
     pass
@@ -110,7 +110,7 @@ class tokens09(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         act = obj.tokenize_pattern("a(bd|c)")
-        exp = ("a", LPAREN, "b", CCAT, "d", PIPE, "c", RPAREN)
+        exp = ("a", CCAT, LPAREN, "b", CCAT, "d", PIPE, "c", RPAREN)
         self.check_structure(act, exp)
         return
     pass
@@ -120,6 +120,33 @@ class tokens10(lex_test):
         obj = pylex.lexer()
         act = obj.tokenize_pattern("abd|c")
         exp = ("a", CCAT, "b", CCAT, "d", PIPE, "c")
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens11(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.tokenize_pattern("a[bc]")
+        exp = ("a", CCAT, LPAREN, "b", PIPE, "c", RPAREN)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens12(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.tokenize_pattern("a[c]b")
+        exp = ("a", CCAT, LPAREN, "c", RPAREN, CCAT, "b")
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens13(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.tokenize_pattern("a(c)b")
+        exp = ("a", CCAT, LPAREN, "c", RPAREN, CCAT, "b")
         self.check_structure(act, exp)
         return
     pass
