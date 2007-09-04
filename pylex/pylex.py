@@ -191,25 +191,19 @@ class lexer(object):
     ## 
     #######################################
     def parse_pattern(self, pat):
-        self.all_toks     = None
-        self.cur_token    = None
-        self.nfa_stack    = []
-        self.operators    = []
+        self.parse_result  = []
 
-        self.all_toks = self.tokenize_pattern(pat)
-        if len(self.all_toks) == 0:
-            return tuple(self.parse_result)
-
-        first_tok = True
-        self.get_next_token()
-        
-        done = False
-        while (not done and self.all_toks) or first_tok:
-            if type(self.cur_token) is str:
-                self.operands.append(self.cur_token)
-                self.get_next_token()
-            elif self.cur_token in all_special_syms:
-                pass
+        operators = []
+        tok_list = self.tokenize_pattern(pat)
+        while tok_list:
+            tok = tok_list.pop()
+            if type(tok) is str:
+                self.parse_result.append(tok)
+            else:
+                operators.append(tok)
+        while operators:
+            op = operators.pop()
+            self.parse_result.append(op)
 
         return self.parse_result
 
