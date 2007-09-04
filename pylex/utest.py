@@ -183,7 +183,16 @@ class postfix02(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         act = obj.parse_pattern("ab")
-        exp = ("b", "a", CCAT)
+        exp = ("a", "b", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix03(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_pattern("abc")
+        exp = ("a", "b", CCAT, "c", CCAT)
         self.check_structure(act, exp)
         return
     pass

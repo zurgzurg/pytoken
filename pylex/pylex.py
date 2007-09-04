@@ -191,21 +191,23 @@ class lexer(object):
     ## 
     #######################################
     def parse_pattern(self, pat):
-        self.parse_result  = []
-
+        result  = []
         operators = []
         tok_list = self.tokenize_pattern(pat)
         while tok_list:
-            tok = tok_list.pop()
+            tok = tok_list.pop(0)
             if type(tok) is str:
-                self.parse_result.append(tok)
+                result.append(tok)
             else:
+                while operators:
+                    op = operators.pop()
+                    result.append(op)
                 operators.append(tok)
         while operators:
             op = operators.pop()
-            self.parse_result.append(op)
+            result.append(op)
 
-        return self.parse_result
+        return result
 
     ######
 
