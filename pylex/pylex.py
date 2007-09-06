@@ -187,10 +187,10 @@ class lexer(object):
 
     #######################################
     ## 
-    ## regexp parser
+    ## postfix creator
     ## 
     #######################################
-    def parse_pattern(self, pat):
+    def parse_as_postfix(self, pat):
         result  = []
         operators = []
         tok_list = self.tokenize_pattern(pat)
@@ -198,8 +198,17 @@ class lexer(object):
             tok = tok_list.pop(0)
             if type(tok) is str:
                 result.append(tok)
+            elif tok == RPAREN:
+                while True:
+                    if len(operators) == 0:
+                        raise RuntimeError, "Unbalanced parens"
+                    op = operators.pop()
+                    if op == LPAREN:
+                        break
+                    result.append(op)
             else:
-                while operators:
+                assert tok in (LPAREN, PIPE, STAR, CCAT)
+                while operators and operators[-1] != LPAREN:
                     op = operators.pop()
                     result.append(op)
                 operators.append(tok)
@@ -208,35 +217,6 @@ class lexer(object):
             result.append(op)
 
         return result
-
-    ######
-
-    def consume(self, expected):
-        if expected == TEXT:
-            if type(self.cur_token) is str:
-                self.get_next_token()
-                return
-            txt_rep = self.get_cur_token_as_string()
-            raise RuntimeError, "Expected normal text, but got" + txt_rep
-        assert expected in all_special_syms
-        if self.cur_token != expected:
-            txt_rep = self.get_cur_token_as_string()
-            raise RuntimeError, "did not expect actual char" + txt_rep
-        self.get_next_token()
-        return
-
-    def get_next_token(self):
-        if not self.all_toks:
-            self.cur_token = None
-            return
-        self.cur_token = self.all_toks.pop(0)
-        return
-
-    def get_cur_token_as_string(self):
-        if type(self.cur_token) is str:
-            return "text=" + self.cur_token
-        assert type(self.cur_token) is int
-        return "symbol=\'%s\'" % sym2char[self.cur_token]
 
     #######################################
     ##

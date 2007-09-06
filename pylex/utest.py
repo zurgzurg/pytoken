@@ -173,7 +173,7 @@ class tokens15(lex_test):
 class postfix01(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        act = obj.parse_pattern("a")
+        act = obj.parse_as_postfix("a")
         exp = ("a")
         self.check_structure(act, exp)
         return
@@ -182,7 +182,7 @@ class postfix01(lex_test):
 class postfix02(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        act = obj.parse_pattern("ab")
+        act = obj.parse_as_postfix("ab")
         exp = ("a", "b", CCAT)
         self.check_structure(act, exp)
         return
@@ -191,7 +191,61 @@ class postfix02(lex_test):
 class postfix03(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        act = obj.parse_pattern("abc")
+        act = obj.parse_as_postfix("abc")
+        exp = ("a", "b", CCAT, "c", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix04(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("abc")
+        exp = ("a", "b", CCAT, "c", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix05(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("abcd")
+        exp = ("a", "b", CCAT, "c", CCAT, "d", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix06(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("a|b")
+        exp = ("a", "b", PIPE)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix07(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("a|bc")
+        exp = ("a", "b", PIPE, "c", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix08(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("a|bc")
+        exp = ("a", "b", PIPE, "c", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix09(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("(abc)")
         exp = ("a", "b", CCAT, "c", CCAT)
         self.check_structure(act, exp)
         return
