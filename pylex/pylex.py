@@ -206,6 +206,8 @@ class lexer(object):
                     if op == LPAREN:
                         break
                     result.append(op)
+            elif tok == LPAREN:
+                operators.append(tok)
             else:
                 assert tok in (LPAREN, PIPE, STAR, CCAT)
                 while operators and operators[-1] != LPAREN:

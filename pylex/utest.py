@@ -251,6 +251,24 @@ class postfix09(lex_test):
         return
     pass
 
+class postfix10(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("(abc)|d")
+        exp = ("a", "b", CCAT, "c", CCAT, "d", PIPE)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix11(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("(ab)|(cd)")
+        exp = ("a", "b", CCAT, "c", "d", CCAT, PIPE)
+        self.check_structure(act, exp)
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
