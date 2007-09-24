@@ -140,7 +140,18 @@ sym2char = {
     CCAT     : None
     }
 
-all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, PLUS, STAR, CCAT)
+# larger numbers have higher precendence
+sym2prec = {
+    CCAT   : 1,
+    PIPE   : 1,
+    STAR   : 2,
+    LPAREN : 3,
+    RPAREN : 3
+    }
+    
+
+all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
+                    PLUS, STAR, CCAT)
 
 class lexer(object):
     def __init__(self):
@@ -160,6 +171,7 @@ class lexer(object):
     ## NFA stuff
     ##
     ######################################
+
     def compile_to_nfa(self):
         assert self.nfa_obj is None
 
@@ -189,7 +201,53 @@ class lexer(object):
     ## 
     ## postfix creator
     ## 
+    ## Dijkstras shunting yard algorithm
+    ##
+    ## while there are tokens
+    ##   read a token
+    ##
+    ##   if token is a letter add to output
+    ##
+    ##   If the token is an operator, o1, then:
+    ##
+    ##      while there is an op, o2, at the top of the stack, and either
+    ##            o1 is associative or left-associative and its precedence
+    ##            is less than (lower precedence) or equal to that of o2,
+    ##            or
+    ##            o1 is right-associative and its precedence is less than
+    ##            (lower precedence) that of o2,
+    ##
+    ##        pop o2 off the stack, onto the output queue;
+    ##
+    ##      push o1 onto the operator stack.
+    ##
+    ##   if token is left paren push onto operator stack
+    ## 
+    ##   if token is right paren
+    ##
+    ##     until token at top of operator stack is a left paren pop
+    ##     ops off the stack and to output
+    ##
+    ##     pop left paren off stack but not onto output
+    ##
+    ##     if stack runs out then parens were unbalanced
+    ##
+    ## when no more tokens
+    ##
+    ##  if op on top of stack is a paren then parens were mismatched
+    ##
+    ##  pop ops off the stack and onto output
+    ##
     #######################################
+    def pop_op(self, op1, op2):
+        assert op1 is not None
+        assert op2 is not None
+        if op2 == LPAREN:
+            return False
+        if op1 in (CCAT,PIPE) and sym2prec[op1] <= sym2prec[op2]:
+            return True
+        return False
+
     def parse_as_postfix(self, pat):
         result  = []
         operators = []
@@ -209,11 +267,13 @@ class lexer(object):
             elif tok == LPAREN:
                 operators.append(tok)
             else:
-                assert tok in (LPAREN, PIPE, STAR, CCAT)
-                while operators and operators[-1] != LPAREN:
-                    op = operators.pop()
-                    result.append(op)
+                assert tok in (PIPE, STAR, CCAT)
+
+                while operators and self.pop_op(tok, operators[-1]):
+                    tmp = operators.pop()
+                    result.append(tmp)
                 operators.append(tok)
+
         while operators:
             op = operators.pop()
             result.append(op)

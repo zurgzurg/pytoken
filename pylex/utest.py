@@ -269,6 +269,40 @@ class postfix11(lex_test):
         return
     pass
 
+class postfix12(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("((ab))")
+        exp = ("a", "b", CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix13(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("a*")
+        exp = ("a", STAR)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix14(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        act = obj.parse_as_postfix("ab*")
+        exp = ("a", "b", STAR, CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+##############################################################
+class nfa01(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
