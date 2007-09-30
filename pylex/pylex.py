@@ -171,31 +171,16 @@ class lexer(object):
     ## NFA stuff
     ##
     ######################################
-
-    def compile_to_nfa(self):
-        assert self.nfa_obj is None
-
-        self.nfa_obj = nfa()
-        obj = self.nfa_obj
-
-        for pat, action in self.pats:
-            cur_state = obj.init_state
-            parse_info = self.parse_pattern(pat)
-            for item in parse_info:
-                if item[0] == TEXT:
-                    cur_state = obj.add_sequence(cur_state, item[1])
-                    obj.set_accepting_state(cur_state)
-                elif item[0] == STAR:
-                    pass
-                elif item[0] == PIPE:
-                    pdb.set_trace()
-                    start = cur_state
-                    end = obj.get_new_state()
-                    obj.add_choice(start, end, item[1:])
-                else:
-                    raise RuntimeError, "Unexpected parse node type"
-                
-        return
+    def postfix_to_nfa(self, postfix_expr):
+        result = nfa()
+        cur_state = result.init_state
+        for sym in postfix_expr:
+            if type(sym) is str:
+                s = result.get_new_state()
+                result.add_edge(cur_state, sym, s)
+                cur_state = s
+        result.set_accepting_state(cur_state)
+        return result
 
     #######################################
     ## 
