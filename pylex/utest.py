@@ -20,6 +20,14 @@ class lex_test(unittest.TestCase):
         exp_str = pylex.make_string_from_token_list(exp)
         self.assert_(False, act_str + " != " + exp_str)
         return
+    def follow_single_nfa_path(self, nfa, txt):
+        cur = nfa.init_state
+        for ch in txt:
+            k = (cur, ch)
+            slist = nfa.trans_tbl[k]
+            self.assert_(len(slist) == 1)
+            cur = slist[0]
+        return cur
     pass
 
 ################################################################
@@ -319,15 +327,19 @@ class nfa01(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         postfix = ("a",)
-        txt_seq = ("a",)
         nfa_obj = obj.postfix_to_nfa(postfix)
-        s0 = nfa_obj.init_state
-        k = (s0, "a")
-        self.assert_(k in nfa_obj.trans_tbl)
-        s1 = nfa_obj.trans_tbl[k]
-        self.assert_(len(s1) == 1)
-        s1_0 = s1[0]
-        self.assert_(s1_0 in nfa_obj.accepting_states)
+        f = self.follow_single_nfa_path(nfa_obj, "a")
+        self.assert_(f in nfa_obj.accepting_states)
+        return
+    pass
+
+class nfa02(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a","b",CCAT)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        f = self.follow_single_nfa_path(nfa_obj, ["a", None, "b"])
+        self.assert_(f in nfa_obj.accepting_states)
         return
     pass
 

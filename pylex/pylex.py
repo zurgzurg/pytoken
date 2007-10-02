@@ -49,13 +49,20 @@ class node(object):
     pass
 
 class nfa(object):
-    def __init__(self):
+    def __init__(self, txt=None):
         self.trans_tbl        = {}
         self.states           = []
         self.next_avail_state = 1
         self.init_state       = 0
         self.accepting_states = []
-        return
+
+        if txt is not None:
+            assert len(txt) == 1
+            s2 = self.get_new_state()
+            self.add_edge(self.init_state, txt, s2)
+            self.set_accepting_state(s2)
+
+        pass
 
     def get_new_state(self):
         s = self.next_avail_state
@@ -76,23 +83,36 @@ class nfa(object):
             self.accepting_states.append(state)
         return
 
-    def add_sequence(self, state0, txt):
-        cur_state = state0
-        for ch in txt:
-            n_state = self.get_new_state()
-            self.add_edge(cur_state, ch, n_state)
-            cur_state = n_state
-        return cur_state
+    def __str__(self):
+        result = ""
+        for k,v in self.trans_tbl.iteritems():
+            result = result + str(k) + "->" + str(v) + "\n"
+        return result
 
-    def add_choice(self, start, end, txt_list):
-        for txt in txt_list:
-            last_state = self.add_sequence(start, txt[:-1])
-            self.add_edge(last_state, txt[-1], end)
-        return
-    
     pass
 
 
+def do_nfa_ccat(nfa1, nfa2):
+    result = nfa()
+    for k,v in nfa1.trans_tbl.iteritems():
+        st, ch = k
+        for dst in v:
+            result.add_edge(st, ch, dst)
+
+    offset = nfa1.next_avail_state
+
+    for k,v in nfa2.trans_tbl.iteritems():
+        st, ch = k
+        for dst in v:
+            result.add_edge(st+offset, ch, dst+offset)
+
+    for s1 in nfa1.accepting_states:
+        result.add_edge(s1, None, nfa2.init_state + offset)
+
+    for s2 in nfa2.accepting_states:
+        result.set_accepting_state(s2 + offset)
+
+    return result
 
 ###################################################################
 ###################################################################
@@ -172,15 +192,17 @@ class lexer(object):
     ##
     ######################################
     def postfix_to_nfa(self, postfix_expr):
-        result = nfa()
-        cur_state = result.init_state
+        stack = []
         for sym in postfix_expr:
             if type(sym) is str:
-                s = result.get_new_state()
-                result.add_edge(cur_state, sym, s)
-                cur_state = s
-        result.set_accepting_state(cur_state)
-        return result
+                nfa1 = nfa(sym)
+                stack.append(nfa1)
+            elif sym is CCAT:
+                nfa2 = stack.pop()
+                nfa1 = stack.pop()
+                nfa3 = do_nfa_ccat(nfa1, nfa2)
+                stack.append(nfa3)
+        return stack[0]
 
     #######################################
     ## 
