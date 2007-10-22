@@ -395,6 +395,15 @@ class nfa03(lex_test):
         return
     pass
 
+class nfa04(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a","b",CCAT)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, "ab"))
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
