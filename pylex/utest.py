@@ -52,21 +52,20 @@ class lex_test(unittest.TestCase):
         return False
 
     def path_exists_2(self, nfa, cur_state, txt):
-        st = cur_state
-        for idx in range(len(txt)):
-            ch = txt[idx]
+        cur_state = cur_state
+        ch = txt[0]
             
-            k = (st, None)
-            if k in nfa.trans_tbl:
-                slist = nfa.trans_tbl[k]
-                for nxt_state in slist:
-                    self.search_stack.append((nxt_state, txt))
+        k = (cur_state, None)
+        if k in nfa.trans_tbl:
+            slist = nfa.trans_tbl[k]
+            for nxt_state in slist:
+                self.search_stack.append((nxt_state, txt))
 
-            k = (st, ch)
-            if k in nfa.trans_tbl:
-                slist = nfa.trans_tbl[k]
-                for st2 in slist:
-                    self.search_stack.append((st2, txt[idx+1:]))
+        k = (cur_state, ch)
+        if k in nfa.trans_tbl:
+            slist = nfa.trans_tbl[k]
+            for st2 in slist:
+                self.search_stack.append((st2, txt[1:]))
 
         return
 
@@ -391,6 +390,8 @@ class nfa03(lex_test):
         postfix = ("a","b",PIPE)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "a"))
+        self.assert_(self.path_exists(nfa_obj, "b"))
+        self.assert_(self.path_exists(nfa_obj, "aa") == False)
         return
     pass
 
