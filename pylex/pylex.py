@@ -83,10 +83,24 @@ class nfa(object):
             self.accepting_states.append(state)
         return
 
+    ##
+    ## merge related funcs
+    ##
+    def copy_edges(self, other_nfa, offset):
+        for k,v in other_nfa.trans_tbl.iteritems():
+            st, ch = k
+            for dst in v:
+                self.add_edge(st + offset, ch, dst + offset)
+        return
+
+    ##
+    ## debug routines
+    ##
     def __str__(self):
         result = ""
         for k,v in self.trans_tbl.iteritems():
             result = result + str(k) + "->" + str(v) + "\n"
+        result = result + "accepting=" + str(self.accepting_states) + "\n"
         return result
 
     pass
@@ -94,17 +108,9 @@ class nfa(object):
 
 def do_nfa_ccat(nfa1, nfa2):
     result = nfa()
-    for k,v in nfa1.trans_tbl.iteritems():
-        st, ch = k
-        for dst in v:
-            result.add_edge(st, ch, dst)
-
     offset = nfa1.next_avail_state
-
-    for k,v in nfa2.trans_tbl.iteritems():
-        st, ch = k
-        for dst in v:
-            result.add_edge(st+offset, ch, dst+offset)
+    result.copy_edges(nfa1, 0)
+    result.copy_edges(nfa2, offset)
 
     for s1 in nfa1.accepting_states:
         result.add_edge(s1, None, nfa2.init_state + offset)
@@ -113,6 +119,22 @@ def do_nfa_ccat(nfa1, nfa2):
         result.set_accepting_state(s2 + offset)
 
     return result
+
+def do_nfa_pipe(nfa1, nfa2):
+    result = nfa()
+    offset = nfa1.next_avail_state
+    result.copy_edges(nfa1, 1)
+    result.copy_edges(nfa2, offset + 1)
+
+    for s1 in nfa1.accepting_states:
+        result.set_accepting_state(s1 + 1)
+    for s2 in nfa2.accepting_states:
+        result.set_accepting_state(s2 + offset + 1)
+
+    result.add_edge(result.init_state, None, nfa1.init_state + 1)
+    result.add_edge(result.init_state, None, nfa2.init_state + offset + 1)
+    return result
+
 
 ###################################################################
 ###################################################################
@@ -202,6 +224,13 @@ class lexer(object):
                 nfa1 = stack.pop()
                 nfa3 = do_nfa_ccat(nfa1, nfa2)
                 stack.append(nfa3)
+            elif sym is PIPE:
+                nfa2 = stack.pop()
+                nfa1 = stack.pop()
+                nfa3 = do_nfa_pipe(nfa1, nfa2)
+                stack.append(nfa3)
+            else:
+                assert None, "Bad sym" + str(sym)
         return stack[0]
 
     #######################################

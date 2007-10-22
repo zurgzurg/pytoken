@@ -9,10 +9,12 @@ import pylex
 from pylex import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
 
 class lex_test(unittest.TestCase):
+
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
         self.assert_(tok == exp)
         return
+
     def check_structure(self, act, exp):
         if pylex.struct_equal(act, exp):
             return
@@ -20,14 +22,54 @@ class lex_test(unittest.TestCase):
         exp_str = pylex.make_string_from_token_list(exp)
         self.assert_(False, act_str + " != " + exp_str)
         return
+
     def follow_single_nfa_path(self, nfa, txt):
         cur = nfa.init_state
         for ch in txt:
             k = (cur, ch)
+            if k not in nfa.trans_tbl:
+                k2 = (cur, None)
+                if k2 in nfa.trans_tbl:
+                    slist = nfa.trans_tbl[k2]
+                    self.assert_(len(slist)==1)
+                    cur = slist[0]
+                    k = (cur, ch)
             slist = nfa.trans_tbl[k]
             self.assert_(len(slist) == 1)
             cur = slist[0]
         return cur
+
+    def path_exists(self, nfa, txt):
+        self.search_stack = [(nfa.init_state, txt)]
+
+        while self.search_stack:
+            cur_state, txt = self.search_stack.pop()
+            if len(txt)==0 and cur_state in nfa.accepting_states:
+                return True
+            self.path_exists_2(nfa, cur_state, txt)
+            pass
+
+        return False
+
+    def path_exists_2(self, nfa, cur_state, txt):
+        st = cur_state
+        for idx in range(len(txt)):
+            ch = txt[idx]
+            
+            k = (st, None)
+            if k in nfa.trans_tbl:
+                slist = nfa.trans_tbl[k]
+                for nxt_state in slist:
+                    self.search_stack.append((nxt_state, txt))
+
+            k = (st, ch)
+            if k in nfa.trans_tbl:
+                slist = nfa.trans_tbl[k]
+                for st2 in slist:
+                    self.search_stack.append((st2, txt[idx+1:]))
+
+        return
+
     pass
 
 ################################################################
@@ -338,8 +380,17 @@ class nfa02(lex_test):
         obj = pylex.lexer()
         postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
-        f = self.follow_single_nfa_path(nfa_obj, ["a", None, "b"])
+        f = self.follow_single_nfa_path(nfa_obj, ["a", "b"])
         self.assert_(f in nfa_obj.accepting_states)
+        return
+    pass
+
+class nfa03(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a","b",PIPE)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, "a"))
         return
     pass
 
