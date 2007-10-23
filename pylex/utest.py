@@ -435,6 +435,17 @@ class nfa07(lex_test):
     pass
 
 ##############################################################
+class dfa01(lex_test):
+    def runTest(self):
+        return
+        obj = pylex.lexer()
+        postfix = ("a",)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        dfa_obj = obj.nfa_to_dfa(nfa_obj)
+        return
+    pass
+
+##############################################################
 class errtest01(lex_test):
     def runTest(self):
         obj = pylex.lexer()

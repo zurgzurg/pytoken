@@ -48,12 +48,31 @@ class node(object):
 
     pass
 
-class nfa(object):
-    def __init__(self, txt=None):
-        self.trans_tbl        = {}
-        self.states           = []
+##########################################################################
+class fsa(object):
+    def __init__(self):
         self.next_avail_state = 1
         self.init_state       = 0
+        self.trans_tbl        = {}
+        self.states           = []
+        return
+
+    ##
+    ## debug routines
+    ##
+    def __str__(self):
+        result = ""
+        for k,v in self.trans_tbl.iteritems():
+            result = result + str(k) + "->" + str(v) + "\n"
+        result = result + "accepting=" + str(self.accepting_states) + "\n"
+        return result
+
+    pass
+
+##########################################################################
+class nfa(fsa):
+    def __init__(self, txt=None):
+        super(nfa, self).__init__()
         self.accepting_states = []
 
         if txt is not None:
@@ -93,19 +112,15 @@ class nfa(object):
                 self.add_edge(st + offset, ch, dst + offset)
         return
 
-    ##
-    ## debug routines
-    ##
-    def __str__(self):
-        result = ""
-        for k,v in self.trans_tbl.iteritems():
-            result = result + str(k) + "->" + str(v) + "\n"
-        result = result + "accepting=" + str(self.accepting_states) + "\n"
-        return result
-
     pass
 
+##########################################################################
+class dfa(object):
+    def __init__(self):
+        return
+    pass
 
+##########################################################################
 def do_nfa_ccat(nfa1, nfa2):
     result = nfa()
     offset = nfa1.next_avail_state
