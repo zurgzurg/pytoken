@@ -53,13 +53,16 @@ class lex_test(unittest.TestCase):
 
     def path_exists_2(self, nfa, cur_state, txt):
         cur_state = cur_state
-        ch = txt[0]
             
         k = (cur_state, None)
         if k in nfa.trans_tbl:
             slist = nfa.trans_tbl[k]
             for nxt_state in slist:
                 self.search_stack.append((nxt_state, txt))
+
+        if len(txt) == 0:
+            return
+        ch = txt[0]
 
         k = (cur_state, ch)
         if k in nfa.trans_tbl:
@@ -401,6 +404,33 @@ class nfa04(lex_test):
         postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "ab"))
+        return
+    pass
+
+class nfa05(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a",STAR)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, "a"))
+        return
+    pass
+
+class nfa06(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a",STAR)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, "aa"))
+        return
+    pass
+
+class nfa07(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        postfix = ("a",STAR)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, ""))
         return
     pass
 

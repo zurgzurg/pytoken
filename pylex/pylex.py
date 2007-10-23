@@ -229,6 +229,12 @@ class lexer(object):
                 nfa1 = stack.pop()
                 nfa3 = do_nfa_pipe(nfa1, nfa2)
                 stack.append(nfa3)
+            elif sym is STAR:
+                nfa1 = stack.pop()
+                for st in nfa1.accepting_states:
+                    nfa1.add_edge(st, None, nfa1.init_state)
+                    nfa1.add_edge(nfa1.init_state, None, st)
+                stack.append(nfa1)
             else:
                 assert None, "Bad sym" + str(sym)
         return stack[0]
