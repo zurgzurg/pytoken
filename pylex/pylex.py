@@ -1,53 +1,5 @@
 import pdb
 
-class node(object):
-    next_avail_num = 0
-    __slots__ = ["name", "next_tbl", "action", "is_accepting", "priority"]
-    def __init__(self):
-        self.name         = "Node_%d" % node.next_avail_num
-        node.next_avail_num += 1
-        self.next_tbl     = {}
-        self.action       = None
-        self.is_accepting = False
-        self.priority     = None
-        return
-
-    def must_get_next_node(self, ch_str_or_tup):
-        assert type(ch_str_or_tup) is str or type(ch_str_or_tup) is tuple
-        ch0 = ch_str_or_tup[0]
-        if not self.next_tbl.has_key(ch0):
-            self.next_tbl[ch0] = node()
-        the_node = self.next_tbl[ch0]
-        for ch in ch_str_or_tup[1:]:
-            self.next_tbl[ch] = the_node
-        return the_node
-
-    def maybe_get_next_node(self, ch):
-        if not self.next_tbl.has_key(ch):
-            return None
-        result = self.next_tbl[ch]
-        return result
-
-    def num_out_edges(self):
-        return len(self.next_tbl.items())
-
-    def show_tbl(self):
-        print "Node table"
-        for ch, nxt in self.next_tbl.items():
-            print "    ", ch, "--->", nxt
-        print "Done."
-        return
-
-    def __str__(self):
-        result = [self.name]
-        result.append("is_accepting=" + str(self.is_accepting))
-        result.append("priority=" + str(self.priority))
-        for ch, node in self.next_tbl.items():
-            result.append("ch %s --> node %s" % (ch, node.name))
-        return "\n".join(result)
-
-    pass
-
 ##########################################################################
 class fsa(object):
     def __init__(self, lexer):
@@ -315,7 +267,6 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
 class lexer(object):
     def __init__(self):
         self.pats        = []
-        self.start       = node()
         self.nfa_obj     = None
         self.cur_result  = None
         self.cur_pattern = None
