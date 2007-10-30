@@ -50,12 +50,18 @@ class node(object):
 
 ##########################################################################
 class fsa(object):
-    def __init__(self):
+    def __init__(self, lexer):
         self.next_avail_state = 1
         self.init_state       = 0
         self.trans_tbl        = {}
         self.states           = []
+        self.lexer            = lexer
         return
+
+    def get_new_state(self):
+        s = self.next_avail_state
+        self.next_avail_state += 1
+        return s
 
     ##
     ## debug routines
@@ -71,8 +77,8 @@ class fsa(object):
 
 ##########################################################################
 class nfa(fsa):
-    def __init__(self, txt=None):
-        super(nfa, self).__init__()
+    def __init__(self, lexer, txt=None):
+        super(nfa, self).__init__(lexer)
         self.accepting_states = []
 
         if txt is not None:
@@ -82,11 +88,6 @@ class nfa(fsa):
             self.set_accepting_state(s2)
 
         pass
-
-    def get_new_state(self):
-        s = self.next_avail_state
-        self.next_avail_state += 1
-        return s
 
     def add_edge(self, cur_state, ch, next_state):
         k = (cur_state, ch) 
@@ -112,17 +113,118 @@ class nfa(fsa):
                 self.add_edge(st + offset, ch, dst + offset)
         return
 
+    ##
+    ## dfa construction support
+    ##
+    def e_closure(self, start_list):
+        if type(start_list) is not list:
+            result = self.e_closure_1(start_list)
+        else:
+            result = []
+            for s in start_list:
+                tmp = self.e_closure_1(s)
+                for s2 in tmp:
+                    if s2 not in result:
+                        result.append(s2)
+        result.sort()
+        return tuple(result)
+
+    def e_closure_1(self, start):
+        result = []
+        todo = [start]
+        while todo:
+            st = todo.pop()
+            if st in result:
+                continue
+            result.append(st)
+            try:
+                slist = self.trans_tbl[(st, None)]
+            except KeyError:
+                slist = []
+            todo.extend(slist)
+        return result
+
+    ###
+    def move(self, st_list, ch):
+        if type(st_list) is not list:
+            result = self.move_1(st_list, ch)
+        else:
+            result = []
+            for s in st_list:
+                tmp = self.move_1(s, ch)
+                for s2 in tmp:
+                    if s2 not in result:
+                        result.append(s2)
+        result.sort()
+        return tuple(result)
+
+    def move_1(self, st, ch):
+        result = []
+        try:
+            slist = self.trans_tbl[(st, ch)]
+        except KeyError:
+            slist = []
+        for s in slist:
+            if s not in result:
+                result.append(s)
+            tmp = self.e_closure_1(s)
+            for s2 in tmp:
+                if s2 not in result:
+                    result.append(s2)
+        return result
+
+    ##
+    ## The Subset Construction Algorithm
+    ## 
+    ## 1. Create the start state of the DFA by taking the e-closure
+    ##    of the start state of the NFA.
+    ##
+    ## 2. Perform the following for the new DFA state:
+    ##
+    ##    For each possible input symbol:
+    ##    1. Apply move to the newly-created state and the input symbol;
+    ##       this will return a set of states.
+    ##    2. Apply the e-closure to this set of states, possibly resulting
+    ##       in a new set.
+    ##
+    ##    This set of NFA states will be a single state in the DFA.
+    ##
+    ## 3. Each time we generate a new DFA state, we must apply
+    ##    step 2 to it. The process is complete when applying step 2
+    ##    does not yield any new states.
+    ## 4. The finish states of the DFA are those which contain
+    ##    any of the finish states of the NFA.
+    ##
+    def convert_to_dfa(self):
+        result = dfa(self.lexer)
+
+        all_ch = [chr(i) for i in range(127)]
+        seen = {}
+        start = self.e_closure(self.init_state)
+        new_states = [start]
+        while new_states:
+            s = new_states.pop()
+            seen[s] = True
+            for ch in all_ch:
+                s2 = self.move(s, ch)
+                if s2 not in seen:
+                    new_states.append(s2)
+                    
+        return result
+        
+
     pass
 
 ##########################################################################
 class dfa(object):
-    def __init__(self):
+    def __init__(self, lexer):
+        super(dfa, self).__init__(lexer)
         return
     pass
 
 ##########################################################################
-def do_nfa_ccat(nfa1, nfa2):
-    result = nfa()
+def do_nfa_ccat(lexer, nfa1, nfa2):
+    result = nfa(lexer)
     offset = nfa1.next_avail_state
     result.copy_edges(nfa1, 0)
     result.copy_edges(nfa2, offset)
@@ -135,8 +237,8 @@ def do_nfa_ccat(nfa1, nfa2):
 
     return result
 
-def do_nfa_pipe(nfa1, nfa2):
-    result = nfa()
+def do_nfa_pipe(lexer, nfa1, nfa2):
+    result = nfa(lexer)
     offset = nfa1.next_avail_state
     result.copy_edges(nfa1, 1)
     result.copy_edges(nfa2, offset + 1)
@@ -232,17 +334,17 @@ class lexer(object):
         stack = []
         for sym in postfix_expr:
             if type(sym) is str:
-                nfa1 = nfa(sym)
+                nfa1 = nfa(self, sym)
                 stack.append(nfa1)
             elif sym is CCAT:
                 nfa2 = stack.pop()
                 nfa1 = stack.pop()
-                nfa3 = do_nfa_ccat(nfa1, nfa2)
+                nfa3 = do_nfa_ccat(self, nfa1, nfa2)
                 stack.append(nfa3)
             elif sym is PIPE:
                 nfa2 = stack.pop()
                 nfa1 = stack.pop()
-                nfa3 = do_nfa_pipe(nfa1, nfa2)
+                nfa3 = do_nfa_pipe(self, nfa1, nfa2)
                 stack.append(nfa3)
             elif sym is STAR:
                 nfa1 = stack.pop()
