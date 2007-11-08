@@ -3,7 +3,6 @@ import pdb
 ##########################################################################
 class fsa(object):
     def __init__(self, lexer):
-        self.next_avail_state = 1
         self.init_state       = 0
         self.trans_tbl        = {}
         self.states           = []
@@ -11,9 +10,7 @@ class fsa(object):
         return
 
     def get_new_state(self):
-        s = self.next_avail_state
-        self.next_avail_state += 1
-        return s
+        return self.lexer.get_new_state()
 
     ##
     ## debug routines
@@ -177,7 +174,7 @@ class dfa(object):
 ##########################################################################
 def do_nfa_ccat(lexer, nfa1, nfa2):
     result = nfa(lexer)
-    offset = nfa1.next_avail_state
+    offset = 0
     result.copy_edges(nfa1, 0)
     result.copy_edges(nfa2, offset)
 
@@ -191,7 +188,7 @@ def do_nfa_ccat(lexer, nfa1, nfa2):
 
 def do_nfa_pipe(lexer, nfa1, nfa2):
     result = nfa(lexer)
-    offset = nfa1.next_avail_state
+    offset = 0
     result.copy_edges(nfa1, 1)
     result.copy_edges(nfa2, offset + 1)
 
@@ -264,13 +261,24 @@ sym2prec = {
 all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
                     PLUS, STAR, CCAT)
 
+class fsa_state(object):
+    def __init__(self, lexer):
+        pass
+    pass
+
 class lexer(object):
     def __init__(self):
-        self.pats        = []
-        self.nfa_obj     = None
-        self.cur_result  = None
-        self.cur_pattern = None
+        self.pats             = []
+        self.next_avail_state = 1
+        self.nfa_obj          = None
+        self.cur_result       = None
+        self.cur_pattern      = None
         return
+
+    def get_new_state(self):
+        s = self.next_avail_state
+        self.next_avail_state += 1
+        return s
 
     def define_token(self, pat, action):
         self.pats.append((pat, action))
