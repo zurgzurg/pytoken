@@ -3,7 +3,7 @@ import pdb
 ##########################################################################
 class fsa(object):
     def __init__(self, lexer):
-        self.init_state       = 0
+        self.init_state       = lexer.get_new_state()
         self.trans_tbl        = {}
         self.states           = []
         self.lexer            = lexer
@@ -16,7 +16,7 @@ class fsa(object):
     ## debug routines
     ##
     def __str__(self):
-        result = ""
+        result = "init=%d\n" % self.init_state
         for k,v in self.trans_tbl.iteritems():
             result = result + str(k) + "->" + str(v) + "\n"
         result = result + "accepting=" + str(self.accepting_states) + "\n"
@@ -55,11 +55,10 @@ class nfa(fsa):
     ##
     ## merge related funcs
     ##
-    def copy_edges(self, other_nfa, offset):
-        for k,v in other_nfa.trans_tbl.iteritems():
-            st, ch = k
+    def copy_edges(self, other_nfa):
+        for (st, ch), v in other_nfa.trans_tbl.iteritems():
             for dst in v:
-                self.add_edge(st + offset, ch, dst + offset)
+                self.add_edge(st, ch, dst)
         return
 
     ##
@@ -174,31 +173,31 @@ class dfa(object):
 ##########################################################################
 def do_nfa_ccat(lexer, nfa1, nfa2):
     result = nfa(lexer)
-    offset = 0
-    result.copy_edges(nfa1, 0)
-    result.copy_edges(nfa2, offset)
+    result.copy_edges(nfa1)
+    result.copy_edges(nfa2)
+
+    result.add_edge(result.init_state, None, nfa1.init_state)
 
     for s1 in nfa1.accepting_states:
-        result.add_edge(s1, None, nfa2.init_state + offset)
+        result.add_edge(s1, None, nfa2.init_state)
 
     for s2 in nfa2.accepting_states:
-        result.set_accepting_state(s2 + offset)
+        result.set_accepting_state(s2)
 
     return result
 
 def do_nfa_pipe(lexer, nfa1, nfa2):
     result = nfa(lexer)
-    offset = 0
-    result.copy_edges(nfa1, 1)
-    result.copy_edges(nfa2, offset + 1)
+    result.copy_edges(nfa1)
+    result.copy_edges(nfa2)
 
     for s1 in nfa1.accepting_states:
-        result.set_accepting_state(s1 + 1)
+        result.set_accepting_state(s1)
     for s2 in nfa2.accepting_states:
-        result.set_accepting_state(s2 + offset + 1)
+        result.set_accepting_state(s2)
 
-    result.add_edge(result.init_state, None, nfa1.init_state + 1)
-    result.add_edge(result.init_state, None, nfa2.init_state + offset + 1)
+    result.add_edge(result.init_state, None, nfa1.init_state)
+    result.add_edge(result.init_state, None, nfa2.init_state)
     return result
 
 
@@ -263,6 +262,8 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
 
 class fsa_state(object):
     def __init__(self, lexer):
+        self.lexer = lexer
+        self.num   = 0
         pass
     pass
 
