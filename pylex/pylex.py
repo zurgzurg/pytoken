@@ -7,36 +7,11 @@ class fsa(object):
         self.trans_tbl        = {}
         self.states           = []
         self.lexer            = lexer
+        self.accepting_states = []
         return
 
     def get_new_state(self):
         return self.lexer.get_new_state()
-
-    ##
-    ## debug routines
-    ##
-    def __str__(self):
-        result = "init=%d\n" % self.init_state
-        for k,v in self.trans_tbl.iteritems():
-            result = result + str(k) + "->" + str(v) + "\n"
-        result = result + "accepting=" + str(self.accepting_states) + "\n"
-        return result
-
-    pass
-
-##########################################################################
-class nfa(fsa):
-    def __init__(self, lexer, txt=None):
-        super(nfa, self).__init__(lexer)
-        self.accepting_states = []
-
-        if txt is not None:
-            assert len(txt) == 1
-            s2 = self.get_new_state()
-            self.add_edge(self.init_state, txt, s2)
-            self.set_accepting_state(s2)
-
-        pass
 
     def add_edge(self, cur_state, ch, next_state):
         k = (cur_state, ch) 
@@ -53,6 +28,31 @@ class nfa(fsa):
         return
 
     ##
+    ## debug routines
+    ##
+    def __str__(self):
+        result = "init=%s\n" % str(self.init_state)
+        for k,v in self.trans_tbl.iteritems():
+            result = result + str(k) + "->" + str(v) + "\n"
+        result = result + "accepting=" + str(self.accepting_states) + "\n"
+        return result
+
+    pass
+
+##########################################################################
+class nfa(fsa):
+    def __init__(self, lexer, txt=None):
+        super(nfa, self).__init__(lexer)
+
+        if txt is not None:
+            assert len(txt) == 1
+            s2 = self.get_new_state()
+            self.add_edge(self.init_state, txt, s2)
+            self.set_accepting_state(s2)
+
+        pass
+
+    ##
     ## merge related funcs
     ##
     def copy_edges(self, other_nfa):
@@ -65,7 +65,7 @@ class nfa(fsa):
     ## dfa construction support
     ##
     def e_closure(self, start_list):
-        if type(start_list) is not list:
+        if type(start_list) not in (list, tuple):
             result = self.e_closure_1(start_list)
         else:
             result = []
@@ -94,7 +94,7 @@ class nfa(fsa):
 
     ###
     def move(self, st_list, ch):
-        if type(st_list) is not list:
+        if type(st_list) is not list and type(st_list) is not tuple:
             result = self.move_1(st_list, ch)
         else:
             result = []
@@ -145,18 +145,35 @@ class nfa(fsa):
     ##
     def convert_to_dfa(self):
         result = dfa(self.lexer)
-
         all_ch = [chr(i) for i in range(127)]
+
         seen = {}
         start = self.e_closure(self.init_state)
-        new_states = [start]
-        while new_states:
-            s = new_states.pop()
-            seen[s] = True
+        work = [start]
+        seen[start] = result.init_state
+
+        while work:
+            s = work.pop()
+            cur_state = seen[s]
             for ch in all_ch:
                 s2 = self.move(s, ch)
+                s2 = self.e_closure(s2)
+
+                if not s2 or len(s2)==0:
+                    continue
+
                 if s2 not in seen:
-                    new_states.append(s2)
+                    dst = result.get_new_state()
+                    seen[s2] = dst
+                    work.append(s2)
+                    for acc in self.accepting_states:
+                        if acc in s2:
+                            result.set_accepting_state(dst)
+                            break
+                else:
+                    dst = seen[s2]
+
+                result.add_edge(cur_state, ch, dst)
                     
         return result
         
@@ -164,7 +181,7 @@ class nfa(fsa):
     pass
 
 ##########################################################################
-class dfa(object):
+class dfa(fsa):
     def __init__(self, lexer):
         super(dfa, self).__init__(lexer)
         return
@@ -263,8 +280,13 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
 class fsa_state(object):
     def __init__(self, lexer):
         self.lexer = lexer
-        self.num   = 0
+        self.num   = lexer.next_avail_state
+        lexer.next_avail_state += 1
         pass
+    def __str__(self):
+        return self.__repr__()
+    def __repr__(self):
+        return "state_%d" % self.num
     pass
 
 class lexer(object):
@@ -277,9 +299,7 @@ class lexer(object):
         return
 
     def get_new_state(self):
-        s = self.next_avail_state
-        self.next_avail_state += 1
-        return s
+        return fsa_state(self)
 
     def define_token(self, pat, action):
         self.pats.append((pat, action))

@@ -448,10 +448,10 @@ class dfa01(lex_test):
 class dfa02(lex_test):
     def runTest(self):
         obj = pylex.lexer()
-        postfix = ("a",)
+        postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
         dfa_obj = nfa_obj.convert_to_dfa()
-        self.assert_(isinstance(dfa_obj, pylex.dfa))
+        self.assert_(self.path_exists(dfa_obj, "ab"))
         return
     pass
 
