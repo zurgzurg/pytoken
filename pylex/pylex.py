@@ -143,6 +143,13 @@ class nfa(fsa):
     ## 4. The finish states of the DFA are those which contain
     ##    any of the finish states of the NFA.
     ##
+    def maybe_mark_nfa_accepting_state(self, state_list, nfa, nfa_state):
+        for acc in self.accepting_states:
+            if acc in state_list:
+                nfa.set_accepting_state(nfa_state)
+                return
+        return
+
     def convert_to_dfa(self):
         result = dfa(self.lexer)
         all_ch = [chr(i) for i in range(127)]
@@ -151,6 +158,8 @@ class nfa(fsa):
         start = self.e_closure(self.init_state)
         work = [start]
         seen[start] = result.init_state
+
+        self.maybe_mark_nfa_accepting_state(start, result, result.init_state)
 
         while work:
             s = work.pop()
@@ -166,10 +175,7 @@ class nfa(fsa):
                     dst = result.get_new_state()
                     seen[s2] = dst
                     work.append(s2)
-                    for acc in self.accepting_states:
-                        if acc in s2:
-                            result.set_accepting_state(dst)
-                            break
+                    self.maybe_mark_nfa_accepting_state(s2, result, dst)
                 else:
                     dst = seen[s2]
 

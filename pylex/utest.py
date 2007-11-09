@@ -455,6 +455,39 @@ class dfa02(lex_test):
         return
     pass
 
+class dfa03(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        p = obj.parse_as_postfix("abc")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        self.assert_(self.path_exists(dfa_obj, "abc"))
+        return
+    pass
+
+class dfa04(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        p = obj.parse_as_postfix("a|b")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        self.assert_(self.path_exists(dfa_obj, "a"))
+        self.assert_(self.path_exists(dfa_obj, "b"))
+        return
+    pass
+
+class dfa05(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        p = obj.parse_as_postfix("a*")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        self.assert_(self.path_exists(dfa_obj, "a"))
+        self.assert_(self.path_exists(dfa_obj, "aa"))
+        print dfa_obj
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
