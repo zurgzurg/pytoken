@@ -484,7 +484,16 @@ class dfa05(lex_test):
         dfa_obj = nfa_obj.convert_to_dfa()
         self.assert_(self.path_exists(dfa_obj, "a"))
         self.assert_(self.path_exists(dfa_obj, "aa"))
-        print dfa_obj
+        return
+    pass
+##############################################################
+class asm01(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        p = obj.parse_as_postfix("a|b")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        iform = pylex.compile_to_intermediate_form(dfa_obj)
         return
     pass
 

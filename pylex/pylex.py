@@ -524,3 +524,8 @@ def make_string_from_token_list(tlist):
             tmp.append( sym2name[tok] )
     result = "[%s]" % ",".join(tmp)
     return result
+
+###################################################################
+###################################################################
+def compile_to_intermediate_form(dfa_obj):
+    return None
