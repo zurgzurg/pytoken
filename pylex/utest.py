@@ -500,6 +500,19 @@ class iform01(lex_test):
         return
     pass
 
+class iform01(lex_test):
+    def runTest(self):
+        code = pylex.iform_code()
+        code.make_std_registers()
+        code.add_iform_set(code.data_reg, 2)
+        code.add_iform_add(code.data_reg, 12)
+        code.add_iform_ret(code.data_reg)
+        sim = pylex.simulator()
+        v = sim.do_sim(code)
+        self.assert_(v == 14)
+        return
+    pass
+
 ##############################################################
 class asm01(lex_test):
     def runTest(self):
