@@ -500,7 +500,7 @@ class iform01(lex_test):
         return
     pass
 
-class iform01(lex_test):
+class iform02(lex_test):
     def runTest(self):
         code = pylex.iform_code()
         code.make_std_registers()
