@@ -7,9 +7,10 @@ import pdb
 import pylex
 
 from pylex import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
+from pylex import IFORM_LABEL, IFORM_LDW, IFORM_LDB, IFORM_STW, IFORM_STB, \
+     IFORM_CMP, IFORM_BEQ, IFORM_BNE, IFORM_NOP, IFORM_ADD, IFORM_RET
 
 class lex_test(unittest.TestCase):
-
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
         self.assert_(tok == exp)
@@ -487,13 +488,27 @@ class dfa05(lex_test):
         return
     pass
 ##############################################################
+class iform01(lex_test):
+    def runTest(self):
+        code = pylex.iform_code()
+        code.make_std_registers()
+        code.add_iform_set(code.data_reg, 0)
+        code.add_iform_ret(code.data_reg)
+        sim = pylex.simulator()
+        v = sim.do_sim(code)
+        self.assert_(v == 0)
+        return
+    pass
+
+##############################################################
 class asm01(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         p = obj.parse_as_postfix("a|b")
         nfa_obj = obj.postfix_to_nfa(p)
         dfa_obj = nfa_obj.convert_to_dfa()
-        iform = pylex.compile_to_intermediate_form(dfa_obj)
+        iform = pylex.compile_to_intermediate_form(obj, dfa_obj)
+        sim = pylex.simulator()
         return
     pass
 

@@ -1,17 +1,21 @@
+import new
 import pdb
+
 
 ##########################################################################
 class fsa(object):
     def __init__(self, lexer):
         self.init_state       = lexer.get_new_state()
         self.trans_tbl        = {}
-        self.states           = []
+        self.states           = [self.init_state]
         self.lexer            = lexer
         self.accepting_states = []
         return
 
     def get_new_state(self):
-        return self.lexer.get_new_state()
+        result = self.lexer.get_new_state()
+        self.states.append(result)
+        return result
 
     def add_edge(self, cur_state, ch, next_state):
         k = (cur_state, ch) 
@@ -180,6 +184,7 @@ class nfa(fsa):
                     dst = seen[s2]
 
                 result.add_edge(cur_state, ch, dst)
+                cur_state.out_chars.append(ch)
                     
         return result
         
@@ -285,8 +290,11 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
 
 class fsa_state(object):
     def __init__(self, lexer):
-        self.lexer = lexer
-        self.num   = lexer.next_avail_state
+        self.lexer         = lexer
+        self.num           = lexer.next_avail_state
+        self.out_chars     = []
+        self.label         = None
+        self.is_accepting  = False
         lexer.next_avail_state += 1
         pass
     def __str__(self):
@@ -527,5 +535,374 @@ def make_string_from_token_list(tlist):
 
 ###################################################################
 ###################################################################
-def compile_to_intermediate_form(dfa_obj):
-    return None
+##
+## addressing modes: (reg) -- reg_indirect - use reg as an address
+## const - any integer - no worry about too large ints for now
+## addr - any integer
+##
+## register: string: reg_<num>
+## label   : string: lab_<num>
+##
+IFORM_LABEL =  0 # label
+IFORM_LDW   =  1 # reg, addr  | reg, (reg)
+IFORM_LDB   =  2 # reg, addr  | reg, (reg)
+IFORM_STW   =  3 # addr, reg  | (reg), reg
+IFORM_STB   =  4 # addr, reg  | (reg), reg
+IFORM_SET   =  5 # reg, const
+IFORM_CMP   =  5 # reg, reg   | reg, const
+IFORM_BEQ   =  6 # label
+IFORM_BNE   =  7 # label
+IFORM_NOP   =  8 #
+IFORM_ADD   =  9 # reg, const | reg, reg
+IFORM_RET   = 10 # reg
+
+instr2txt = {
+    IFORM_LABEL    : "label",
+    IFORM_LDW      : "ldw",
+    IFORM_LDB      : "ldb",
+    IFORM_STW      : "stw",
+    IFORM_STB      : "stb",
+    IFORM_SET      : "set",
+    IFORM_CMP      : "cmp",
+    IFORM_BEQ      : "beq",
+    IFORM_BNE      : "bne",
+    IFORM_NOP      : "nop",
+    IFORM_ADD      : "add",
+    IFORM_RET      : "ret"
+    }
+
+####################################################
+
+def iform_label(lab):
+    assert_is_label(lab)
+    return (IFORM_LABEL, lab)
+
+def iform_ldw(dst, src):
+    assert_is_reg(dst)
+    assert_is_addr_or_indirect_reg(src)
+    return (IFORM_LDW, dst, src)
+
+def iform_ldb(dst, src):
+    assert_is_reg(dst)
+    assert_is_addr_or_indirect_reg(src)
+    return (IFORM_LDB, dst, src)
+
+def iform_stw(dst, src):
+    assert_is_addr_or_indirect_reg(dst)
+    assert_is_reg(src)
+    return (IFORM_STW, dst, src)
+
+def iform_stb(addr, src):
+    assert_is_addr_or_indirect_reg(dst)
+    assert_is_reg(src)
+    return (IFORM_STB, dst, src)
+
+def iform_set(reg, val):
+    assert_is_reg(reg)
+    assert type(val) is int
+    return (IFORM_SET, reg, val)
+
+def iform_cmp(v1, v2):
+    assert_is_reg(v1)
+    assert_is_reg_or_const(v2)
+    return (IFORM_CMP, v1, v2)
+
+def iform_beq(lab):
+    assert_is_label(lab)
+    return (IFORM_BEQ, lab)
+
+def iform_bne(lab):
+    assert_is_label(lab)
+    return (IFORM_BNE, lab)
+
+def iform_nop():
+    return (IFORM_NOP,)
+
+def iform_add(reg, v):
+    assert_is_reg(reg)
+    assert_is_reg_or_const(v)
+    return (IFORM_ADD, reg, v)
+
+def iform_ret(reg):
+    assert_is_reg(reg)
+    return (IFORM_RET, reg)
+
+####################################################
+
+def assert_is_reg(r):
+    assert r.startswith("reg_")
+    return
+
+def assert_is_addr_or_indirect_reg(arg):
+    assert type(arg) is int or (arg.startswith("(reg_") and arg.endswith(")"))
+    return
+
+def assert_is_label(l):
+    assert l.startswith("lab_")
+    return
+
+def assert_is_reg_or_const(r):
+    assert (type(r) is str and r.startswith("reg_")) or type(r) is int
+    return
+
+####################################################
+
+class iform_code(object):
+    def __init__(self):
+        self.all_regs           = []
+        self.str_ptr_reg        = None
+        self.data_reg           = None
+        self.next_avail_reg_num = 1
+        self.instructions       = []
+
+        symtab = globals()
+        for f in ['iform_label', 'iform_ldw', 'iform_ldb', 'iform_stw',
+                  'iform_stb', 'iform_set', 'iform_cmp', 'iform_beq',
+                  'iform_bne', 'iform_nop', 'iform_add', 'iform_ret']:
+            func_obj = symtab[f]
+            setattr(self, "make_" + f, func_obj)
+
+        pass
+
+    def make_new_register(self):
+        r = "reg_%d" % self.next_avail_reg_num
+        self.next_avail_reg_num += 1
+        self.all_regs.append(r)
+        return r
+
+    def make_std_registers(self):
+        self.str_ptr_reg  = self.make_new_register()
+        self.data_reg     = self.make_new_register()
+        return
+
+    def set_str_ptr_reg(self, val):
+        self.str_ptr_reg = val
+        return
+
+    def print_instructions(self):
+        for tup in self.instructions:
+            op     = tup[0]
+            op_txt = instr2txt[op]
+            print op_txt, tup[1:]
+        return
+
+    def add_iform_label(self, *args):
+        self.instructions.append(iform_label(*args))
+        return
+    def add_iform_ldw(self, *args):
+        self.instructions.append(iform_ldw(*args))
+        return
+    def add_iform_ldb(self, *args):
+        self.instructions.append(iform_ldb(*args))
+        return
+    def add_iform_stw(self, *args):
+        self.instructions.append(iform_stw(*args))
+        return
+    def add_iform_stb(self, *args):
+        self.instructions.append(iform_stb(*args))
+        return
+    def add_iform_set(self, *args):
+        self.instructions.append(iform_set(*args))
+        return
+    def add_iform_cmp(self, *args):
+        self.instructions.append(iform_cmp(*args))
+        return
+    def add_iform_beq(self, *args):
+        self.instructions.append(iform_beq(*args))
+        return
+    def add_iform_bne(self, *args):
+        self.instructions.append(iform_bne(*args))
+        return
+    def add_iform_nop(self, *args):
+        self.instructions.append(iform_nop(*args))
+        return
+    def add_iform_add(self, *args):
+        self.instructions.append(iform_add(*args))
+        return
+    def add_iform_ret(self, *args):
+        self.instructions.append(iform_ret(*args))
+        return
+    pass
+
+####################################################
+
+class simulator(object):
+    def __init__(self):
+        self.memory           = []
+        self.registers        = {}
+        self.label2pos        = {}
+        self.is_eql           = False
+        self.is_little_endian = True
+        pass
+
+    def set_memory(self, m):
+        self.memory = []
+        self.memory.extend(m)
+        return
+
+    def set_register(self, r, v):
+        assert r in self.registers
+        self.registers[r] = v
+        return
+
+    def do_sim(self, code):
+        code.set_str_ptr_reg(0)
+        for r in code.all_regs:
+            self.registers[r] = 77
+        for idx, tup in enumerate(code.instructions):
+            if tup[0] == IFORM_LABEL:
+                self.label2pos[tup[1]] = idx
+        iptr = 0
+        while True:
+            tup = code.instructions[iptr]
+            iptr += 1
+            op = tup[0]
+            if op == IFORM_LABEL:
+                pass
+            elif op == IFORM_LDW:
+                dst  = tup[1]
+                addr = tup[2]
+                if self.is_little_endian:
+                    val = self.do_little_endian_load_w(addr)
+                else:
+                    val = self.do_big_endian_load_w(addr)
+                self.set_register(dst, val)
+                if val == 0:
+                    self.is_eql = True
+                else:
+                    self.is_eql = False
+            elif op == IFORM_LDB:
+                dst   = tup[1]
+                addr  = tup[2]
+                val = 0xFF & int(self.memory[addr])
+                self.set_register(dst, val)
+                if val == 0:
+                    self.is_eql = True
+                else:
+                    self.is_eql = False
+            elif op == IFORM_STW:
+                addr = tup[1]
+                val  = tup[2]
+                if self.is_little_endian:
+                    self.do_little_endian_store_w(addr, val)
+                else:
+                    self.do_big_endian_store_w(addr, val)
+            elif op == IFORM_STB:
+                addr = tup[1]
+                val  = tup[2] & 0xFF
+                pdb.set_trace()
+                self.memory[addr] = val
+            elif op == IFORM_SET:
+                reg = tup[1]
+                val = tup[2]
+                self.set_register(reg, val)
+            elif op == IFORM_CMP:
+                op1 = self.resolve_value_or_register(tup[1])
+                op2 = self.resolve_value_or_register(tup[2])
+                if op1 == op2:
+                    self.is_eql = True
+                else:
+                    self.is_eql = False
+            elif op == IFORM_BEQ:
+                if self.is_eql == True:
+                    dst_lab = tup[1]
+                    iptr = self.label2pos[dst_lab]
+            elif op == IFORM_BNE:
+                if self.is_eql == False:
+                    dst_lab = tup[1]
+                    iptr = self.label2pos[dst_lab]
+            elif op == IFORM_NOP:
+                pass
+            elif op == IFORM_ADD:
+                reg = tup[1]
+                reg_val = self.resolve_value_or_register(reg)
+                op2 = tup[2]
+                reg_val += op2
+                self.set_register(reg, reg_val)
+            elif op == IFORM_RET:
+                reg = tup[1]
+                val = self.resolve_value_or_register(reg)
+                return val
+            else:
+                assert None, "Unknown op code"
+        return
+
+    def resolve_value_or_register(self, v):
+        if type(v) is str:
+            if v in self.registers:
+                v2 = self.registers[v]
+            else:
+                v2 = ord(v)
+            return v2
+        assert type(v) is int
+        return v
+
+    def do_little_endian_load_w(self, addr):
+        b0 = 0xFF & int(self.memory[addr + 0])
+        b1 = 0xFF & int(self.memory[addr + 1])
+        b2 = 0xFF & int(self.memory[addr + 2])
+        b3 = 0xFF & int(self.memory[addr + 3])
+        v = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
+        return v
+
+    def do_big_endian_load_w(self, addr):
+        b0 = 0xFF & int(self.memory[addr + 0])
+        b1 = 0xFF & int(self.memory[addr + 1])
+        b2 = 0xFF & int(self.memory[addr + 2])
+        b3 = 0xFF & int(self.memory[addr + 3])
+        v = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
+        return v
+
+    def do_little_endian_store_w(self, addr, val):
+        b0 =  val & 0x000000FF
+        b1 = (val & 0x0000FF00) >>  8
+        b2 = (val & 0x00FF0000) >> 16
+        b3 = (val & 0xFF000000) >> 24
+        self.memory[addr + 0] = chr(b0)
+        self.memory[addr + 1] = chr(b1)
+        self.memory[addr + 2] = chr(b2)
+        self.memory[addr + 3] = chr(b3)
+        return
+
+    def do_big_endian_store_w(self, addr, val):
+        b0 =  val & 0x000000FF
+        b1 = (val & 0x0000FF00) >>  8
+        b2 = (val & 0x00FF0000) >> 16
+        b3 = (val & 0xFF000000) >> 24
+        self.memory[addr + 0] = chr(b3)
+        self.memory[addr + 1] = chr(b2)
+        self.memory[addr + 2] = chr(b1)
+        self.memory[addr + 3] = chr(b0)
+        return
+
+    pass
+        
+####################################################
+
+def compile_to_intermediate_form(lexer, dfa_obj):
+    result = iform_code()
+    result.make_std_registers()
+    for i, s in enumerate(dfa_obj.states):
+        s.label = "lab_%d" % i
+
+    for s in dfa_obj.states:
+        tmp = compile_one_node(result, s, dfa_obj)
+        result.instructions.extend(tmp)
+
+    return result
+
+def compile_one_node(code, state, dfa_obj):
+    result = [ code.make_iform_label(state.label) ]
+    if len(state.out_chars) > 0:
+        ld_src = "(" + code.str_ptr_reg + ")"
+        result.append( code.make_iform_ldb(code.data_reg, ld_src) )
+        result.append( code.make_iform_add(code.str_ptr_reg, 1) )
+    for ch in state.out_chars:
+        k = (state, ch)
+        dst = dfa_obj.trans_tbl[k]
+        assert len(dst) == 1
+        dst = dst[0]
+        result.append( code.make_iform_cmp(code.data_reg, ord(ch)) )
+        result.append( code.make_iform_beq(dst.label) )
+
+    return result
