@@ -832,6 +832,7 @@ class simulator(object):
             if v in self.registers:
                 v2 = self.registers[v]
             else:
+                assert len(v) == 1
                 v2 = ord(v)
             return v2
         assert type(v) is int
@@ -858,10 +859,10 @@ class simulator(object):
         b1 = (val & 0x0000FF00) >>  8
         b2 = (val & 0x00FF0000) >> 16
         b3 = (val & 0xFF000000) >> 24
-        self.memory[addr + 0] = chr(b0)
-        self.memory[addr + 1] = chr(b1)
-        self.memory[addr + 2] = chr(b2)
-        self.memory[addr + 3] = chr(b3)
+        self.memory[addr + 0] = b0
+        self.memory[addr + 1] = b1
+        self.memory[addr + 2] = b2
+        self.memory[addr + 3] = b3
         return
 
     def do_big_endian_store_w(self, addr, val):
@@ -869,10 +870,10 @@ class simulator(object):
         b1 = (val & 0x0000FF00) >>  8
         b2 = (val & 0x00FF0000) >> 16
         b3 = (val & 0xFF000000) >> 24
-        self.memory[addr + 0] = chr(b3)
-        self.memory[addr + 1] = chr(b2)
-        self.memory[addr + 2] = chr(b1)
-        self.memory[addr + 3] = chr(b0)
+        self.memory[addr + 0] = b3
+        self.memory[addr + 1] = b2
+        self.memory[addr + 2] = b1
+        self.memory[addr + 3] = b0
         return
 
     pass
