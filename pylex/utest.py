@@ -513,6 +513,21 @@ class iform02(lex_test):
         return
     pass
 
+class iform03(lex_test):
+    def runTest(self):
+        code = pylex.iform_code()
+        code.make_std_registers()
+        r2 = code.make_new_register()
+        code.add_iform_set(code.data_reg, 0xFF)
+        code.add_iform_stb(0, code.data_reg)
+        code.add_iform_ldb(r2, 0)
+        code.add_iform_ret(r2)
+        sim = pylex.simulator(mem_size=2)
+        v = sim.do_sim(code)
+        self.assert_(v == 0xFF)
+        return
+    pass
+
 ##############################################################
 class asm01(lex_test):
     def runTest(self):

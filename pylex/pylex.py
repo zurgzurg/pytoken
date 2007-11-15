@@ -592,7 +592,7 @@ def iform_stw(dst, src):
     assert_is_reg(src)
     return (IFORM_STW, dst, src)
 
-def iform_stb(addr, src):
+def iform_stb(dst, src):
     assert_is_addr_or_indirect_reg(dst)
     assert_is_reg(src)
     return (IFORM_STB, dst, src)
@@ -727,8 +727,8 @@ class iform_code(object):
 ####################################################
 
 class simulator(object):
-    def __init__(self):
-        self.memory           = []
+    def __init__(self, mem_size=100):
+        self.memory           = list((None,)*mem_size)
         self.registers        = {}
         self.label2pos        = {}
         self.is_eql           = False
@@ -788,10 +788,11 @@ class simulator(object):
                 else:
                     self.do_big_endian_store_w(addr, val)
             elif op == IFORM_STB:
-                addr = tup[1]
-                val  = tup[2] & 0xFF
-                pdb.set_trace()
-                self.memory[addr] = val
+                dst = tup[1]
+                src = tup[2]
+                src_val  = self.resolve_value_or_register(src)
+                src_val2 = src_val & 0xFF
+                self.memory[dst] = src_val2
             elif op == IFORM_SET:
                 reg = tup[1]
                 val = tup[2]
