@@ -599,7 +599,7 @@ def iform_stb(dst, src):
 
 def iform_set(reg, val):
     assert_is_reg(reg)
-    assert type(val) is int
+    assert_is_const(val)
     return (IFORM_SET, reg, val)
 
 def iform_cmp(v1, v2):
@@ -643,6 +643,17 @@ def assert_is_label(l):
 
 def assert_is_reg_or_const(r):
     assert (type(r) is str and r.startswith("reg_")) or type(r) is int
+    return
+
+def assert_is_const(r):
+    assert type(r) in (int, long)
+    return
+
+####################################################
+
+def assert_is_byte(v):
+    assert type(v) is int
+    assert v >= 0 and v <= 255
     return
 
 ####################################################
@@ -728,11 +739,14 @@ class iform_code(object):
 
 class simulator(object):
     def __init__(self, mem_size=100):
+        # each pos in memory _must_ store an int: 0 <= val <= 255
+        # basically an 8 bit quantity
         self.memory           = list((None,)*mem_size)
         self.registers        = {}
         self.label2pos        = {}
         self.is_eql           = False
         self.is_little_endian = True
+        self.mem_size         = mem_size
         pass
 
     def set_memory(self, m):
@@ -760,98 +774,125 @@ class simulator(object):
             if op == IFORM_LABEL:
                 pass
             elif op == IFORM_LDW:
-                dst  = tup[1]
-                addr = tup[2]
+                # reg, addr | reg, (reg)
+                dst = tup[1]
+                assert_is_reg(dst)
+                src = self.resolve_addr_or_indirect_reg(tup[2])
                 if self.is_little_endian:
-                    val = self.do_little_endian_load_w(addr)
+                    val = self.do_little_endian_load_w(src)
                 else:
-                    val = self.do_big_endian_load_w(addr)
+                    val = self.do_big_endian_load_w(src)
                 self.set_register(dst, val)
                 if val == 0:
                     self.is_eql = True
                 else:
                     self.is_eql = False
             elif op == IFORM_LDB:
-                dst   = tup[1]
-                addr  = tup[2]
-                val = 0xFF & int(self.memory[addr])
+                # reg, addr | reg, (reg)
+                dst = tup[1]
+                assert_is_reg(dst)
+                src = self.resolve_addr_or_indirect_reg(tup[2])
+                val = self.do_load_b(src)
+                assert_is_byte(val)
                 self.set_register(dst, val)
                 if val == 0:
                     self.is_eql = True
                 else:
                     self.is_eql = False
             elif op == IFORM_STW:
-                addr = tup[1]
-                val  = tup[2]
+                # addr, reg | (reg), reg
+                dst = self.resolve_addr_or_indirect_reg(tup[1])
+                src = self.resolve_reg(tup[2])
                 if self.is_little_endian:
-                    self.do_little_endian_store_w(addr, val)
+                    self.do_little_endian_store_w(dst, src)
                 else:
-                    self.do_big_endian_store_w(addr, val)
+                    self.do_big_endian_store_w(dst, src)
             elif op == IFORM_STB:
-                dst = tup[1]
-                src = tup[2]
-                src_val  = self.resolve_value_or_register(src)
-                src_val2 = src_val & 0xFF
-                self.memory[dst] = src_val2
+                # addr, reg | (reg), reg
+                dst = self.resolve_addr_or_indirect_reg(tup[1])
+                src = self.resolve_reg(tup[2])
+                self.do_store_b(dst, src & 0xFF)
             elif op == IFORM_SET:
                 reg = tup[1]
                 val = tup[2]
+                assert_is_reg(reg)
+                assert_is_const(val)
                 self.set_register(reg, val)
             elif op == IFORM_CMP:
-                op1 = self.resolve_value_or_register(tup[1])
-                op2 = self.resolve_value_or_register(tup[2])
-                if op1 == op2:
+                arg1 = self.resolve_reg(tup[1])
+                arg2 = self.resolve_reg_or_const(tup[2])
+                if arg1 == arg2:
                     self.is_eql = True
                 else:
                     self.is_eql = False
             elif op == IFORM_BEQ:
+                dsl_lab = tup[1]
+                assert_is_label(lab)
                 if self.is_eql == True:
-                    dst_lab = tup[1]
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_BNE:
+                dsl_lab = tup[1]
+                assert_is_label(lab)
                 if self.is_eql == False:
-                    dst_lab = tup[1]
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_NOP:
                 pass
             elif op == IFORM_ADD:
-                reg = tup[1]
-                reg_val = self.resolve_value_or_register(reg)
-                op2 = tup[2]
-                reg_val += op2
-                self.set_register(reg, reg_val)
+                arg1 = self.resolve_reg(tup[1])
+                arg2 = self.resolve_reg_or_const(tup[2])
+                arg1 += arg2
+                self.set_register(tup[1], arg1)
             elif op == IFORM_RET:
-                reg = tup[1]
-                val = self.resolve_value_or_register(reg)
+                val = self.resolve_reg(tup[1])
                 return val
             else:
                 assert None, "Unknown op code"
         return
 
-    def resolve_value_or_register(self, v):
-        if type(v) is str:
-            if v in self.registers:
-                v2 = self.registers[v]
-            else:
-                assert len(v) == 1
-                v2 = ord(v)
-            return v2
-        assert type(v) is int
+    #######
+
+    def resolve_reg(self, reg):
+        assert_is_reg(reg)
+        v = self.registers[reg]
         return v
 
+    def resolve_addr_or_indirect_reg(self, arg):
+        if type(arg) is str:
+            assert arg[0] == "(" and arg[-1]==")"
+            reg = arg[1:-1]
+            assert_is_reg(reg)
+            v = self.registers[reg]
+            return v
+        assert_is_const(arg)
+        return arg
+
+    def resolve_reg_or_const(self, arg):
+        if type(arg) is str:
+            assert_is_reg(arg)
+            v = self.registers[arg]
+            return v
+        assert_is_const(arg)
+        return arg
+
+    def resolve_const(self, arg):
+        assert_is_const(arg)
+        return arg
+
+    #######
+
     def do_little_endian_load_w(self, addr):
-        b0 = 0xFF & int(self.memory[addr + 0])
-        b1 = 0xFF & int(self.memory[addr + 1])
-        b2 = 0xFF & int(self.memory[addr + 2])
-        b3 = 0xFF & int(self.memory[addr + 3])
+        b0 = 0xFF & self.memory[addr + 0]
+        b1 = 0xFF & self.memory[addr + 1]
+        b2 = 0xFF & self.memory[addr + 2]
+        b3 = 0xFF & self.memory[addr + 3]
         v = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
         return v
 
     def do_big_endian_load_w(self, addr):
-        b0 = 0xFF & int(self.memory[addr + 0])
-        b1 = 0xFF & int(self.memory[addr + 1])
-        b2 = 0xFF & int(self.memory[addr + 2])
-        b3 = 0xFF & int(self.memory[addr + 3])
+        b0 = 0xFF & self.memory[addr + 0]
+        b1 = 0xFF & self.memory[addr + 1]
+        b2 = 0xFF & self.memory[addr + 2]
+        b3 = 0xFF & self.memory[addr + 3]
         v = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
         return v
 
@@ -876,6 +917,18 @@ class simulator(object):
         self.memory[addr + 2] = b1
         self.memory[addr + 3] = b0
         return
+
+    def do_store_b(self, addr, val):
+        assert addr >= 0 and addr < self.mem_size
+        assert_is_byte(val)
+        self.memory[addr] = val
+        return
+
+    def do_load_b(self, addr):
+        assert addr >= 0 and addr < self.mem_size
+        v = self.memory[addr]
+        assert_is_byte(v)
+        return v
 
     pass
         
