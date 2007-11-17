@@ -613,6 +613,7 @@ IFORM_BNE   =  8 # label
 IFORM_NOP   =  9 #
 IFORM_ADD   = 10 # reg, const | reg, reg
 IFORM_RET   = 11 # reg
+IFORM_COM   = 12 # comment
 
 instr2txt = {
     IFORM_LABEL    : "label",
@@ -626,7 +627,8 @@ instr2txt = {
     IFORM_BNE      : "bne",
     IFORM_NOP      : "nop",
     IFORM_ADD      : "add",
-    IFORM_RET      : "ret"
+    IFORM_RET      : "ret",
+    IFORM_COM      : "com"
     }
 
 ####################################################
@@ -684,6 +686,102 @@ def iform_add(reg, v):
 def iform_ret(reg):
     assert_is_reg(reg)
     return (IFORM_RET, reg)
+
+def iform_com(txt):
+    return (IFORM_COM, txt)
+
+####################################################
+
+def str_iform_label(tup):
+    assert len(tup)==2 and tup[0]==IFORM_LABEL
+    assert_is_label(tup[1])
+    return "%s:" % tup[1]
+
+def str_iform_ldw(tup):
+    assert len(tup)==3
+    assert tup[0]==IFORM_LDW
+    assert_is_reg(tup[1])
+    assert_is_addr_or_indirect_reg(tup[2])
+    if type(tup[2]) is str:
+        return "    ldw %s <-- %s" % (tup[1], tup[2])
+    else:
+        return "    ldw %s <-- %d" % (tup[1], tup[2])
+
+def str_iform_ldb(tup):
+    assert len(tup)==3 and tup[0]==IFORM_LDB
+    assert_is_reg(tup[1])
+    assert_is_addr_or_indirect_reg(tup[2])
+    if type(tup[2]) is str:
+        return "    ldb %s <-- %s" % (tup[1], tup[2])
+    else:
+        return "    ldb %s <-- %d" % (tup[1], tup[2])
+
+def str_iform_stw(tup):
+    assert len(tup)==3 and tup[0]==IFORM_STW
+    assert_is_addr_or_indirect_reg(tup[1])
+    assert_is_reg(tup[2])
+    if type(tup[1]) is str:
+        return "    stw %s <-- %s" % (tup[1], tup[2])
+    else:
+        return "    stw %s <-- %d" % (tup[1], tup[2])
+
+def str_iform_stb(tup):
+    assert len(tup)==3
+    assert tup[0]==IFORM_STB
+    assert_is_addr_or_indirect_reg(tup[1])
+    assert_is_reg(tup[2])
+    if type(tup[1]) is str:
+        return "    stb %s <-- %s" % (tup[1], tup[2])
+    else:
+        return "    stb %s <-- %d" % (tup[1], tup[2])
+
+def str_iform_set(tup):
+    assert len(tup) == 3 and tup[0] == IFORM_SET
+    assert_is_reg(tup[1])
+    assert_is_const(tup[2])
+    return "    set %s <-- %d" % (tup[1], tup[2])
+
+def str_iform_cmp(tup):
+    assert len(tup)==3 and tup[0]==IFORM_CMP
+    assert_is_reg(tup[1])
+    assert_is_reg_or_const(tup[2])
+    if type(tup[2]) is str:
+        return "    cmp %s, %s" % (tup[1], tup[2])
+    else:
+        return "    cmp %s, %d" % (tup[1], tup[2])
+
+def str_iform_beq(tup):
+    assert len(tup)==2 and tup[0]==IFORM_BEQ
+    assert_is_label(tup[1])
+    return "    beq %s" % (tup[1])
+
+def str_iform_bne(tup):
+    assert len(tup)==2 and tup[0]==IFORM_BNE
+    assert_is_label(tup[1])
+    return "    bne %s" % (tup[1])
+
+def str_iform_nop(tup):
+    assert len(tup)==1 and tup[0]==IFORM_NOP
+    return "    nop"
+
+def str_iform_add(tup):
+    assert len(tup)==3 and tup[0]==IFORM_ADD
+    assert_is_reg(tup[1])
+    assert_is_reg_or_const(tup[2])
+    if type(tup[2]) is str:
+        return "    add %s <-- %s,%s" % (tup[1], tup[1], tup[2])
+    else:
+        return "    add %s <-- %s,%d" % (tup[1], tup[1], tup[2])
+
+def str_iform_ret(tup):
+    assert len(tup)==2 and tup[0]==IFORM_RET
+    assert_is_reg(tup[1])
+    return "    ret %s" % tup[1]
+
+def str_iform_com(tup):
+    assert len(tup)==2 and tup[0]==IFORM_COM
+    assert_is_reg(tup[1])
+    return "#%s" % tup[1]
 
 ####################################################
 
@@ -759,6 +857,8 @@ class iform_code(object):
             print op_txt, tup[1:]
         return
 
+    ###
+
     def add_iform_label(self, *args):
         self.instructions.append(iform_label(*args))
         return
@@ -795,6 +895,46 @@ class iform_code(object):
     def add_iform_ret(self, *args):
         self.instructions.append(iform_ret(*args))
         return
+
+    ###
+
+    def ladd_iform_label(self, l, *args):
+        l.append(iform_label(*args))
+        return
+    def ladd_iform_ldw(self, l, *args):
+        l.append(iform_ldw(*args))
+        return
+    def ladd_iform_ldb(self, l, *args):
+        l.append(iform_ldb(*args))
+        return
+    def ladd_iform_stw(self, l, *args):
+        l.append(iform_stw(*args))
+        return
+    def ladd_iform_stb(self, l, *args):
+        l.append(iform_stb(*args))
+        return
+    def ladd_iform_set(self, l, *args):
+        l.append(iform_set(*args))
+        return
+    def ladd_iform_cmp(self, l, *args):
+        l.append(iform_cmp(*args))
+        return
+    def ladd_iform_beq(self, l, *args):
+        l.append(iform_beq(*args))
+        return
+    def ladd_iform_bne(self, l, *args):
+        l.append(iform_bne(*args))
+        return
+    def ladd_iform_nop(self, l, *args):
+        l.append(iform_nop(*args))
+        return
+    def ladd_iform_add(self, l, *args):
+        l.append(iform_add(*args))
+        return
+    def ladd_iform_ret(self, l, *args):
+        l.append(iform_ret(*args))
+        return
+
     pass
 
 ####################################################
@@ -814,24 +954,25 @@ def compile_to_intermediate_form(lexer, dfa_obj):
     return result
 
 def compile_one_node(code, state, dfa_obj):
-    result = [ code.make_iform_label(state.label) ]
+    lst = []
+    code.ladd_iform_label(lst, state.label)
     if len(state.out_chars) > 0:
         ld_src = "(" + code.str_ptr_reg + ")"
-        result.append( code.make_iform_ldb(code.data_reg, ld_src) )
-        result.append( code.make_iform_add(code.str_ptr_reg, 1) )
+        code.ladd_iform_ldb(lst, code.data_reg, ld_src)
+        code.ladd_iform_add(lst, code.str_ptr_reg, 1)
     if state.user_action:
-        result.append( code.make_iform_set(code.data_reg, state.user_action) )
-        result.append( code.make_iform_ret(code.data_reg) )
+        code.ladd_iform_set(lst, code.data_reg, state.user_action)
+        code.ladd_iform_ret(lst, code.data_reg)
     for ch in state.out_chars:
         k = (state, ch)
         dst = dfa_obj.trans_tbl[k]
         assert len(dst) == 1
         dst = dst[0]
-        result.append( code.make_iform_cmp(code.data_reg, ord(ch)) )
-        result.append( code.make_iform_beq(dst.label) )
-    result.append( code.make_iform_set(code.data_reg, 0) )
-    result.append( code.make_iform_ret(code.data_reg) )
-    return result
+        code.ladd_iform_cmp(lst, code.data_reg, ord(ch))
+        code.ladd_iform_beq(lst, dst.label)
+    code.ladd_iform_set(lst, code.data_reg, 0)
+    code.ladd_iform_ret(lst, code.data_reg)
+    return lst
 
 ####################################################
 class simulator(object):
