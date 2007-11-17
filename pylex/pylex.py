@@ -148,10 +148,18 @@ class nfa(fsa):
     ##    any of the finish states of the NFA.
     ##
     def maybe_mark_nfa_accepting_state(self, state_list, nfa, nfa_state):
-        for acc in self.accepting_states:
-            if acc in state_list:
-                nfa.set_accepting_state(nfa_state)
-                return
+        slist = [s for s in self.accepting_states if s in state_list]
+        if len(slist) == 0:
+            return
+
+        the_state = slist.pop(0)
+        for s in slist:
+            if s.priority < the_state.priority:
+                the_state = s
+
+        nfa_state.priority = the_state.priority
+        nfa_state.user_action = the_state.user_action
+        nfa.set_accepting_state(nfa_state)
         return
 
     def convert_to_dfa(self):
@@ -295,11 +303,15 @@ class fsa_state(object):
         self.out_chars     = []
         self.label         = None
         self.is_accepting  = False
+        self.user_action   = None
+        self.priority      = None
         lexer.next_avail_state += 1
         pass
     def __str__(self):
         return self.__repr__()
     def __repr__(self):
+        if self.user_action:
+            return "state_%d_act=%d" % (self.num, self.user_action)
         return "state_%d" % self.num
     pass
 
@@ -307,17 +319,63 @@ class lexer(object):
     def __init__(self):
         self.pats             = []
         self.next_avail_state = 1
+
         self.nfa_obj          = None
-        self.cur_result       = None
-        self.cur_pattern      = None
+        self.dfa_obj          = None
+        self.iform            = None
+
         return
 
-    def get_new_state(self):
-        return fsa_state(self)
-
-    def define_token(self, pat, action):
+    #######################################
+    #######################################
+    #######################################
+    ##
+    ## main user interface
+    ##
+    #######################################
+    #######################################
+    #######################################
+    def add_pattern(self, pat, action):
         self.pats.append((pat, action))
         return
+
+    def build_nfa(self):
+        priority = 1
+        nfa_list = []
+        for p, a in self.pats:
+            postfix = self.parse_as_postfix(p)
+            nfa_obj = self.postfix_to_nfa(postfix)
+            for st in nfa_obj.accepting_states:
+                st.user_action = a
+                st.priority    = priority
+            nfa_list.append(nfa_obj)
+            priority += 1
+
+        the_nfa = nfa_list.pop(0)
+        while nfa_list:
+            tmp = nfa_list.pop(0)
+            the_nfa = do_nfa_pipe(self, the_nfa, tmp)
+        self.nfa_obj = the_nfa
+        return the_nfa
+        
+        iform = compile_to_intermediate_form(self, the_dfa)
+        return iform
+
+    def build_dfa(self):
+        self.dfa_obj = self.nfa_obj.convert_to_dfa()
+        return self.dfa_obj
+
+    def compile_to_iform(self):
+        self.iform = compile_to_intermediate_form(self, self.dfa_obj)
+        return self.iform
+
+    #######################################
+    ##
+    ## helpers / utils
+    ##
+    #######################################
+    def get_new_state(self):
+        return fsa_state(self)
 
     ######################################
     ##
@@ -549,12 +607,12 @@ IFORM_LDB   =  2 # reg, addr  | reg, (reg)
 IFORM_STW   =  3 # addr, reg  | (reg), reg
 IFORM_STB   =  4 # addr, reg  | (reg), reg
 IFORM_SET   =  5 # reg, const
-IFORM_CMP   =  5 # reg, reg   | reg, const
-IFORM_BEQ   =  6 # label
-IFORM_BNE   =  7 # label
-IFORM_NOP   =  8 #
-IFORM_ADD   =  9 # reg, const | reg, reg
-IFORM_RET   = 10 # reg
+IFORM_CMP   =  6 # reg, reg   | reg, const
+IFORM_BEQ   =  7 # label
+IFORM_BNE   =  8 # label
+IFORM_NOP   =  9 #
+IFORM_ADD   = 10 # reg, const | reg, reg
+IFORM_RET   = 11 # reg
 
 instr2txt = {
     IFORM_LABEL    : "label",
@@ -690,8 +748,12 @@ class iform_code(object):
         self.str_ptr_reg = val
         return
 
-    def print_instructions(self):
-        for tup in self.instructions:
+    def print_instructions(self, opt_list=None):
+        if opt_list:
+            tmp = opt_list
+        else:
+            tmp = self.instructions
+        for tup in tmp:
             op     = tup[0]
             op_txt = instr2txt[op]
             print op_txt, tup[1:]
@@ -736,7 +798,42 @@ class iform_code(object):
     pass
 
 ####################################################
+####################################################
+def compile_to_intermediate_form(lexer, dfa_obj):
+    result = iform_code()
+    result.make_std_registers()
+    for i, s in enumerate(dfa_obj.states):
+        s.label = "lab_%d" % i
 
+    result.add_iform_set(result.str_ptr_reg, 0)
+
+    for s in dfa_obj.states:
+        tmp = compile_one_node(result, s, dfa_obj)
+        result.instructions.extend(tmp)
+
+    return result
+
+def compile_one_node(code, state, dfa_obj):
+    result = [ code.make_iform_label(state.label) ]
+    if len(state.out_chars) > 0:
+        ld_src = "(" + code.str_ptr_reg + ")"
+        result.append( code.make_iform_ldb(code.data_reg, ld_src) )
+        result.append( code.make_iform_add(code.str_ptr_reg, 1) )
+    if state.user_action:
+        result.append( code.make_iform_set(code.data_reg, state.user_action) )
+        result.append( code.make_iform_ret(code.data_reg) )
+    for ch in state.out_chars:
+        k = (state, ch)
+        dst = dfa_obj.trans_tbl[k]
+        assert len(dst) == 1
+        dst = dst[0]
+        result.append( code.make_iform_cmp(code.data_reg, ord(ch)) )
+        result.append( code.make_iform_beq(dst.label) )
+    result.append( code.make_iform_set(code.data_reg, 0) )
+    result.append( code.make_iform_ret(code.data_reg) )
+    return result
+
+####################################################
 class simulator(object):
     def __init__(self, mem_size=100):
         # each pos in memory _must_ store an int: 0 <= val <= 255
@@ -750,8 +847,8 @@ class simulator(object):
         pass
 
     def set_memory(self, m):
-        self.memory = []
-        self.memory.extend(m)
+        for i, ch in enumerate(m):
+            self.memory[i] = ord(ch)
         return
 
     def set_register(self, r, v):
@@ -826,13 +923,13 @@ class simulator(object):
                 else:
                     self.is_eql = False
             elif op == IFORM_BEQ:
-                dsl_lab = tup[1]
-                assert_is_label(lab)
+                dst_lab = tup[1]
+                assert_is_label(dst_lab)
                 if self.is_eql == True:
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_BNE:
-                dsl_lab = tup[1]
-                assert_is_label(lab)
+                dst_lab = tup[1]
+                assert_is_label(dst_lab)
                 if self.is_eql == False:
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_NOP:
@@ -931,33 +1028,3 @@ class simulator(object):
         return v
 
     pass
-        
-####################################################
-
-def compile_to_intermediate_form(lexer, dfa_obj):
-    result = iform_code()
-    result.make_std_registers()
-    for i, s in enumerate(dfa_obj.states):
-        s.label = "lab_%d" % i
-
-    for s in dfa_obj.states:
-        tmp = compile_one_node(result, s, dfa_obj)
-        result.instructions.extend(tmp)
-
-    return result
-
-def compile_one_node(code, state, dfa_obj):
-    result = [ code.make_iform_label(state.label) ]
-    if len(state.out_chars) > 0:
-        ld_src = "(" + code.str_ptr_reg + ")"
-        result.append( code.make_iform_ldb(code.data_reg, ld_src) )
-        result.append( code.make_iform_add(code.str_ptr_reg, 1) )
-    for ch in state.out_chars:
-        k = (state, ch)
-        dst = dfa_obj.trans_tbl[k]
-        assert len(dst) == 1
-        dst = dst[0]
-        result.append( code.make_iform_cmp(code.data_reg, ord(ch)) )
-        result.append( code.make_iform_beq(dst.label) )
-
-    return result

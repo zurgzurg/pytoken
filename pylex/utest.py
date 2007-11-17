@@ -555,6 +555,22 @@ class asm01(lex_test):
         return
     pass
 
+class asm02(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+        sim.set_memory("a")
+        v = sim.do_sim(code)
+        self.assert_(v == 1)
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
