@@ -492,6 +492,7 @@ class iform01(lex_test):
     def runTest(self):
         code = pylex.iform_code()
         code.make_std_registers()
+        code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 0)
         code.add_iform_ret(code.data_reg)
         sim = pylex.simulator()
@@ -504,6 +505,7 @@ class iform02(lex_test):
     def runTest(self):
         code = pylex.iform_code()
         code.make_std_registers()
+        code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 2)
         code.add_iform_add(code.data_reg, 12)
         code.add_iform_ret(code.data_reg)
@@ -517,6 +519,7 @@ class iform03(lex_test):
     def runTest(self):
         code = pylex.iform_code()
         code.make_std_registers()
+        code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
         code.add_iform_set(code.data_reg, 0xFF)
         code.add_iform_stb(0, code.data_reg)
@@ -532,6 +535,7 @@ class iform04(lex_test):
     def runTest(self):
         code = pylex.iform_code()
         code.make_std_registers()
+        code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
         code.add_iform_set(code.data_reg, 0xFFEEDDCC)
         code.add_iform_stw(0, code.data_reg)
@@ -568,6 +572,105 @@ class asm02(lex_test):
         sim.set_memory("a")
         v = sim.do_sim(code)
         self.assert_(v == 1)
+        return
+    pass
+
+class asm03(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+        sim.set_memory("b")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+        return
+    pass
+
+class asm04(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("ab", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+        sim.set_memory("ab")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+        return
+    pass
+
+class asm05(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a|b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+
+        sim.set_memory("a")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+
+        sim.set_memory("b")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+
+        return
+    pass
+
+class asm06(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a*", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+
+        sim.set_memory("a")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+
+        sim.set_memory("aa")
+        v = sim.do_sim(code)
+        self.assert_(v == 2)
+
+        return
+    pass
+
+class asm07(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code = obj.compile_to_iform()
+
+        sim = pylex.simulator()
+
+        sim.set_memory("ab")
+        v = sim.do_sim(code)
+        self.assert_(v == 1)
+
+        v = sim.do_sim(code, "lab_main2")
+        pdb.set_trace()
+        self.assert_(v == 2)
+
         return
     pass
 

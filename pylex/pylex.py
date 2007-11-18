@@ -610,10 +610,11 @@ IFORM_SET   =  5 # reg, const
 IFORM_CMP   =  6 # reg, reg   | reg, const
 IFORM_BEQ   =  7 # label
 IFORM_BNE   =  8 # label
-IFORM_NOP   =  9 #
-IFORM_ADD   = 10 # reg, const | reg, reg
-IFORM_RET   = 11 # reg
-IFORM_COM   = 12 # comment
+IFORM_BR    =  9 # label
+IFORM_NOP   = 10 #
+IFORM_ADD   = 11 # reg, const | reg, reg
+IFORM_RET   = 12 # reg
+IFORM_COM   = 13 # comment
 
 instr2txt = {
     IFORM_LABEL    : "label",
@@ -625,11 +626,17 @@ instr2txt = {
     IFORM_CMP      : "cmp",
     IFORM_BEQ      : "beq",
     IFORM_BNE      : "bne",
+    IFORM_BR       : "br",
     IFORM_NOP      : "nop",
     IFORM_ADD      : "add",
     IFORM_RET      : "ret",
     IFORM_COM      : "com"
     }
+
+iform_names = ['iform_label', 'iform_ldw', 'iform_ldb', 'iform_stw',
+               'iform_stb', 'iform_set', 'iform_cmp', 'iform_beq',
+               'iform_bne', 'iform_br', 'iform_nop', 'iform_add',
+               'iform_ret', 'iform_com']
 
 ####################################################
 
@@ -674,6 +681,10 @@ def iform_beq(lab):
 def iform_bne(lab):
     assert_is_label(lab)
     return (IFORM_BNE, lab)
+
+def iform_br(lab):
+    assert_is_label(lab)
+    return (IFORM_BR, lab)
 
 def iform_nop():
     return (IFORM_NOP,)
@@ -760,6 +771,11 @@ def str_iform_bne(tup):
     assert_is_label(tup[1])
     return "    bne %s" % (tup[1])
 
+def str_iform_br(tup):
+    assert len(tup)==2 and tup[0]==IFORM_BR
+    assert_is_label(tup[1])
+    return "    br %s" % (tup[1])
+
 def str_iform_nop(tup):
     assert len(tup)==1 and tup[0]==IFORM_NOP
     return "    nop"
@@ -782,6 +798,23 @@ def str_iform_com(tup):
     assert len(tup)==2 and tup[0]==IFORM_COM
     assert_is_reg(tup[1])
     return "#%s" % tup[1]
+
+instr2pfunc = {
+    IFORM_LABEL    : str_iform_label,
+    IFORM_LDW      : str_iform_ldw,
+    IFORM_LDB      : str_iform_ldb,
+    IFORM_STW      : str_iform_stw,
+    IFORM_STB      : str_iform_stb,
+    IFORM_SET      : str_iform_set,
+    IFORM_CMP      : str_iform_cmp,
+    IFORM_BEQ      : str_iform_beq,
+    IFORM_BNE      : str_iform_bne,
+    IFORM_BR       : str_iform_br,
+    IFORM_NOP      : str_iform_nop,
+    IFORM_ADD      : str_iform_add,
+    IFORM_RET      : str_iform_ret,
+    IFORM_COM      : str_iform_com
+    }
 
 ####################################################
 
@@ -823,9 +856,7 @@ class iform_code(object):
         self.instructions       = []
 
         symtab = globals()
-        for f in ['iform_label', 'iform_ldw', 'iform_ldb', 'iform_stw',
-                  'iform_stb', 'iform_set', 'iform_cmp', 'iform_beq',
-                  'iform_bne', 'iform_nop', 'iform_add', 'iform_ret']:
+        for f in iform_names:
             func_obj = symtab[f]
             setattr(self, "make_" + f, func_obj)
 
@@ -853,8 +884,9 @@ class iform_code(object):
             tmp = self.instructions
         for tup in tmp:
             op     = tup[0]
-            op_txt = instr2txt[op]
-            print op_txt, tup[1:]
+            func   = instr2pfunc[op]
+            s = func(tup)
+            print s
         return
 
     ###
@@ -885,6 +917,9 @@ class iform_code(object):
         return
     def add_iform_bne(self, *args):
         self.instructions.append(iform_bne(*args))
+        return
+    def add_iform_br(self, *args):
+        self.instructions.append(iform_br(*args))
         return
     def add_iform_nop(self, *args):
         self.instructions.append(iform_nop(*args))
@@ -925,6 +960,9 @@ class iform_code(object):
     def ladd_iform_bne(self, l, *args):
         l.append(iform_bne(*args))
         return
+    def ladd_iform_br(self, l, *args):
+        l.append(iform_br(*args))
+        return
     def ladd_iform_nop(self, l, *args):
         l.append(iform_nop(*args))
         return
@@ -945,7 +983,9 @@ def compile_to_intermediate_form(lexer, dfa_obj):
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 
+    result.add_iform_label("lab_main1")
     result.add_iform_set(result.str_ptr_reg, 0)
+    result.add_iform_label("lab_main2")
 
     for s in dfa_obj.states:
         tmp = compile_one_node(result, s, dfa_obj)
@@ -997,13 +1037,16 @@ class simulator(object):
         self.registers[r] = v
         return
 
-    def do_sim(self, code):
-        code.set_str_ptr_reg(0)
+    def do_sim(self, code, start_lab="lab_main1"):
         for r in code.all_regs:
             self.registers[r] = 77
         for idx, tup in enumerate(code.instructions):
             if tup[0] == IFORM_LABEL:
                 self.label2pos[tup[1]] = idx
+
+        start_pos = self.label2pos[start_lab]
+        code.set_str_ptr_reg(start_pos)
+
         iptr = 0
         while True:
             tup = code.instructions[iptr]
@@ -1073,6 +1116,10 @@ class simulator(object):
                 assert_is_label(dst_lab)
                 if self.is_eql == False:
                     iptr = self.label2pos[dst_lab]
+            elif op == IFORM_BR:
+                dst_lab = tup[1]
+                assert_is_label(dst_lab)
+                iptr = self.label2pos[dst_lab]
             elif op == IFORM_NOP:
                 pass
             elif op == IFORM_ADD:
