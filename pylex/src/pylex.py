@@ -1,6 +1,8 @@
-import new
+import sys
 import pdb
 
+sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
+import escape
 
 ##########################################################################
 class fsa(object):
@@ -594,30 +596,50 @@ def make_string_from_token_list(tlist):
 ###################################################################
 ###################################################################
 ##
+## overall architecture
+##
+## regexps --> nfa --> dfa --> iform code --> x86 code
+##
+## iform code : intermediate form of machine code to
+##              implement the state machine for the dfa
+##              the code object has only pure executable code
+##
+## buffer:      text to be scanned + scanner state
+##              buffer objects can be switched at will by user
+##              code
+##
+###################################################################
+###################################################################
+##
 ## addressing modes: (reg) -- reg_indirect - use reg as an address
 ## const - any integer - no worry about too large ints for now
 ## addr - any integer
 ##
 ## register: string: reg_<num>
-## label   : string: lab_<num>
+## label   : string: lab_<num>  -- code label
+## dlab    : string: dlab_<num> -- data label
 ##
-IFORM_LABEL =  0 # label
-IFORM_LDW   =  1 # reg, addr  | reg, (reg)
-IFORM_LDB   =  2 # reg, addr  | reg, (reg)
-IFORM_STW   =  3 # addr, reg  | (reg), reg
-IFORM_STB   =  4 # addr, reg  | (reg), reg
-IFORM_SET   =  5 # reg, const
-IFORM_CMP   =  6 # reg, reg   | reg, const
-IFORM_BEQ   =  7 # label
-IFORM_BNE   =  8 # label
-IFORM_BR    =  9 # label
-IFORM_NOP   = 10 #
-IFORM_ADD   = 11 # reg, const | reg, reg
-IFORM_RET   = 12 # reg
-IFORM_COM   = 13 # comment
+IFORM_LABEL   =  0 # label
+IFORM_DATA    =  1 # dlabel, string | dlabel, int 
+IFORM_LDW     =  2 # reg, addr  | reg, (reg) | reg, dlab
+IFORM_LDB     =  3 # reg, addr  | reg, (reg) | reg, dlab
+IFORM_STW     =  4 # addr, reg  | (reg), reg | dlab, reg
+IFORM_STB     =  5 # addr, reg  | (reg), reg | dlab, reg
+IFORM_SET     =  6 # reg, const
+IFORM_CMP     =  7 # reg, reg   | reg, const
+IFORM_BEQ     =  8 # label
+IFORM_BNE     =  9 # label
+IFORM_BR      = 10 # label
+IFORM_NOP     = 11 #
+IFORM_ADD     = 12 # reg, const | reg, reg
+IFORM_RET     = 13 # reg
+IFORM_COM     = 14 # comment
+IFORM_CALL    = 15 # addr, <arg>...<arg> | reg, <arg>...<arg>
+
 
 instr2txt = {
     IFORM_LABEL    : "label",
+    IFORM_DATA     : "data",
     IFORM_LDW      : "ldw",
     IFORM_LDB      : "ldb",
     IFORM_STW      : "stw",
@@ -630,13 +652,19 @@ instr2txt = {
     IFORM_NOP      : "nop",
     IFORM_ADD      : "add",
     IFORM_RET      : "ret",
-    IFORM_COM      : "com"
+    IFORM_COM      : "com",
+    IFORM_CALL     : "call"
     }
 
-iform_names = ['iform_label', 'iform_ldw', 'iform_ldb', 'iform_stw',
-               'iform_stb', 'iform_set', 'iform_cmp', 'iform_beq',
-               'iform_bne', 'iform_br', 'iform_nop', 'iform_add',
-               'iform_ret', 'iform_com']
+iform_names = ['iform_label', 'iform_data',
+               'iform_ldw', 'iform_ldb',
+               'iform_stw', 'iform_stb',
+               'iform_set',
+               'iform_cmp', 'iform_beq', 'iform_bne', 'iform_br',
+               'iform_nop',
+               'iform_add',
+               'iform_ret',
+               'iform_com', 'iform_call']
 
 ####################################################
 
@@ -644,23 +672,27 @@ def iform_label(lab):
     assert_is_label(lab)
     return (IFORM_LABEL, lab)
 
+def iform_data(dlab, val):
+    assert_is_dlabel(dlab)
+    return (IFORM_DATA, dlab, val)
+
 def iform_ldw(dst, src):
     assert_is_reg(dst)
-    assert_is_addr_or_indirect_reg(src)
+    assert_is_addr_or_indirect_reg_or_dlab(src)
     return (IFORM_LDW, dst, src)
 
 def iform_ldb(dst, src):
     assert_is_reg(dst)
-    assert_is_addr_or_indirect_reg(src)
+    assert_is_addr_or_indirect_reg_or_dlab(src)
     return (IFORM_LDB, dst, src)
 
 def iform_stw(dst, src):
-    assert_is_addr_or_indirect_reg(dst)
+    assert_is_addr_or_indirect_reg_or_dlab(dst)
     assert_is_reg(src)
     return (IFORM_STW, dst, src)
 
 def iform_stb(dst, src):
-    assert_is_addr_or_indirect_reg(dst)
+    assert_is_addr_or_indirect_reg_or_dlab(dst)
     assert_is_reg(src)
     return (IFORM_STB, dst, src)
 
@@ -701,6 +733,12 @@ def iform_ret(reg):
 def iform_com(txt):
     return (IFORM_COM, txt)
 
+def iform_call(func, *args):
+    assert_is_addr_or_reg(func)
+    tmp = [IFORM_CALL, func]
+    tmp.extend(args)
+    return tuple(tmp)
+
 ####################################################
 
 def str_iform_label(tup):
@@ -708,11 +746,16 @@ def str_iform_label(tup):
     assert_is_label(tup[1])
     return "%s:" % tup[1]
 
+def str_iform_data(tup):
+    assert len(tup)==3 and tup[0]==IFORM_DATA
+    assert_is_dlabel(tup[1])
+    return "%s:  data: %s" % (tup[1], str(tup[2]))
+
 def str_iform_ldw(tup):
     assert len(tup)==3
     assert tup[0]==IFORM_LDW
     assert_is_reg(tup[1])
-    assert_is_addr_or_indirect_reg(tup[2])
+    assert_is_addr_or_indirect_reg_or_dlab(tup[2])
     if type(tup[2]) is str:
         return "    ldw %s <-- %s" % (tup[1], tup[2])
     else:
@@ -721,7 +764,7 @@ def str_iform_ldw(tup):
 def str_iform_ldb(tup):
     assert len(tup)==3 and tup[0]==IFORM_LDB
     assert_is_reg(tup[1])
-    assert_is_addr_or_indirect_reg(tup[2])
+    assert_is_addr_or_indirect_reg_or_dlab(tup[2])
     if type(tup[2]) is str:
         return "    ldb %s <-- %s" % (tup[1], tup[2])
     else:
@@ -729,7 +772,7 @@ def str_iform_ldb(tup):
 
 def str_iform_stw(tup):
     assert len(tup)==3 and tup[0]==IFORM_STW
-    assert_is_addr_or_indirect_reg(tup[1])
+    assert_is_addr_or_indirect_reg_or_dlab(tup[1])
     assert_is_reg(tup[2])
     if type(tup[1]) is str:
         return "    stw %s <-- %s" % (tup[1], tup[2])
@@ -739,7 +782,7 @@ def str_iform_stw(tup):
 def str_iform_stb(tup):
     assert len(tup)==3
     assert tup[0]==IFORM_STB
-    assert_is_addr_or_indirect_reg(tup[1])
+    assert_is_addr_or_indirect_reg_or_dlab(tup[1])
     assert_is_reg(tup[2])
     if type(tup[1]) is str:
         return "    stb %s <-- %s" % (tup[1], tup[2])
@@ -799,8 +842,14 @@ def str_iform_com(tup):
     assert_is_reg(tup[1])
     return "#%s" % tup[1]
 
+def str_iform_call(tup):
+    assert tup[0]==IFORM_CALL
+    args = ", ".join(tup[1:])
+    return "    call " + args
+
 instr2pfunc = {
     IFORM_LABEL    : str_iform_label,
+    IFORM_DATA     : str_iform_data,
     IFORM_LDW      : str_iform_ldw,
     IFORM_LDB      : str_iform_ldb,
     IFORM_STW      : str_iform_stw,
@@ -813,7 +862,8 @@ instr2pfunc = {
     IFORM_NOP      : str_iform_nop,
     IFORM_ADD      : str_iform_add,
     IFORM_RET      : str_iform_ret,
-    IFORM_COM      : str_iform_com
+    IFORM_COM      : str_iform_com,
+    IFORM_CALL     : str_iform_call
     }
 
 ####################################################
@@ -822,12 +872,18 @@ def assert_is_reg(r):
     assert r.startswith("reg_")
     return
 
-def assert_is_addr_or_indirect_reg(arg):
-    assert type(arg) is int or (arg.startswith("(reg_") and arg.endswith(")"))
+def assert_is_addr_or_indirect_reg_or_dlab(arg):
+    assert type(arg) in (int,long) \
+           or (arg.startswith("(reg_") and arg.endswith(")")) \
+           or arg.startswith("dlab_")
     return
 
 def assert_is_label(l):
     assert l.startswith("lab_")
+    return
+
+def assert_is_dlabel(l):
+    assert l.startswith("dlab_")
     return
 
 def assert_is_reg_or_const(r):
@@ -838,6 +894,10 @@ def assert_is_const(r):
     assert type(r) in (int, long)
     return
 
+def assert_is_addr_or_reg(v):
+    assert type(v) in (int,long) or v.startswith("reg_")
+    return
+    
 ####################################################
 
 def assert_is_byte(v):
@@ -848,12 +908,15 @@ def assert_is_byte(v):
 ####################################################
 
 class iform_code(object):
-    def __init__(self):
+    def __init__(self, lexer_obj):
+        self.lexer              = lexer_obj
         self.all_regs           = []
         self.str_ptr_reg        = None
         self.data_reg           = None
         self.next_avail_reg_num = 1
         self.instructions       = []
+        self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
+        self.lbuf               = None
 
         symtab = globals()
         for f in iform_names:
@@ -862,6 +925,16 @@ class iform_code(object):
 
         pass
 
+    ####################
+    ##
+    ## main user API
+    ##
+    ####################
+    def set_buffer(self, lbuf):
+        self.lbuf = lbuf
+        return
+
+    ####################
     def make_new_register(self):
         r = "reg_%d" % self.next_avail_reg_num
         self.next_avail_reg_num += 1
@@ -893,6 +966,9 @@ class iform_code(object):
 
     def add_iform_label(self, *args):
         self.instructions.append(iform_label(*args))
+        return
+    def add_iform_data(self, *args):
+        self.instructions.append(iform_data(*args))
         return
     def add_iform_ldw(self, *args):
         self.instructions.append(iform_ldw(*args))
@@ -930,11 +1006,20 @@ class iform_code(object):
     def add_iform_ret(self, *args):
         self.instructions.append(iform_ret(*args))
         return
+    def add_iform_com(self, *args):
+        self.instructions.append(iform_com(*args))
+        return
+    def add_iform_call(self, *args):
+        self.instructions.append(iform_call(*args))
+        return
 
     ###
 
     def ladd_iform_label(self, l, *args):
         l.append(iform_label(*args))
+        return
+    def ladd_iform_data(self, l, *args):
+        l.append(iform_data(*args))
         return
     def ladd_iform_ldw(self, l, *args):
         l.append(iform_ldw(*args))
@@ -972,37 +1057,51 @@ class iform_code(object):
     def ladd_iform_ret(self, l, *args):
         l.append(iform_ret(*args))
         return
+    def ladd_iform_com(self, l, *args):
+        l.append(iform_com(*args))
+        return
+    def ladd_iform_call(self, l, *args):
+        l.append(iform_call(*args))
+        return
 
     pass
 
 ####################################################
 ####################################################
+##
+## intermediate form generator
+##
+####################################################
+####################################################
 def compile_to_intermediate_form(lexer, dfa_obj):
-    result = iform_code()
-    result.make_std_registers()
+    code = iform_code(lexer)
+    code.make_std_registers()
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 
-    result.add_iform_label("lab_main1")
-    result.add_iform_set(result.str_ptr_reg, 0)
-    result.add_iform_label("lab_main2")
+    code.add_iform_label("lab_main1")
+    code.add_iform_set(code.str_ptr_reg, 0)
+    code.add_iform_label("lab_main2")
 
     for s in dfa_obj.states:
-        tmp = compile_one_node(result, s, dfa_obj)
-        result.instructions.extend(tmp)
+        tmp = compile_one_node(code, s, dfa_obj)
+        code.instructions.extend(tmp)
 
-    return result
+    return code
 
 def compile_one_node(code, state, dfa_obj):
     lst = []
+    code.ladd_iform_com(lst, "begin " + str(state))
     code.ladd_iform_label(lst, state.label)
     if len(state.out_chars) > 0:
         ld_src = "(" + code.str_ptr_reg + ")"
         code.ladd_iform_ldb(lst, code.data_reg, ld_src)
         code.ladd_iform_add(lst, code.str_ptr_reg, 1)
     if state.user_action:
+        code.ladd_iform_call(lst, code.call_method_addr, )
         code.ladd_iform_set(lst, code.data_reg, state.user_action)
         code.ladd_iform_ret(lst, code.data_reg)
+        return lst
     for ch in state.out_chars:
         k = (state, ch)
         dst = dfa_obj.trans_tbl[k]
@@ -1130,6 +1229,12 @@ class simulator(object):
             elif op == IFORM_RET:
                 val = self.resolve_reg(tup[1])
                 return val
+            elif op == IFORM_COM:
+                pass
+            elif op == IFORM_CALL:
+                pass
+            elif op == IFORM_DATA:
+                pass
             else:
                 assert None, "Unknown op code"
         return

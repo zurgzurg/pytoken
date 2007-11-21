@@ -10,6 +10,9 @@ from pylex import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
 from pylex import IFORM_LABEL, IFORM_LDW, IFORM_LDB, IFORM_STW, IFORM_STB, \
      IFORM_CMP, IFORM_BEQ, IFORM_BNE, IFORM_NOP, IFORM_ADD, IFORM_RET
 
+sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
+import escape
+
 class lex_test(unittest.TestCase):
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
@@ -490,7 +493,8 @@ class dfa05(lex_test):
 ##############################################################
 class iform01(lex_test):
     def runTest(self):
-        code = pylex.iform_code()
+        lobj = pylex.lexer()
+        code = pylex.iform_code(lobj)
         code.make_std_registers()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 0)
@@ -503,7 +507,8 @@ class iform01(lex_test):
 
 class iform02(lex_test):
     def runTest(self):
-        code = pylex.iform_code()
+        lobj = pylex.lexer()
+        code = pylex.iform_code(lobj)
         code.make_std_registers()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 2)
@@ -517,7 +522,8 @@ class iform02(lex_test):
 
 class iform03(lex_test):
     def runTest(self):
-        code = pylex.iform_code()
+        lobj = pylex.lexer()
+        code = pylex.iform_code(lobj)
         code.make_std_registers()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
@@ -533,7 +539,8 @@ class iform03(lex_test):
 
 class iform04(lex_test):
     def runTest(self):
-        code = pylex.iform_code()
+        lobj = pylex.lexer()
+        code = pylex.iform_code(lobj)
         code.make_std_registers()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
@@ -661,15 +668,8 @@ class asm07(lex_test):
         fsa2 = obj.build_dfa()
         code = obj.compile_to_iform()
 
-        sim = pylex.simulator()
-
-        sim.set_memory("ab")
-        v = sim.do_sim(code)
-        self.assert_(v == 1)
-
-        v = sim.do_sim(code, "lab_main2")
-        pdb.set_trace()
-        self.assert_(v == 2)
+        lbuf = escape.make_buffer()
+        code.set_buffer(lbuf)
 
         return
     pass
