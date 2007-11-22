@@ -4,6 +4,8 @@ import pdb
 sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
 import escape
 
+code = escape.code
+
 ##########################################################################
 class fsa(object):
     def __init__(self, lexer):
@@ -930,6 +932,9 @@ class iform_code(object):
     ## main user API
     ##
     ####################
+    def get_token(self):
+        return None
+
     def set_buffer(self, lbuf):
         self.lbuf = lbuf
         return
@@ -962,8 +967,9 @@ class iform_code(object):
             print s
         return
 
-    ###
-
+    ####################
+    ## iform creator funcs
+    ####################
     def add_iform_label(self, *args):
         self.instructions.append(iform_label(*args))
         return
@@ -1013,8 +1019,9 @@ class iform_code(object):
         self.instructions.append(iform_call(*args))
         return
 
-    ###
-
+    ####################
+    ## list iform creator funcs
+    ####################
     def ladd_iform_label(self, l, *args):
         l.append(iform_label(*args))
         return
@@ -1063,7 +1070,6 @@ class iform_code(object):
     def ladd_iform_call(self, l, *args):
         l.append(iform_call(*args))
         return
-
     pass
 
 ####################################################
@@ -1113,6 +1119,22 @@ def compile_one_node(code, state, dfa_obj):
     code.ladd_iform_ret(lst, code.data_reg)
     return lst
 
+####################################################
+####################################################
+##
+## compile to actual machine code
+##
+####################################################
+####################################################
+def compile_to_vcode(iform):
+    r = escape.code()
+    return r
+
+def compile_to_x86_32(iform):
+    return None
+
+####################################################
+####################################################
 ####################################################
 class simulator(object):
     def __init__(self, mem_size=100):

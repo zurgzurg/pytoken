@@ -667,10 +667,59 @@ class asm07(lex_test):
         fsa1 = obj.build_nfa()
         fsa2 = obj.build_dfa()
         code = obj.compile_to_iform()
+        return
+    pass
 
-        lbuf = escape.make_buffer()
-        code.set_buffer(lbuf)
+class asm08(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
 
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code1 = obj.compile_to_iform()
+        code2 = pylex.compile_to_x86_32(code1)
+        return
+    pass
+
+class asm09(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code1 = obj.compile_to_iform()
+        code2 = pylex.compile_to_x86_32(code1)
+        return
+    pass
+
+class asm10(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code1 = obj.compile_to_iform()
+        code2 = pylex.compile_to_vcode(code1)
+        return
+    pass
+
+class asm11(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code1 = obj.compile_to_iform()
+        code2 = pylex.compile_to_vcode(code1)
+        self.assert_(isinstance(code2, pylex.code))
         return
     pass
 
