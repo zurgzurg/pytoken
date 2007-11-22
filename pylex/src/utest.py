@@ -723,6 +723,21 @@ class asm11(lex_test):
         return
     pass
 
+class asm12(lex_test):
+    def runTest(self):
+        obj = pylex.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+
+        fsa1 = obj.build_nfa()
+        fsa2 = obj.build_dfa()
+        code1 = obj.compile_to_iform()
+        code2 = pylex.compile_to_vcode(code1)
+        func = code2.get_token
+        self.assert_(callable(func))
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):

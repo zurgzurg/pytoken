@@ -68,9 +68,8 @@ lexbuf_setattr(PyObject *self, char *name, PyObject *val)
 
 /***************************************************************/
 static PyObject *code_new(void);
-static PyObject *code_getattr(PyObject *self, char *name);
-static int code_setattr(PyObject *self, char *name, PyObject *val);
 static int code_init(PyObject *, PyObject *, PyObject *);
+static PyObject *code_get_token(PyObject *, PyObject *);
 
 staticforward PyTypeObject code_type;
 
@@ -85,13 +84,13 @@ typedef struct {
 static PyTypeObject code_type = {
   PyObject_HEAD_INIT(NULL)
   0,                                    /* ob_size */
-  "code",                               /* tp_name */
+  "escape.code",                        /* tp_name */
   sizeof(code_t),                       /* basic size */
   0,                                    /* item size */
   0,                                    /* tp_dealloc */
   0,                                    /* tp_print */
-  code_getattr,                         /* tp_getattr */
-  code_setattr,                         /* tp_setattr */
+  0,                                    /* tp_getattr */
+  0,                                    /* tp_setattr */
   0,                                    /* tp_compare */
   0,                                    /* tp_repr */
   0,                                    /* tp_as_number */
@@ -101,28 +100,35 @@ static PyTypeObject code_type = {
   0,                                    /* tp_call */
   0,                                    /* tp_str */
   0,                                    /* tp_getattro */
-  0,                                    /* tp_setattro */
-  0,                                    /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+  0,                                    /* tp_setattro       */
+  0,                                    /* tp_as_buffer      */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags      */
   PyDoc_STR("container for all executable code"),   /* tp_doc */
-  0,                                    /* tp_traverse */
-  0,                                    /* tp_clear */
-  0,                                    /* tp_richcompare */
+  0,                                    /* tp_traverse       */
+  0,                                    /* tp_clear          */
+  0,                                    /* tp_richcompare    */
   0,                                    /* tp_weaklistoffset */
-  0,                                    /* tp_iter */
-  0,                                    /* tp_iternext */
-  0,       /* tp_methods ---- want this*/
-  0,                                    /* tp_members */
-  0,                                    /* tp_getset */
-  0,                                    /* tp_base */
-  0,                                    /* tp_dict */
-  0,                                    /* tp_descr_get */
-  0,                                    /* tp_descr_set */
-  0,                                    /* tp_dictoffset */
-  code_init,                            /* tp_init */
-  0,                                    /* tp_alloc */
-  0,                                    /* tp_new */
+  0,                                    /* tp_iter           */
+  0,                                    /* tp_iternext       */
+  0,                                    /* tp_methods        */
+  0,                                    /* tp_members        */
+  0,                                    /* tp_getset         */
+  0,                                    /* tp_base           */
+  0,                                    /* tp_dict           */
+  0,                                    /* tp_descr_get      */
+  0,                                    /* tp_descr_set      */
+  0,                                    /* tp_dictoffset     */
+  code_init,                            /* tp_init           */
+  0,                                    /* tp_alloc          */
+  0,                                    /* tp_new            */
 };
+
+static PyMethodDef code_methods[] = {
+    {"get_token", code_get_token, METH_NOARGS,
+     "Return the next token."},
+    {NULL}
+};
+
 
 static PyObject *
 code_new(void)
@@ -147,16 +153,10 @@ code_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
 }
 
 static PyObject *
-code_getattr(PyObject *self, char *name)
+code_get_token(PyObject *arg_self_type, PyObject *arg_args)
 {
   Py_INCREF(Py_None);
   return Py_None;
-}
-
-static int
-code_setattr(PyObject *self, char *name, PyObject *val)
-{
-  return 1;
 }
 
 /***************************************************************/
@@ -229,6 +229,7 @@ initescape(void)
     return;
 
   code_type.tp_new = PyType_GenericNew;
+  code_type.tp_methods = code_methods;
   code = PyType_Ready(&code_type);
   if (code < 0)
     return;
