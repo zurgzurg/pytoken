@@ -4,7 +4,8 @@ import pdb
 sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
 import escape
 
-code = escape.code
+code        = escape.code
+lexer_state = escape.lexer_state
 
 ##########################################################################
 class fsa(object):
@@ -1347,3 +1348,6 @@ class simulator(object):
         return v
 
     pass
+
+def run_vcode_simulation(code_obj, lbuf_obj):
+    return None

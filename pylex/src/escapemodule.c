@@ -4,62 +4,107 @@
 #include <unistd.h>
 
 /***********************************************/
-static PyObject *lexbuf_new(void);
-static PyObject *lexbuf_getattr(PyObject *self, char *name);
-static int lexbuf_setattr(PyObject *self, char *name, PyObject *val);
+static int lexer_state_init(PyObject *, PyObject *, PyObject *);
+static void lexer_state_dealloc(PyObject *);
 
-staticforward PyTypeObject lexbuf_type;
+static PyObject *lexer_state_set_input_pos(PyObject *, PyObject *);
+static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 
 typedef struct {
   PyObject_HEAD
 
   void   *next_char_ptr;
   char   *buf;
-} lexbuf_t;
+  int     size_of_buf;
+} lexer_state_t;
 
-static PyTypeObject lexbuf_type = {
+static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
-  0,                        /*ob_size*/
-  "lexbuf",                 /*tp_name*/
-  sizeof(lexbuf_t),         /*tp_basicsize*/
-  0,                        /*tp_itemsize*/
-                     /* methods */
-  0,                        /*tp_dealloc*/
-  0,                        /*tp_print*/
-  lexbuf_getattr,           /*tp_getattr*/
-  lexbuf_setattr,           /*tp_setattr*/
-  0,                        /*tp_compare*/
-  0,                        /*tp_repr*/
-  0,                        /*tp_as_number*/
-  0,                        /*tp_as_sequence*/
-  0,                        /*tp_as_mapping*/
-  0,                        /*tp_hash*/
-  0,                        /*tp_call*/
-  0,                        /*tp_str*/
 };
 
-static PyObject *
-lexbuf_new(void)
-{
-  lexbuf_t *result;
+static PyMethodDef lexer_state_methods[] = {
+    {"set_input_pos", lexer_state_set_input_pos, METH_VARARGS,
+     "Set index of next valid character to scan."},
 
-  result = PyObject_NEW (lexbuf_t, &lexbuf_type);
-  result->next_char_ptr = 0;
-  result->buf           = 0;
-  return (PyObject *)result;
+    {"set_input", lexer_state_set_input,         METH_VARARGS,
+     "Set source of chars to read."},
+
+    {NULL}
+};
+
+static int
+lexer_state_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
+{
+  lexer_state_t *self;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  self->next_char_ptr = 0;
+  self->buf           = 0;
+  self->size_of_buf   = 0;
+  return 0;
+}
+
+static void
+lexer_state_dealloc(PyObject *arg_self)
+{
+  lexer_state_t *self;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (self->buf)
+    free(self->buf);
+  self->next_char_ptr = 0;
+  self->buf           = 0;
+  self->size_of_buf   = 0;
+  arg_self->ob_type->tp_free(arg_self);
 }
 
 static PyObject *
-lexbuf_getattr(PyObject *self, char *name)
+lexer_state_set_input_pos(PyObject *arg_self, PyObject *args)
 {
+  lexer_state_t *self;
+  int pos;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:set_input_pos", &pos))
+    return 0;
+  if (pos < 0 || pos > self->size_of_buf) {
+    PyErr_Format(PyExc_RuntimeError, "position out of range");
+    return 0;
+  }
+  if (self->buf==0 || self->size_of_buf==0) {
+    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    return 0;
+  }
+  self->next_char_ptr = self->buf + pos;
+
   Py_INCREF(Py_None);
   return Py_None;
 }
 
-static int
-lexbuf_setattr(PyObject *self, char *name, PyObject *val)
+static PyObject *
+lexer_state_set_input(PyObject *arg_self, PyObject *args)
 {
-  return 1;
+  lexer_state_t *self;
+  char *tmp_buf;
+  int i, tmp_buf_len;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "s#:set_input", &tmp_buf, &tmp_buf_len))
+    return 0;
+  if (self->buf)
+    free(self->buf);
+  self->buf = malloc(tmp_buf_len);
+  self->size_of_buf = tmp_buf_len;
+  for (i=0; i<tmp_buf_len; i++)
+    self->buf[i] = tmp_buf[i];
+  self->next_char_ptr = self->buf;
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 /***************************************************************/
@@ -91,74 +136,29 @@ static void code_grow(code_t *);
 
 static PyTypeObject code_type = {
   PyObject_HEAD_INIT(NULL)
-  0,                                    /* ob_size */
-  "escape.code",                        /* tp_name */
-  sizeof(code_t),                       /* basic size */
-  0,                                    /* item size */
-  code_dealloc,                         /* tp_dealloc */
-  0,                                    /* tp_print */
-  0,                                    /* tp_getattr */
-  0,                                    /* tp_setattr */
-  0,                                    /* tp_compare */
-  0,                                    /* tp_repr */
-  0,                                    /* tp_as_number */
-  0,                                    /* tp_as_sequence */
-  0,                                    /* tp_as_mapping */
-  0,                                    /* tp_hash */
-  0,                                    /* tp_call */
-  0,                                    /* tp_str */
-  0,                                    /* tp_getattro */
-  0,                                    /* tp_setattro       */
-  0,                                    /* tp_as_buffer      */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags      */
-  PyDoc_STR("container for all executable code"),   /* tp_doc */
-  0,                                    /* tp_traverse       */
-  0,                                    /* tp_clear          */
-  0,                                    /* tp_richcompare    */
-  0,                                    /* tp_weaklistoffset */
-  0,                                    /* tp_iter           */
-  0,                                    /* tp_iternext       */
-  0,                                    /* tp_methods        */
-  0,                                    /* tp_members        */
-  0,                                    /* tp_getset         */
-  0,                                    /* tp_base           */
-  0,                                    /* tp_dict           */
-  0,                                    /* tp_descr_get      */
-  0,                                    /* tp_descr_set      */
-  0,                                    /* tp_dictoffset     */
-  code_init,                            /* tp_init           */
-  0,                                    /* tp_alloc          */
-  0,                                    /* tp_new            */
 };
 
 static PyMethodDef code_methods[] = {
-    {"get_token", code_get_token, METH_NOARGS,
+    {"get_token", code_get_token, METH_VARARGS,
      "Return the next token."},
+
     {"set_type",  code_set_type,  METH_VARARGS,
      "Set type of code object to 'vcode' or 'mcode'."},
+
     {"append",    code_append,    METH_VARARGS,
      "Append a single chunk of data."},
+
     {NULL}
 };
 
-static PySequenceMethods code_seq_methods = {
-  0, /* sq_length */
-  0, /* sq_concat */
-  0, /* sq_repeat */
-  0, /* sq_item */
-  0, /* sq_slice */
-  0, /* sq_ass_item */
-  0, /* sq_ass_slice */
-  0, /* sq_contains */
-  0, /* sq_inplace_concat */
-  0, /* sq_inplace_repeat */
-};
+static PySequenceMethods code_seq_methods;
 
 static int
 code_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
 {
   code_t *self;
 
+  assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   self->num_in_buf    = 0;
   self->size_of_buf   = 1024;
@@ -221,8 +221,36 @@ code_item(PyObject *arg_self, Py_ssize_t i)
 }
 
 static PyObject *
-code_get_token(PyObject *arg_self, PyObject *arg_args)
+code_get_token(PyObject *arg_self, PyObject *args)
 {
+  code_t *self;
+  PyObject *lbuf, *m, *d, *func, *res;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  
+  if (!PyArg_ParseTuple(args, "O!:get_token", &lexer_state_type, &lbuf))
+    return 0;
+
+  if (self->is_vcode) {
+    m = PyImport_ImportModule("pylex");
+    if (m==0)
+      return 0;
+    d = PyModule_GetDict(m);
+    Py_DECREF(m);
+    if (d==0)
+      return 0;
+    func = PyDict_GetItemString(d, "run_vcode_simulation");
+    if (func == 0)
+      return 0;
+    if (!PyFunction_Check(func)) {
+      PyErr_Format(PyExc_RuntimeError, "run_vcode_simulation not a function");
+      return 0;
+    }
+    res = PyObject_CallFunctionObjArgs(func, arg_self, lbuf, 0);
+    return res;
+  }
+
   Py_INCREF(Py_None);
   return Py_None;
 }
@@ -306,15 +334,6 @@ code_grow(code_t *self)
 
 /***************************************************************/
 static PyObject *
-escape_make_buffer(PyObject *self, PyObject *args)
-{
-  PyObject *result;
-
-  result = lexbuf_new();
-  return result;
-}
-
-static PyObject *
 escape_get_func_addr(PyObject *self, PyObject *args)
 {
   char *func_name;
@@ -336,10 +355,9 @@ escape_get_func_addr(PyObject *self, PyObject *args)
 
 
 static PyMethodDef escape_methods[] = {
-  {"make_buffer",      escape_make_buffer,       METH_VARARGS,
-   PyDoc_STR("Create a new buffer to use with lexer obj.")},
   {"get_func_addr",    escape_get_func_addr,     METH_VARARGS,
    PyDoc_STR("Return address of certain python C api functions.")},
+
   {NULL,     NULL}
 };
 
@@ -365,23 +383,48 @@ initescape(void)
   if (m == NULL)
     return;
 
-  code = PyType_Ready(&lexbuf_type);
+  /****************************/
+  /* lexer state support      */
+  /****************************/
+  lexer_state_type.tp_name        = "escape.lexer_state";
+  lexer_state_type.tp_basicsize   = sizeof(lexer_state_t);
+  lexer_state_type.tp_new         = PyType_GenericNew;
+  lexer_state_type.tp_dealloc     = lexer_state_dealloc;
+  lexer_state_type.tp_methods     = lexer_state_methods;
+  lexer_state_type.tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  lexer_state_type.tp_doc         = "Full state for lexer code objs.";
+  lexer_state_type.tp_init        = lexer_state_init;
+
+  code = PyType_Ready(&lexer_state_type);
+  if (code < 0)
+    return;
+
+  Py_INCREF(&lexer_state_type);
+  code = PyModule_AddObject(m, "lexer_state", (PyObject *)&lexer_state_type);
   if (code < 0)
     return;
 
   /****************************/
   /* runtime code obj support */
   /****************************/
-  code_type.tp_new = PyType_GenericNew;
-  code_type.tp_methods = code_methods;
+  code_type.tp_name        = "escape.code";
+  code_type.tp_basicsize   = sizeof(code_t);
+  code_type.tp_new         = PyType_GenericNew;
+  code_type.tp_dealloc     = code_dealloc;
+  code_type.tp_methods     = code_methods;
+  code_type.tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  code_type.tp_doc         = "Container for all executable code.";
+  code_type.tp_init        = code_init;
+  code_type.tp_as_sequence = &code_seq_methods;
 
   code_seq_methods.sq_length = code_len;
   code_seq_methods.sq_item   = code_item;
-  code_type.tp_as_sequence = &code_seq_methods;
+
 
   code = PyType_Ready(&code_type);
   if (code < 0)
     return;
+
   Py_INCREF(&code_type);
   code = PyModule_AddObject(m, "code", (PyObject *)&code_type);
   if (code < 0)
