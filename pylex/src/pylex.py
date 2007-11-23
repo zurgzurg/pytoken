@@ -1350,4 +1350,4 @@ class simulator(object):
     pass
 
 def run_vcode_simulation(code_obj, lbuf_obj):
-    return None
+    return 1

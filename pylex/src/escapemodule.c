@@ -8,12 +8,13 @@ static int lexer_state_init(PyObject *, PyObject *, PyObject *);
 static void lexer_state_dealloc(PyObject *);
 
 static PyObject *lexer_state_set_input_pos(PyObject *, PyObject *);
+static PyObject *lexer_state_get_input_pos(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 
 typedef struct {
   PyObject_HEAD
 
-  void   *next_char_ptr;
+  char   *next_char_ptr;
   char   *buf;
   int     size_of_buf;
 } lexer_state_t;
@@ -25,6 +26,9 @@ static PyTypeObject lexer_state_type = {
 static PyMethodDef lexer_state_methods[] = {
     {"set_input_pos", lexer_state_set_input_pos, METH_VARARGS,
      "Set index of next valid character to scan."},
+
+    {"get_input_pos", lexer_state_get_input_pos, METH_NOARGS,
+     "Return index of next char to scan."},
 
     {"set_input", lexer_state_set_input,         METH_VARARGS,
      "Set source of chars to read."},
@@ -82,6 +86,25 @@ lexer_state_set_input_pos(PyObject *arg_self, PyObject *args)
 
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+static PyObject *
+lexer_state_get_input_pos(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (self->buf==0 || self->size_of_buf==0) {
+    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    return 0;
+  }
+
+  assert(self->next_char_ptr >= self->buf);
+  assert(self->next_char_ptr < self->buf + self->size_of_buf);
+  result = PyInt_FromLong(self->next_char_ptr - self->buf);
+  return result;
 }
 
 static PyObject *
