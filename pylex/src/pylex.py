@@ -1131,7 +1131,8 @@ def compile_to_vcode(iform):
     return r
 
 def compile_to_x86_32(iform):
-    return None
+    r = escape.code()
+    return r
 
 ####################################################
 ####################################################

@@ -70,6 +70,7 @@ lexbuf_setattr(PyObject *self, char *name, PyObject *val)
 static PyObject *code_new(void);
 static int code_init(PyObject *, PyObject *, PyObject *);
 static PyObject *code_get_token(PyObject *, PyObject *);
+static Py_ssize_t code_len(PyObject *);
 
 staticforward PyTypeObject code_type;
 
@@ -129,6 +130,18 @@ static PyMethodDef code_methods[] = {
     {NULL}
 };
 
+static PySequenceMethods code_seq_methods = {
+  0, /* sq_length */
+  0, /* sq_concat */
+  0, /* sq_repeat */
+  0, /* sq_item */
+  0, /* sq_slice */
+  0, /* sq_ass_item */
+  0, /* sq_ass_slice */
+  0, /* sq_contains */
+  0, /* sq_inplace_concat */
+  0, /* sq_inplace_repeat */
+};
 
 static PyObject *
 code_new(void)
@@ -150,6 +163,16 @@ code_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
   self = (code_t *)arg_self;
   self->num_in_buf = 0;
   return 0;
+}
+
+static Py_ssize_t
+code_len(PyObject *arg_self)
+{
+  code_t *self;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  return self->num_in_buf;
 }
 
 static PyObject *
@@ -228,8 +251,15 @@ initescape(void)
   if (code < 0)
     return;
 
+  /****************************/
+  /* runtime code obj support */
+  /****************************/
   code_type.tp_new = PyType_GenericNew;
   code_type.tp_methods = code_methods;
+
+  code_seq_methods.sq_length = code_len;
+  code_type.tp_as_sequence = &code_seq_methods;
+
   code = PyType_Ready(&code_type);
   if (code < 0)
     return;
