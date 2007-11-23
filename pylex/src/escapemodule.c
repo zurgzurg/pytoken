@@ -65,7 +65,9 @@ lexbuf_setattr(PyObject *self, char *name, PyObject *val)
 /***************************************************************/
 static int code_init(PyObject *, PyObject *, PyObject *);
 static void code_dealloc(PyObject *);
+
 static Py_ssize_t code_len(PyObject *);
+static PyObject *code_item(PyObject *, Py_ssize_t);
 
 static PyObject *code_get_token(PyObject *, PyObject *);
 static PyObject *code_set_type(PyObject *, PyObject *);
@@ -183,6 +185,7 @@ code_dealloc(PyObject *arg_self)
     self->u.obuf = 0;
   }
 
+  arg_self->ob_type->tp_free(arg_self);
   return;
 }
 
@@ -194,6 +197,27 @@ code_len(PyObject *arg_self)
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   return self->num_in_buf;
+}
+
+static PyObject *
+code_item(PyObject *arg_self, Py_ssize_t i)
+{
+  code_t *self;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  if (i < 0 || i > self->num_in_buf) {
+    PyErr_Format(PyExc_RuntimeError, "code_item index out of range");
+    return 0;
+  }
+
+  if (self->is_vcode) {
+    Py_INCREF(self->u.obuf[i]);
+    return self->u.obuf[i];
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static PyObject *
@@ -352,6 +376,7 @@ initescape(void)
   code_type.tp_methods = code_methods;
 
   code_seq_methods.sq_length = code_len;
+  code_seq_methods.sq_item   = code_item;
   code_type.tp_as_sequence = &code_seq_methods;
 
   code = PyType_Ready(&code_type);
