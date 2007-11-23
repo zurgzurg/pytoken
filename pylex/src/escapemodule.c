@@ -1,8 +1,10 @@
 #include "Python.h"
 
+#include <sys/types.h>
+#include <unistd.h>
+
 /***********************************************/
 static PyObject *lexbuf_new(void);
-static void lexbuf_dealloc(PyObject *self);
 static PyObject *lexbuf_getattr(PyObject *self, char *name);
 static int lexbuf_setattr(PyObject *self, char *name, PyObject *val);
 
@@ -22,7 +24,7 @@ static PyTypeObject lexbuf_type = {
   sizeof(lexbuf_t),         /*tp_basicsize*/
   0,                        /*tp_itemsize*/
                      /* methods */
-  lexbuf_dealloc,           /*tp_dealloc*/
+  0,                        /*tp_dealloc*/
   0,                        /*tp_print*/
   lexbuf_getattr,           /*tp_getattr*/
   lexbuf_setattr,           /*tp_setattr*/
@@ -47,12 +49,6 @@ lexbuf_new(void)
   return (PyObject *)result;
 }
 
-static void
-lexbuf_dealloc(PyObject *self)
-{
-  return;
-}
-
 static PyObject *
 lexbuf_getattr(PyObject *self, char *name)
 {
@@ -67,20 +63,29 @@ lexbuf_setattr(PyObject *self, char *name, PyObject *val)
 }
 
 /***************************************************************/
-static PyObject *code_new(void);
 static int code_init(PyObject *, PyObject *, PyObject *);
-static PyObject *code_get_token(PyObject *, PyObject *);
+static void code_dealloc(PyObject *);
 static Py_ssize_t code_len(PyObject *);
 
-staticforward PyTypeObject code_type;
+static PyObject *code_get_token(PyObject *, PyObject *);
+static PyObject *code_set_type(PyObject *, PyObject *);
+static PyObject *code_append(PyObject *, PyObject *);
 
 typedef struct {
   PyObject_HEAD
 
-  char   *buf;
-  int     size_of_buf;
-  int     num_in_buf;
+  union {
+    char      *buf;
+    PyObject **obuf;
+  } u;
+  int     size_of_buf; /* in objects */
+  int     num_in_buf;  /* num objs   */
+  int     obj_size;  /* machine code : obj_size=1 : bytes */
+                     /* vcode : obj_size=4 : PyObjects - likely tuples */
+  int     is_vcode;
 } code_t;
+
+static void code_grow(code_t *);
 
 static PyTypeObject code_type = {
   PyObject_HEAD_INIT(NULL)
@@ -88,7 +93,7 @@ static PyTypeObject code_type = {
   "escape.code",                        /* tp_name */
   sizeof(code_t),                       /* basic size */
   0,                                    /* item size */
-  0,                                    /* tp_dealloc */
+  code_dealloc,                         /* tp_dealloc */
   0,                                    /* tp_print */
   0,                                    /* tp_getattr */
   0,                                    /* tp_setattr */
@@ -127,6 +132,10 @@ static PyTypeObject code_type = {
 static PyMethodDef code_methods[] = {
     {"get_token", code_get_token, METH_NOARGS,
      "Return the next token."},
+    {"set_type",  code_set_type,  METH_VARARGS,
+     "Set type of code object to 'vcode' or 'mcode'."},
+    {"append",    code_append,    METH_VARARGS,
+     "Append a single chunk of data."},
     {NULL}
 };
 
@@ -143,26 +152,38 @@ static PySequenceMethods code_seq_methods = {
   0, /* sq_inplace_repeat */
 };
 
-static PyObject *
-code_new(void)
-{
-  code_t *result;
-
-  result = PyObject_NEW (code_t, &code_type);
-  result->num_in_buf    = 0;
-  result->size_of_buf   = 1024;
-  result->buf           = calloc(1, result->size_of_buf);
-  return (PyObject *)result;
-}
-
 static int
 code_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
 {
   code_t *self;
 
   self = (code_t *)arg_self;
-  self->num_in_buf = 0;
+  self->num_in_buf    = 0;
+  self->size_of_buf   = 1024;
+  self->is_vcode      = 0;
+  self->obj_size      = 1;
+
+  self->u.buf         = calloc(self->obj_size, self->size_of_buf);
+
   return 0;
+}
+
+static void
+code_dealloc(PyObject *arg_self)
+{
+  code_t *self;
+  int i;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  if (self->is_vcode) {
+    for (i=0; i<self->num_in_buf; i++)
+      Py_DECREF(self->u.obuf[i]);
+    free(self->u.obuf);
+    self->u.obuf = 0;
+  }
+
+  return;
 }
 
 static Py_ssize_t
@@ -176,10 +197,87 @@ code_len(PyObject *arg_self)
 }
 
 static PyObject *
-code_get_token(PyObject *arg_self_type, PyObject *arg_args)
+code_get_token(PyObject *arg_self, PyObject *arg_args)
 {
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+static PyObject *
+code_set_type(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  char *type_name;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+
+  if (self->num_in_buf != 0) {
+    PyErr_Format(PyExc_RuntimeError, "set_type can only be called on "
+		 "empty code objects");
+    return 0;
+  }
+  if (!PyArg_ParseTuple(args, "s:set_type", &type_name))
+    return 0;
+
+  if (strcmp(type_name, "vcode")==0) {
+    self->obj_size = 4;
+    self->is_vcode = 1;
+  }
+  else if (strcmp(type_name, "mcode")==0) {
+    self->obj_size = 1;
+    self->is_vcode = 0;
+  }
+  else {
+    PyErr_Format(PyExc_RuntimeError, "Unknown type for code object");
+    return 0;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+code_append(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  PyObject *tup;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  assert(self->num_in_buf <= self->size_of_buf);
+
+  if (self->is_vcode) {
+    if (!PyArg_ParseTuple(args, "O", &tup))
+      return 0;
+    if (!PyTuple_Check(tup)) {
+      PyErr_Format(PyExc_RuntimeError, "vcode code objects can only "
+		   "append tuples.");
+      return 0;
+    }
+    if (self->num_in_buf == self->size_of_buf)
+      code_grow(self);
+    Py_INCREF(tup);
+    self->u.obuf[ self->num_in_buf ] = tup;
+    self->num_in_buf++;
+  }
+  else {
+    PyErr_Format(PyExc_RuntimeError, "Not yet supported.");
+    return 0;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static void
+code_grow(code_t *self)
+{
+  self->size_of_buf = 2 * self->size_of_buf;
+  self->u.buf         = realloc(self->u.buf,
+				self->size_of_buf * self->obj_size);
+  assert(self->u.buf != 0);
+  return;
 }
 
 /***************************************************************/
@@ -189,15 +287,6 @@ escape_make_buffer(PyObject *self, PyObject *args)
   PyObject *result;
 
   result = lexbuf_new();
-  return result;
-}
-
-static PyObject *
-escape_make_code_obj(PyObject *self, PyObject *args)
-{
-  PyObject *result;
-
-  result = code_new();
   return result;
 }
 
@@ -225,8 +314,6 @@ escape_get_func_addr(PyObject *self, PyObject *args)
 static PyMethodDef escape_methods[] = {
   {"make_buffer",      escape_make_buffer,       METH_VARARGS,
    PyDoc_STR("Create a new buffer to use with lexer obj.")},
-  {"make_code_obj",    escape_make_code_obj,     METH_VARARGS,
-   PyDoc_STR("Create a architecture independant code object .")},
   {"get_func_addr",    escape_get_func_addr,     METH_VARARGS,
    PyDoc_STR("Return address of certain python C api functions.")},
   {NULL,     NULL}
@@ -242,6 +329,13 @@ initescape(void)
 {
   PyObject *m;
   int code;
+
+#if 0
+  pid_t pid;
+  pid = getpid();
+  printf("pid= %d\n", pid);
+  sleep(10);
+#endif
 
   m = Py_InitModule3("escape", escape_methods, module_doc);
   if (m == NULL)

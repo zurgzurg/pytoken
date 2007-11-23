@@ -1128,6 +1128,9 @@ def compile_one_node(code, state, dfa_obj):
 ####################################################
 def compile_to_vcode(iform):
     r = escape.code()
+    r.set_type("vcode")
+    for tup in iform.instructions:
+        r.append(tup)
     return r
 
 def compile_to_x86_32(iform):
