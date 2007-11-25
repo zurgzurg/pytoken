@@ -850,6 +850,25 @@ class asm18(lex_test):
     pass
 
 ##############################################################
+class manual_x86_01(lex_test):
+    def runTest(self):
+        lobj = pylex.lexer()
+        code_iform = pylex.iform_code(lobj)
+        code_iform.make_std_registers()
+        code_iform.add_iform_set(code_iform.data_reg, 0)
+        code_iform.add_iform_ret(code_iform.data_reg)
+
+        code_x86 = pylex.compile_to_x86_32(code_iform)
+        lstate   = pylex.lexer_state()
+
+        #escape.print_gdb_info()
+        v = code_x86.get_token(lstate)
+        self.assert_(v == 0)
+        return
+        
+
+
+##############################################################
 class errtest01(lex_test):
     def runTest(self):
         obj = pylex.lexer()

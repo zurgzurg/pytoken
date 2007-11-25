@@ -2,8 +2,17 @@
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <limits.h>
 
-/***********************************************/
+/***************************************************************/
+/***************************************************************/
+/***                                                         ***/
+/*** lexer state - buffer to scan, position in buffer and    ***/
+/*** any misc data                                           ***/
+/***                                                         ***/
+/***************************************************************/
+/***************************************************************/
 static int lexer_state_init(PyObject *, PyObject *, PyObject *);
 static void lexer_state_dealloc(PyObject *);
 
@@ -341,6 +350,14 @@ is_valid_word_ptr(lexer_state_t *self, int *w_ptr)
 }
 
 /***************************************************************/
+/***************************************************************/
+/***                                                         ***/
+/*** the actual code objects - supports vcode - or actual    ***/
+/*** machine code. vcode is designed to be interpreted by    ***/
+/*** the python simulator function in pylex.py               ***/
+/***                                                         ***/
+/***************************************************************/
+/***************************************************************/
 static int code_init(PyObject *, PyObject *, PyObject *);
 static void code_dealloc(PyObject *);
 
@@ -458,6 +475,12 @@ code_get_token(PyObject *arg_self, PyObject *args)
 {
   code_t *self;
   PyObject *lbuf, *m, *d, *func, *res;
+  typedef int (*asm_func_t)(code_t *, lexer_state_t *);
+  asm_func_t asm_func;
+  int v;
+
+  unsigned char *base;
+  int status;
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
@@ -484,8 +507,25 @@ code_get_token(PyObject *arg_self, PyObject *args)
     return res;
   }
 
-  Py_INCREF(Py_None);
-  return Py_None;
+  //__asm__ __volatile__ ( "mfence" : : : "memory" );
+
+  // 8 --> 256
+  // 9 --> 512
+  // 10 --> 1024
+  // 11 -> 2048
+  // 12 --> 4096
+
+  base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
+  status = mprotect(base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
+  if (status != 0) {
+    perror("mprotect failed.\n");
+    exit(1);
+  }
+
+  asm_func = (asm_func_t)(self->u.buf);
+  v = (*asm_func)(self, (lexer_state_t*)lbuf);
+  res = PyInt_FromLong(v);
+  return res;
 }
 
 static PyObject *
@@ -527,13 +567,14 @@ code_append(PyObject *arg_self, PyObject *args)
 {
   code_t *self;
   PyObject *tup;
+  int ival;
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   assert(self->num_in_buf <= self->size_of_buf);
 
   if (self->is_vcode) {
-    if (!PyArg_ParseTuple(args, "O", &tup))
+    if (!PyArg_ParseTuple(args, "O:append", &tup))
       return 0;
     if (!PyTuple_Check(tup)) {
       PyErr_Format(PyExc_RuntimeError, "vcode code objects can only "
@@ -545,11 +586,17 @@ code_append(PyObject *arg_self, PyObject *args)
     Py_INCREF(tup);
     self->u.obuf[ self->num_in_buf ] = tup;
     self->num_in_buf++;
+
+    Py_INCREF(Py_None);
+    return Py_None;
   }
-  else {
-    PyErr_Format(PyExc_RuntimeError, "Not yet supported.");
+
+  if (!PyArg_ParseTuple(args, "i:append", &ival))
     return 0;
-  }
+  if (self->num_in_buf == self->size_of_buf)
+    code_grow(self);
+  self->u.buf[ self->num_in_buf ] = (char)(ival & 0xFF);
+  self->num_in_buf++;
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -566,6 +613,12 @@ code_grow(code_t *self)
 }
 
 /***************************************************************/
+/***************************************************************/
+/***                                                         ***/
+/*** general low-level helper funcs                          ***/
+/***                                                         ***/
+/***************************************************************/
+/***************************************************************/
 static PyObject *
 escape_get_func_addr(PyObject *self, PyObject *args)
 {
@@ -574,7 +627,7 @@ escape_get_func_addr(PyObject *self, PyObject *args)
   PyObject *result;
 
   if (!PyArg_ParseTuple(args, "s:get_func_addr", &func_name))
-    return NULL;
+    return 0;
   if (strcmp(func_name, "PyObject_CallMethod")==0)
     func_ptr = &PyObject_CallMethod;
   else {
@@ -583,6 +636,19 @@ escape_get_func_addr(PyObject *self, PyObject *args)
   }
 
   result = PyInt_FromLong((long)func_ptr);
+  return result;
+}
+
+static PyObject *
+escape_get_bytes(PyObject *self, PyObject *args)
+{
+  char *ptr;
+  int   n_bytes;
+  PyObject *result;
+
+  if (!PyArg_ParseTuple(args, "ii:get_bytes", &ptr, &n_bytes))
+    return 0;
+  result = PyString_FromStringAndSize(ptr, n_bytes);
   return result;
 }
 
@@ -619,6 +685,9 @@ escape_get_obj_from_id(PyObject *self, PyObject *args)
 static PyMethodDef escape_methods[] = {
   {"get_func_addr",    escape_get_func_addr,     METH_VARARGS,
    PyDoc_STR("Return address of certain python C api functions.")},
+
+  {"get_bytes",        escape_get_bytes,         METH_VARARGS,
+   PyDoc_STR("Print process id and pause.")},
 
   {"print_gdb_info",   escape_print_gdb_info,    METH_NOARGS,
    PyDoc_STR("Print process id and pause.")},
