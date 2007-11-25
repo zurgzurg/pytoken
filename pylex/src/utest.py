@@ -826,6 +826,29 @@ class asm17(lex_test):
         return
     pass
 
+class asm18(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a", 1)
+        lexer_obj.add_pattern("b", 2)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code2 = pylex.compile_to_vcode(code1)
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("ab")
+
+        tok = code2.get_token(lstate)
+        self.assert_(tok == 1)
+
+        tok = code2.get_token(lstate)
+        self.assert_(tok == 2)
+
+        return
+    pass
+
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
