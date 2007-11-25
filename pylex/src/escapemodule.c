@@ -7,10 +7,31 @@
 static int lexer_state_init(PyObject *, PyObject *, PyObject *);
 static void lexer_state_dealloc(PyObject *);
 
-static PyObject *lexer_state_set_input_pos(PyObject *, PyObject *);
-static PyObject *lexer_state_get_input_pos(PyObject *, PyObject *);
+static PyObject *lexer_state_has_data(PyObject *, PyObject *);
+
+static PyObject *lexer_state_set_cur_offset(PyObject *, PyObject *);
+static PyObject *lexer_state_get_cur_offset(PyObject *, PyObject *);
+static PyObject *lexer_state_set_cur_addr(PyObject *, PyObject *);
+static PyObject *lexer_state_get_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 
+static PyObject *lexer_state_ldb(PyObject *, PyObject *);
+static PyObject *lexer_state_ldw(PyObject *, PyObject *);
+static PyObject *lexer_state_stb(PyObject *, PyObject *);
+static PyObject *lexer_state_stw(PyObject *, PyObject *);
+
+
+/*******************************************/
+/*                                         */
+/* next_char_ptr points to the next char   */
+/* to be read. Or it can point to one byte */
+/* past the end of the buffer to signify   */
+/* there is no more input                  */
+/*                                         */
+/* word read and write are done with the   */
+/* native endian style.                    */
+/*                                         */
+/*******************************************/
 typedef struct {
   PyObject_HEAD
 
@@ -19,19 +40,40 @@ typedef struct {
   int     size_of_buf;
 } lexer_state_t;
 
+static int is_valid_ptr(lexer_state_t *, char *);
+static int is_valid_word_ptr(lexer_state_t *, int *);
+
 static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
 };
 
 static PyMethodDef lexer_state_methods[] = {
-    {"set_input_pos", lexer_state_set_input_pos, METH_VARARGS,
+    {"has_data",          lexer_state_has_data,          METH_NOARGS,
      "Set index of next valid character to scan."},
 
-    {"get_input_pos", lexer_state_get_input_pos, METH_NOARGS,
+    {"set_cur_offset",    lexer_state_set_cur_offset,    METH_VARARGS,
+     "Set index of next valid character to scan."},
+
+    {"get_cur_offset",    lexer_state_get_cur_offset,    METH_NOARGS,
      "Return index of next char to scan."},
 
-    {"set_input", lexer_state_set_input,         METH_VARARGS,
+    {"set_cur_addr",      lexer_state_set_cur_addr,      METH_VARARGS,
+     "Return index of next char to scan."},
+
+    {"get_cur_addr",      lexer_state_get_cur_addr,      METH_NOARGS,
+     "Return index of next char to scan."},
+
+    {"set_input",         lexer_state_set_input,         METH_VARARGS,
      "Set source of chars to read."},
+
+    {"ldb",       lexer_state_ldb,                 METH_VARARGS,
+     "simulator method - load byte"},
+    {"ldw",       lexer_state_ldw,                 METH_VARARGS,
+     "simulator method - load word"},
+    {"stb",       lexer_state_stb,                 METH_VARARGS,
+     "simulator method - store byte"},
+    {"stw",       lexer_state_stw,                 METH_VARARGS,
+     "simulator method - store word"},
 
     {NULL}
 };
@@ -65,31 +107,44 @@ lexer_state_dealloc(PyObject *arg_self)
 }
 
 static PyObject *
-lexer_state_set_input_pos(PyObject *arg_self, PyObject *args)
+lexer_state_has_data(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int pos;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "i:set_input_pos", &pos))
-    return 0;
-  if (pos < 0 || pos > self->size_of_buf) {
-    PyErr_Format(PyExc_RuntimeError, "position out of range");
-    return 0;
+  if (self->buf!=0 && self->size_of_buf>0 && self->next_char_ptr!=0) {
+    Py_INCREF(Py_True);
+    return Py_True;
   }
+  Py_INCREF(Py_False);
+  return Py_False;
+}
+
+static PyObject *
+lexer_state_set_cur_offset(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int offset;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:set_cur_offset", &offset))
+    return 0;
   if (self->buf==0 || self->size_of_buf==0) {
     PyErr_Format(PyExc_RuntimeError, "no input has been set");
     return 0;
   }
-  self->next_char_ptr = self->buf + pos;
+  if (!is_valid_ptr(self, self->buf + offset))
+    return 0;
+  self->next_char_ptr = self->buf + offset;
 
   Py_INCREF(Py_None);
   return Py_None;
 }
 
 static PyObject *
-lexer_state_get_input_pos(PyObject *arg_self, PyObject *args)
+lexer_state_get_cur_offset(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
   PyObject *result;
@@ -101,10 +156,51 @@ lexer_state_get_input_pos(PyObject *arg_self, PyObject *args)
     return 0;
   }
 
-  assert(self->next_char_ptr >= self->buf);
-  assert(self->next_char_ptr < self->buf + self->size_of_buf);
+  if (!is_valid_ptr(self, self->next_char_ptr))
+    return 0;
+
   result = PyInt_FromLong(self->next_char_ptr - self->buf);
   return result;
+}
+
+static PyObject *
+lexer_state_get_cur_addr(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (self->buf==0 || self->size_of_buf==0) {
+    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    return 0;
+  }
+
+  if (!is_valid_ptr(self, self->next_char_ptr))
+    return 0;
+
+  result = PyInt_FromLong((long)self->next_char_ptr);
+  return result;
+}
+
+static PyObject *
+lexer_state_set_cur_addr(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int ival;
+  char *ptr;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:set_cur_addr", &ival))
+    return 0;
+  ptr = (char *)ival;
+  if (!is_valid_ptr(self, ptr))
+    return 0;
+  self->next_char_ptr = (char *)ptr;
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static PyObject *
@@ -128,6 +224,120 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
 
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+static PyObject *
+lexer_state_ldb(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int i;
+  char *ptr, ch;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:ldb", &i))
+    return 0;
+  ptr = (char *)i;
+  if (!is_valid_ptr(self, ptr))
+    return 0;
+  ch = *ptr;
+  result = PyInt_FromLong(ch);
+  return result;
+}
+
+static PyObject *
+lexer_state_ldw(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int i, val, *ptr;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:ldw", &i))
+    return 0;
+  ptr = (int *)i;
+  if (!is_valid_word_ptr(self, ptr))
+    return 0;
+  val = *ptr;
+  result = PyInt_FromLong(val);
+  return result;
+}
+
+static PyObject *
+lexer_state_stb(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int ptr_as_int, val;
+  char *dst_ptr, ch;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "ii:stb", &ptr_as_int, &val))
+    return 0;
+  dst_ptr = (char *)ptr_as_int;
+  if (!is_valid_ptr(self, dst_ptr))
+    return 0;
+
+  if (val<0 || val > 0xFF) {
+    PyErr_Format(PyExc_RuntimeError, "val out of range to store in byte");
+    return 0;
+  }
+
+  ch = val;
+  *dst_ptr = ch;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+lexer_state_stw(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int ptr_as_int, val, *dst_ptr;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "ii:stw", &ptr_as_int, &val))
+    return 0;
+  dst_ptr = (int *)ptr_as_int;
+  if (!is_valid_word_ptr(self, dst_ptr))
+    return 0;
+  
+  *dst_ptr = val;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static int
+is_valid_ptr(lexer_state_t *self, char *ch_ptr)
+{
+  if (ch_ptr < self->buf) {
+    PyErr_Format(PyExc_RuntimeError, "Invalid char pointer: before buf");
+    return 0;
+  }
+  if (ch_ptr >= self->buf + self->size_of_buf + 1) {
+    PyErr_Format(PyExc_RuntimeError, "Invalid char pointer: after buf");
+    return 0;
+  }
+  return 1;
+}
+
+static int
+is_valid_word_ptr(lexer_state_t *self, int *w_ptr)
+{
+  if ((char *)w_ptr < self->buf) {
+    PyErr_Format(PyExc_RuntimeError, "Invalid word pointer: before buf");
+    return 0;
+  }
+  if ((char *)w_ptr >= self->buf + self->size_of_buf - sizeof(int)) {
+    PyErr_Format(PyExc_RuntimeError, "Invalid word pointer: after buf");
+    return 0;
+  }
+  return 1;
 }
 
 /***************************************************************/
@@ -376,10 +586,45 @@ escape_get_func_addr(PyObject *self, PyObject *args)
   return result;
 }
 
+static PyObject *
+escape_print_gdb_info(PyObject *self, PyObject *args)
+{
+  pid_t pid;
+  pid = getpid();
+
+  printf("pid= %d\n", pid);
+  sleep(10);
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+escape_get_obj_from_id(PyObject *self, PyObject *args)
+{
+  int ival;
+  PyObject *obj;
+
+  if (!PyArg_ParseTuple(args, "i:get_obj_from_id", &ival))
+    return 0;
+  obj = (PyObject *)ival;
+  if (obj->ob_type != &lexer_state_type) {
+    PyErr_SetString(PyExc_RuntimeError, "Bad id - not lex_state obj.");
+    return 0;
+  }
+  Py_INCREF(obj);
+  return obj;
+}
 
 static PyMethodDef escape_methods[] = {
   {"get_func_addr",    escape_get_func_addr,     METH_VARARGS,
    PyDoc_STR("Return address of certain python C api functions.")},
+
+  {"print_gdb_info",   escape_print_gdb_info,    METH_NOARGS,
+   PyDoc_STR("Print process id and pause.")},
+
+  {"get_obj_from_id",  escape_get_obj_from_id,   METH_VARARGS,
+   PyDoc_STR("Turn a python id back into an object.")},
 
   {NULL,     NULL}
 };
@@ -394,13 +639,6 @@ initescape(void)
 {
   PyObject *m;
   int code;
-
-#if 0
-  pid_t pid;
-  pid = getpid();
-  printf("pid= %d\n", pid);
-  sleep(10);
-#endif
 
   m = Py_InitModule3("escape", escape_methods, module_doc);
   if (m == NULL)

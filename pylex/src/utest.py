@@ -571,8 +571,8 @@ class asm02(lex_test):
         obj = pylex.lexer()
         obj.add_pattern("a", 1)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
         sim = pylex.simulator()
@@ -587,8 +587,8 @@ class asm03(lex_test):
         obj = pylex.lexer()
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
         sim = pylex.simulator()
@@ -603,8 +603,8 @@ class asm04(lex_test):
         obj = pylex.lexer()
         obj.add_pattern("ab", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
         sim = pylex.simulator()
@@ -619,8 +619,8 @@ class asm05(lex_test):
         obj = pylex.lexer()
         obj.add_pattern("a|b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
         sim = pylex.simulator()
@@ -641,8 +641,8 @@ class asm06(lex_test):
         obj = pylex.lexer()
         obj.add_pattern("a*", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
         sim = pylex.simulator()
@@ -664,8 +664,8 @@ class asm07(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
         return
     pass
@@ -676,8 +676,8 @@ class asm08(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_x86_32(code1)
         return
@@ -689,8 +689,8 @@ class asm09(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_x86_32(code1)
         return
@@ -702,8 +702,8 @@ class asm10(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_vcode(code1)
         return
@@ -715,8 +715,8 @@ class asm11(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_vcode(code1)
         self.assert_(isinstance(code2, pylex.code))
@@ -729,8 +729,8 @@ class asm12(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_vcode(code1)
         func = code2.get_token
@@ -744,8 +744,8 @@ class asm13(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_vcode(code1)
         self.assert_(len(code2) >= 0)
@@ -758,8 +758,8 @@ class asm14(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
         code1 = obj.compile_to_iform()
         code2 = pylex.compile_to_vcode(code1)
         self.assert_(len(code2) == len(code1.instructions))
@@ -772,12 +772,15 @@ class asm15(lex_test):
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
-        code1 = obj.compile_to_iform()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
+        lstate.set_input("a")
+
+        #pylex.print_instructions(code2)
 
         r = code2.get_token(lstate)
         return
@@ -785,15 +788,18 @@ class asm15(lex_test):
 
 class asm16(lex_test):
     def runTest(self):
+        #escape.print_gdb_info()
         obj = pylex.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
-        code1 = obj.compile_to_iform()
+        nfa_obj = obj.build_nfa()
+        dfa_obj = obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
+        # pylex.print_instructions(code2)
+
         lstate = pylex.lexer_state();
         lstate.set_input("a")
 
@@ -803,13 +809,13 @@ class asm16(lex_test):
 
 class asm17(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
-        obj.add_pattern("a", 1)
-        obj.add_pattern("b", 2)
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a", 1)
+        lexer_obj.add_pattern("b", 2)
 
-        fsa1 = obj.build_nfa()
-        fsa2 = obj.build_dfa()
-        code1 = obj.compile_to_iform()
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();

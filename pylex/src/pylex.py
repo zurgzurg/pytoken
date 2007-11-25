@@ -637,8 +637,8 @@ IFORM_NOP     = 11 #
 IFORM_ADD     = 12 # reg, const | reg, reg
 IFORM_RET     = 13 # reg
 IFORM_COM     = 14 # comment
-IFORM_CALL    = 15 # addr, <arg>...<arg> | reg, <arg>...<arg>
-
+IFORM_CALL    = 15 # reg, addr, <arg>...<arg> | reg, reg, <arg>...<arg>
+IFORM_GPARM   = 16 # reg, <parm_num>
 
 instr2txt = {
     IFORM_LABEL    : "label",
@@ -656,7 +656,8 @@ instr2txt = {
     IFORM_ADD      : "add",
     IFORM_RET      : "ret",
     IFORM_COM      : "com",
-    IFORM_CALL     : "call"
+    IFORM_CALL     : "call",
+    IFORM_GPARM    : "gparm"
     }
 
 iform_names = ['iform_label', 'iform_data',
@@ -667,7 +668,8 @@ iform_names = ['iform_label', 'iform_data',
                'iform_nop',
                'iform_add',
                'iform_ret',
-               'iform_com', 'iform_call']
+               'iform_com',
+               'iform_call', 'iform_gparm']
 
 ####################################################
 
@@ -736,11 +738,17 @@ def iform_ret(reg):
 def iform_com(txt):
     return (IFORM_COM, txt)
 
-def iform_call(func, *args):
+def iform_call(reg, func, *args):
+    assert_is_reg(reg)
     assert_is_addr_or_reg(func)
-    tmp = [IFORM_CALL, func]
+    tmp = [IFORM_CALL, reg, func]
     tmp.extend(args)
     return tuple(tmp)
+
+def iform_gparm(reg, pnum):
+    assert_is_reg(reg)
+    assert_is_const(pnum)
+    return (IFORM_GPARM, reg, pnum)
 
 ####################################################
 
@@ -842,13 +850,22 @@ def str_iform_ret(tup):
 
 def str_iform_com(tup):
     assert len(tup)==2 and tup[0]==IFORM_COM
-    assert_is_reg(tup[1])
     return "#%s" % tup[1]
 
 def str_iform_call(tup):
     assert tup[0]==IFORM_CALL
-    args = ", ".join(tup[1:])
-    return "    call " + args
+    assert_is_reg(tup[1])
+    dst  = tup[1]
+    func = tup[2]
+    tmp = [str(item) for item in tup[3:]]
+    args = ", ".join(tmp)
+    return "    call %s <-- %s(%s)" % (dst, func, args)
+
+def str_iform_gparm(tup):
+    assert len(tup)==3 and tup[0]==IFORM_GPARM
+    assert_is_reg(tup[1])
+    assert_is_const(tup[2])
+    return "    gparm %s <-- parm<%d>" % (tup[1], tup[2])
 
 instr2pfunc = {
     IFORM_LABEL    : str_iform_label,
@@ -866,7 +883,8 @@ instr2pfunc = {
     IFORM_ADD      : str_iform_add,
     IFORM_RET      : str_iform_ret,
     IFORM_COM      : str_iform_com,
-    IFORM_CALL     : str_iform_call
+    IFORM_CALL     : str_iform_call,
+    IFORM_GPARM    : str_iform_gparm
     }
 
 ####################################################
@@ -909,12 +927,31 @@ def assert_is_byte(v):
     return
 
 ####################################################
+def print_instructions(arg):
+    if type(arg) is list:
+        tmp_list = arg
+    elif isinstance(arg, escape.code):
+        n = len(arg)
+        tmp_list = [arg[i] for i in xrange(n)]
+    else:
+        assert type(arg) is tuple
+        tmp_list = [arg]
 
+    for tup in tmp_list:
+        op     = tup[0]
+        func   = instr2pfunc[op]
+        s = func(tup)
+        print s
+    return
+
+####################################################
 class iform_code(object):
     def __init__(self, lexer_obj):
         self.lexer              = lexer_obj
         self.all_regs           = []
         self.str_ptr_reg        = None
+        self.tmp_reg1           = None
+        self.tmp_reg2           = None
         self.data_reg           = None
         self.next_avail_reg_num = 1
         self.instructions       = []
@@ -929,18 +966,6 @@ class iform_code(object):
         pass
 
     ####################
-    ##
-    ## main user API
-    ##
-    ####################
-    def get_token(self):
-        return None
-
-    def set_buffer(self, lbuf):
-        self.lbuf = lbuf
-        return
-
-    ####################
     def make_new_register(self):
         r = "reg_%d" % self.next_avail_reg_num
         self.next_avail_reg_num += 1
@@ -950,22 +975,12 @@ class iform_code(object):
     def make_std_registers(self):
         self.str_ptr_reg  = self.make_new_register()
         self.data_reg     = self.make_new_register()
+        self.tmp_reg1     = self.make_new_register()
+        self.tmp_reg2     = self.make_new_register()
         return
 
     def set_str_ptr_reg(self, val):
         self.str_ptr_reg = val
-        return
-
-    def print_instructions(self, opt_list=None):
-        if opt_list:
-            tmp = opt_list
-        else:
-            tmp = self.instructions
-        for tup in tmp:
-            op     = tup[0]
-            func   = instr2pfunc[op]
-            s = func(tup)
-            print s
         return
 
     ####################
@@ -1019,6 +1034,9 @@ class iform_code(object):
     def add_iform_call(self, *args):
         self.instructions.append(iform_call(*args))
         return
+    def add_iform_gparm(self, *args):
+        self.instructions.append(iform_gparm(*args))
+        return
 
     ####################
     ## list iform creator funcs
@@ -1071,6 +1089,9 @@ class iform_code(object):
     def ladd_iform_call(self, l, *args):
         l.append(iform_call(*args))
         return
+    def ladd_iform_gparm(self, l, *args):
+        l.append(iform_gparm(*args))
+        return
     pass
 
 ####################################################
@@ -1105,7 +1126,54 @@ def compile_one_node(code, state, dfa_obj):
         code.ladd_iform_ldb(lst, code.data_reg, ld_src)
         code.ladd_iform_add(lst, code.str_ptr_reg, 1)
     if state.user_action:
-        code.ladd_iform_call(lst, code.call_method_addr, )
+        code.ladd_iform_call(lst, code.data_reg, code.call_method_addr)
+        code.ladd_iform_set(lst, code.data_reg, state.user_action)
+        code.ladd_iform_ret(lst, code.data_reg)
+        return lst
+    for ch in state.out_chars:
+        k = (state, ch)
+        dst = dfa_obj.trans_tbl[k]
+        assert len(dst) == 1
+        dst = dst[0]
+        code.ladd_iform_cmp(lst, code.data_reg, ord(ch))
+        code.ladd_iform_beq(lst, dst.label)
+    code.ladd_iform_set(lst, code.data_reg, 0)
+    code.ladd_iform_ret(lst, code.data_reg)
+    return lst
+
+####################################################
+####################################################
+##
+## intermediate form generator
+##
+####################################################
+####################################################
+def compile_to_intermediate_form2(lexer, dfa_obj):
+    code = iform_code(lexer)
+    code.make_std_registers()
+    for i, s in enumerate(dfa_obj.states):
+        s.label = "lab_%d" % i
+
+    code.add_iform_gparm(code.tmp_reg1, 1)
+    code.add_iform_call(code.str_ptr_reg, code.tmp_reg1, "get_cur_addr")
+
+    for s in dfa_obj.states:
+        tmp = compile_one_node2(code, s, dfa_obj)
+        code.instructions.extend(tmp)
+
+    return code
+
+def compile_one_node2(code, state, dfa_obj):
+    lst = []
+    code.ladd_iform_com(lst, "begin " + str(state))
+    code.ladd_iform_label(lst, state.label)
+    if len(state.out_chars) > 0:
+        ld_src = "(" + code.str_ptr_reg + ")"
+        code.ladd_iform_ldb(lst, code.data_reg, ld_src)
+        code.ladd_iform_add(lst, code.str_ptr_reg, 1)
+    if state.user_action:
+        code.ladd_iform_call(lst, code.tmp_reg2, code.tmp_reg1,
+                             "set_cur_addr", code.str_ptr_reg)
         code.ladd_iform_set(lst, code.data_reg, state.user_action)
         code.ladd_iform_ret(lst, code.data_reg)
         return lst
@@ -1263,7 +1331,7 @@ class simulator(object):
             elif op == IFORM_DATA:
                 pass
             else:
-                assert None, "Unknown op code"
+                assert None, "Unknown op code=%d" % op
         return
 
     #######
@@ -1349,5 +1417,221 @@ class simulator(object):
 
     pass
 
-def run_vcode_simulation(code_obj, lbuf_obj):
+##################################################################
+##
+## simulator
+##
+##################################################################
+def set_reg(reg_tbl, reg, val):
+    reg_tbl[reg] = val
+    return
+
+def resolve_reg(reg_tbl, reg):
+    assert_is_reg(reg)
+    if reg not in reg_tbl:
+        reg_tbl[reg] = 77
+    return reg_tbl[reg]
+
+def resolve_addr_or_indirect_reg(reg_tbl, arg):
+    if type(arg) is str:
+        assert arg[0] == "(" and arg[-1]==")"
+        reg = arg[1:-1]
+        assert_is_reg(reg)
+        return resolve_reg(reg_tbl, reg)
+    assert_is_const(arg)
+    return arg
+
+def resolve_reg_or_const(reg_tbl, arg):
+    if type(arg) is str:
+        assert_is_reg(arg)
+        return resolve_reg(reg_tbl, arg)
+    assert_is_const(arg)
+    return arg
+
+def resolve_const(arg):
+    assert_is_const(arg)
+    return arg
+
+
+def run_vcode_simulation(code_obj, lstate):
+    assert lstate.has_data() == True
+
+    n_instr = len(code_obj)
+    if n_instr == 0:
+        return None
+
+    debug_flag = False
+    if debug_flag:
+        print "---------simulation-------"
+
+    reg_tbl    = {}
+    label2idx  = {}
+    is_eql     = False
+
+    for idx in xrange(n_instr):
+        tup = code_obj[idx]
+        if tup[0] == IFORM_LABEL:
+            label2idx[tup[1]] = idx
+        pass
+
+    iptr = 0
+    while True:
+        assert iptr >= 0 and iptr < n_instr
+        tup = code_obj[iptr]
+        if debug_flag:
+            print "sim iptr=", iptr, "tup=", instr2txt[tup[0]], tup[1:]
+
+        iptr += 1
+        op = tup[0]
+        if op == IFORM_LABEL:
+            if debug_flag:
+                print "  at label", tup[1]
+        elif op == IFORM_LDW:
+            # reg, addr | reg, (reg)
+            dst = tup[1]
+            assert_is_reg(dst)
+            src = resolve_addr_or_indirect_reg(reg_tbl, tup[2])
+            val = lstate.ldw(src)
+            set_reg(reg_tbl, dst, val)
+            if val == 0:
+                is_eql = True
+            else:
+                is_eql = False
+            if debug_flag:
+                print "  ldw %s <-- %d eql_flag=%s" % (dst, val, str(is_eql))
+        elif op == IFORM_LDB:
+            # reg, addr | reg, (reg)
+            dst = tup[1]
+            assert_is_reg(dst)
+            src = resolve_addr_or_indirect_reg(reg_tbl, tup[2])
+            val = lstate.ldb(src)
+            assert_is_byte(val)
+            set_reg(reg_tbl, dst, val)
+            if val == 0:
+                is_eql = True
+            else:
+                is_eql = False
+            if debug_flag:
+                print "  ldb %s <-- %d eql_flag=%s" % (dst, val, str(is_eql))
+        elif op == IFORM_STW:
+            # addr, reg | (reg), reg
+            dst = resolve_addr_or_indirect_reg(reg_tbl, tup[1])
+            src = resolve_reg(reg_tbl, tup[2])
+            lstate.stw(dst, src)
+            if debug_flag:
+                print "  stw addr=%d <-- val=%d" % (dst, src)
+        elif op == IFORM_STB:
+            # addr, reg | (reg), reg
+            dst = resolve_addr_or_indirect_reg(reg_tbl, tup[1])
+            src = resolve_reg(reg_tbl, tup[2])
+            val = src & 0xFF
+            lstate.stb(dst, val)
+            if debug_flag:
+                print "  stb addr=%d <-- val=%d" % (dst, val)
+        elif op == IFORM_SET:
+            reg = tup[1]
+            val = tup[2]
+            assert_is_reg(reg)
+            assert_is_const(val)
+            set_reg(reg_tbl, reg, val)
+            if val == 0:
+                is_eql = True
+            else:
+                is_eql = False
+            if debug_flag:
+                print "  set reg=%s <-- val=%d eql_flag=%s" % (reg, val, str(is_eql))
+        elif op == IFORM_CMP:
+            arg1 = resolve_reg(reg_tbl, tup[1])
+            arg2 = resolve_reg_or_const(reg_tbl, tup[2])
+            if arg1 == arg2:
+                is_eql = True
+            else:
+                is_eql = False
+            if debug_flag:
+                print "  cmp", arg1, "vs", arg2, "flag=", is_eql
+        elif op == IFORM_BEQ:
+            dst_lab = tup[1]
+            assert_is_label(dst_lab)
+            is_taken = False
+            if is_eql == True:
+                iptr = label2idx[dst_lab]
+                is_taken = True
+            if debug_flag:
+                print "  beq taken=", is_taken, "iptr=", iptr
+        elif op == IFORM_BNE:
+            dst_lab = tup[1]
+            assert_is_label(dst_lab)
+            is_taken = False
+            if is_eql == False:
+                iptr = label2idx[dst_lab]
+                is_taken = True
+            if debug_flag:
+                print "  beq taken=", is_taken, "iptr=", iptr
+        elif op == IFORM_BR:
+            dst_lab = tup[1]
+            assert_is_label(dst_lab)
+            iptr = label2idx[dst_lab]
+            if debug_flag:
+                print "  br iptr=", iptr
+        elif op == IFORM_NOP:
+            if debug_flag:
+                print "  nop"
+        elif op == IFORM_ADD:
+            arg1 = resolve_reg(reg_tbl, tup[1])
+            arg2 = resolve_reg_or_const(reg_tbl, tup[2])
+            arg1 += arg2
+            set_reg(reg_tbl, tup[1], arg1)
+            if debug_flag:
+                print "  add", tup[1], arg1
+        elif op == IFORM_RET:
+            val = resolve_reg(reg_tbl, tup[1])
+            if debug_flag:
+                print "  ret", val
+            return val
+        elif op == IFORM_COM:
+            if debug_flag:
+                print "  com", tup[1]
+        elif op == IFORM_CALL:
+            dst_reg = tup[1]
+            assert_is_reg(dst_reg)
+            obj_id = resolve_reg_or_const(reg_tbl, tup[2])
+            obj_obj = escape.get_obj_from_id(obj_id)
+            method = tup[3]
+            assert type(method) is str
+            func = getattr(obj_obj, method)
+            if len(tup)==4:
+                v = func()
+            else:
+                func_args = []
+                for item in tup[4:]:
+                    if item.startswith("reg_"):
+                        val = resolve_reg(reg_tbl, item)
+                        func_args.append(val)
+                    elif type(item) is int:
+                        func_args.append(val)
+                    else:
+                        assert None, "Unknown arg type"
+                func_args = tuple(func_args)
+                v = func(*func_args)
+            set_reg(reg_tbl, dst_reg, v)
+            if debug_flag:
+                print "  call", dst_reg, "<--", v
+        elif op == IFORM_DATA:
+            if debug_flag:
+                print "  data", tup[1]
+        elif op == IFORM_GPARM:
+            dst_reg = tup[1]
+            assert_is_reg(dst_reg)
+            op_num = tup[2]
+            assert op_num==0 or op_num==1
+            if op_num==0:
+                val = id(code_obj)
+            else:
+                val = id(lstate)
+            set_reg(reg_tbl, dst_reg, val)
+            if debug_flag:
+                print "  gparm", dst_reg, val
+        else:
+            assert None, "Unknown op code=%d" % op
+        pass
     return 1
