@@ -858,11 +858,8 @@ class manual_x86_01(lex_test):
         code_iform.add_iform_set(code_iform.data_reg, 0)
         code_iform.add_iform_ret(code_iform.data_reg)
 
-        l, n = pylex.compile_to_x86_32_asm_3(code_iform)
-        #for tup in l:
-        #    print tup
-
-        code_x86 = pylex.asm_list_to_code_obj(l, n)
+        l = pylex.compile_to_x86_32_asm_3(code_iform)
+        code_x86 = pylex.asm_list_to_code_obj(l)
 
         lstate   = pylex.lexer_state()
         v = code_x86.get_token(lstate)

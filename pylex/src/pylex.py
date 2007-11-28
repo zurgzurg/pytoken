@@ -1242,11 +1242,11 @@ def compile_to_x86_32(iform):
     if 0:
         r = compile_to_x86_32_asm_1(iform)
     elif 1:
-        l, n_bytes = compile_to_x86_32_asm_3(iform)
-        r = asm_list_to_code_obj(l, n_bytes)
+        l = compile_to_x86_32_asm_3(iform)
+        r = asm_list_to_code_obj(l)
     return r
 
-def asm_list_to_code_obj(lines, n_bytes):
+def asm_list_to_code_obj(lines):
     fp = open("/tmp/foobar.s", "w")
     for tup in lines:
         assert len(tup)==3
@@ -1273,11 +1273,15 @@ def asm_list_to_code_obj(lines, n_bytes):
     assert code==0, "error while creating shared library"
 
     dl_handle = dl.open("/tmp/foobar.so")
-    addr = dl_handle.sym("func1")
-    assert type(addr) in (int,long)
+    addr1 = dl_handle.sym("func1")
+    addr2 = dl_handle.sym("func2")
+    assert type(addr1) in (int,long)
+    assert type(addr2) in (int,long)
+    n_bytes = addr2 - addr1
+    assert n_bytes >= 0
 
     code_obj = escape.code()
-    b = escape.get_bytes(addr, n_bytes)
+    b = escape.get_bytes(addr1, n_bytes)
     for ch in b:
         code_obj.append(ord(ch))
     return code_obj
@@ -1354,15 +1358,13 @@ def compile_to_x86_32_asm_3(iform):
         reg2offset[r] = frame_offset
         frame_offset += -4
 
-    num_bytes = 0
     asm_list.append((None, ".text", None))
     asm_list.append((None, ".globl", "func1"))
+    asm_list.append((None, ".globl", "func2"))
     asm_list.append(("func1", None, None))
 
     asm_list.append((None, "pushl", "%ebp"))
-    num_bytes += 1
     asm_list.append((None, "movl", "%esp, %ebp"))
-    num_bytes += 2
 
     for tup in iform.instructions:
         op = tup[0]
@@ -1376,10 +1378,8 @@ def compile_to_x86_32_asm_3(iform):
                 assert None, "ldw from indirect reg not yet supported"
             elif is_num(src):
                 asm_list.append((None, "movl", "%d(,1), %%eax" % src))
-                num_bytes += 10
                 offset = reg2offset[dst_reg]
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % offset))
-                num_bytes += 7
             elif is_data_label(src):
                 assert None, "ldw data src label not yet handled"
             else:
@@ -1398,10 +1398,8 @@ def compile_to_x86_32_asm_3(iform):
             elif is_num(src):
                 asm_list.append((None, "movl", "$0, %eax"))
                 asm_list.append((None, "movb", "%d(,1), %%eal" % src))
-                num_bytes += 10
                 offset = reg2offset[dst_reg]
                 asm_list.append((None, "movb", "%%eax, %d(%%ebp)" % offset))
-                num_bytes += 7
             elif is_data_label(src):
                 assert None, "ldb data src label not yet handled"
             else:
@@ -1417,7 +1415,6 @@ def compile_to_x86_32_asm_3(iform):
             assert_is_const(src)
             offset = reg2offset[dst]
             asm_list.append((None, "movl", "$%d, %d(%%ebp)" % (src, offset)))
-            num_bytes += 6
         elif op==IFORM_CMP:
             r = tup[1]
             v = tup[2]
@@ -1427,23 +1424,17 @@ def compile_to_x86_32_asm_3(iform):
             if is_reg(v):
                 v_off = reg2offset[v]
                 asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                num_bytes += 6
                 asm_list.append((None, "cmpl", "%d(%%ebx), %%eax" % v_off))
-                num_bytes += 6
             else:
                 assert is_num(v)
                 asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                num_bytes += 6
                 asm_list.append((None, "cmpl", "$%d, %%eax" % v))
-                num_bytes += 6
         elif op==IFORM_BEQ:
             dst_lab = tup[1]
             asm_list.append((None, "je", dst_lab))
-            num_bytes += 2
         elif op==IFORM_BNE:
             dst_lab = tup[1]
             asm_list.append((None, "jne", dst_lab))
-            num_bytes += 2
         elif op==IFORM_BR:
             assert None, "op not yet supported:" + instr2txt[op]
         elif op==IFORM_NOP:
@@ -1456,30 +1447,21 @@ def compile_to_x86_32_asm_3(iform):
                 r_off = reg2offset[r]
                 v_off = reg2offset[val]
                 asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                num_bytes += 6
                 asm_list.append((None, "addl", "%d(%%ebx), %%eax" % v_off))
-                num_bytes += 6
                 asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
-                num_bytes += 6
             else:
                 assert is_num(val)
                 r_off = reg2offset[r]
                 asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                num_bytes += 6
                 asm_list.append((None, "addl", "$%d, %%eax" % val))
-                num_bytes += 6
                 asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
-                num_bytes += 6
         elif op==IFORM_RET:
             reg = tup[1]
             assert_is_reg(reg)
             offset = reg2offset[reg]
             asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
-            num_bytes += 5
             asm_list.append((None, "popl", "%ebp"))
-            num_bytes += 1
             asm_list.append((None, "ret", None))
-            num_bytes += 1
         elif op==IFORM_COM:
             pass
         elif op==IFORM_CALL:
@@ -1487,17 +1469,17 @@ def compile_to_x86_32_asm_3(iform):
             fptr    = tup[2]
             if len(tup) == 3:
                 asm_list.append((None, "call", "%d" % fptr))
-                num_bytes += 2
             else:
                 args = tup[3:]
                 asm_list.append((None, "call", "%d" % fptr))
-                num_bytes += 2
         elif op==IFORM_GPARM:
             assert None, "op not yet supported:" + instr2txt[op]
         else:
             assert None, "Unknown op code"
 
-    return (asm_list, num_bytes)
+    asm_list.append(("func2", None, None))
+    asm_list.append((None, "nop", None))
+    return asm_list
 
 def compile_to_x86_32_direct(iform):
     return None
