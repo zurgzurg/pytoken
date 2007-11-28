@@ -858,14 +858,36 @@ class manual_x86_01(lex_test):
         code_iform.add_iform_set(code_iform.data_reg, 0)
         code_iform.add_iform_ret(code_iform.data_reg)
 
-        code_x86 = pylex.compile_to_x86_32(code_iform)
-        lstate   = pylex.lexer_state()
+        l, n = pylex.compile_to_x86_32_asm_3(code_iform)
+        #for tup in l:
+        #    print tup
 
-        #escape.print_gdb_info()
+        code_x86 = pylex.asm_list_to_code_obj(l, n)
+
+        lstate   = pylex.lexer_state()
         v = code_x86.get_token(lstate)
         self.assert_(v == 0)
         return
-        
+    pass
+
+class manual_x86_02(lex_test):
+    def runTest(self):
+        lobj = pylex.lexer()
+        code_iform = pylex.iform_code(lobj)
+        code_iform.make_std_registers()
+
+        code_iform.add_iform_set(code_iform.data_reg, 2)
+        code_iform.add_iform_ret(code_iform.data_reg)
+
+        code_x86 = pylex.compile_to_x86_32(code_iform)
+        lstate   = pylex.lexer_state()
+
+        v = code_x86.get_token(lstate)
+        self.assert_(v == 2)
+        return
+    pass
+
+
 
 
 ##############################################################

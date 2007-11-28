@@ -1,5 +1,6 @@
 import sys
 import os
+import os.path
 import dl
 import pdb
 
@@ -677,7 +678,7 @@ iform_names = ['iform_label', 'iform_data',
 ####################################################
 
 def iform_label(lab):
-    assert_is_label(lab)
+    assert_is_code_label(lab)
     return (IFORM_LABEL, lab)
 
 def iform_data(dlab, val):
@@ -715,15 +716,15 @@ def iform_cmp(v1, v2):
     return (IFORM_CMP, v1, v2)
 
 def iform_beq(lab):
-    assert_is_label(lab)
+    assert_is_code_label(lab)
     return (IFORM_BEQ, lab)
 
 def iform_bne(lab):
-    assert_is_label(lab)
+    assert_is_code_label(lab)
     return (IFORM_BNE, lab)
 
 def iform_br(lab):
-    assert_is_label(lab)
+    assert_is_code_label(lab)
     return (IFORM_BR, lab)
 
 def iform_nop():
@@ -757,7 +758,7 @@ def iform_gparm(reg, pnum):
 
 def str_iform_label(tup):
     assert len(tup)==2 and tup[0]==IFORM_LABEL
-    assert_is_label(tup[1])
+    assert_is_code_label(tup[1])
     return "%s:" % tup[1]
 
 def str_iform_data(tup):
@@ -820,17 +821,17 @@ def str_iform_cmp(tup):
 
 def str_iform_beq(tup):
     assert len(tup)==2 and tup[0]==IFORM_BEQ
-    assert_is_label(tup[1])
+    assert_is_code_label(tup[1])
     return "    beq %s" % (tup[1])
 
 def str_iform_bne(tup):
     assert len(tup)==2 and tup[0]==IFORM_BNE
-    assert_is_label(tup[1])
+    assert_is_code_label(tup[1])
     return "    bne %s" % (tup[1])
 
 def str_iform_br(tup):
     assert len(tup)==2 and tup[0]==IFORM_BR
-    assert_is_label(tup[1])
+    assert_is_code_label(tup[1])
     return "    br %s" % (tup[1])
 
 def str_iform_nop(tup):
@@ -891,23 +892,49 @@ instr2pfunc = {
     }
 
 ####################################################
+def is_reg(r):
+    if type(r) is str and r.startswith("reg_"):
+        return True
+    return False
+
+def is_indirect_reg(r):
+    if type(r) is str and r.startswith("(reg_") and r.endswith(")"):
+        return True
+    return False
+
+def is_num(val):
+    if type(val) in (int,long):
+        return True
+    return False
+
+def is_data_label(lab):
+    if type(lab) is str and lab.startswith("dlab_"):
+        return True
+    return False
+
+def is_code_label(lab):
+    if type(lab) is str and lab.startswith("lab_"):
+        return True
+    return False
+
+#################
 
 def assert_is_reg(r):
-    assert r.startswith("reg_")
+    assert is_reg(r)
     return
 
 def assert_is_addr_or_indirect_reg_or_dlab(arg):
-    assert type(arg) in (int,long) \
-           or (arg.startswith("(reg_") and arg.endswith(")")) \
-           or arg.startswith("dlab_")
+    assert is_num(arg) \
+           or is_indirect_reg(arg) \
+           or is_data_label(arg)
     return
 
-def assert_is_label(l):
-    assert l.startswith("lab_")
+def assert_is_code_label(l):
+    assert is_code_label(l)
     return
 
-def assert_is_dlabel(l):
-    assert l.startswith("dlab_")
+def assert_is_data_label(l):
+    assert is_data_label(l)
     return
 
 def assert_is_reg_or_const(r):
@@ -915,11 +942,11 @@ def assert_is_reg_or_const(r):
     return
 
 def assert_is_const(r):
-    assert type(r) in (int, long)
+    assert is_num(r)
     return
 
 def assert_is_addr_or_reg(v):
-    assert type(v) in (int,long) or v.startswith("reg_")
+    assert is_num(v) or is_reg(v)
     return
     
 ####################################################
@@ -928,6 +955,12 @@ def assert_is_byte(v):
     assert type(v) is int
     assert v >= 0 and v <= 255
     return
+
+####################################################
+
+def indirect_reg_get_reg(r):
+    assert is_indirect_reg(r)
+    return r[1:-1]
 
 ####################################################
 def print_instructions(arg):
@@ -1206,10 +1239,50 @@ def compile_to_vcode(iform):
     return r
 
 def compile_to_x86_32(iform):
-    r = compile_to_x86_32_asm(iform)
+    if 0:
+        r = compile_to_x86_32_asm_1(iform)
+    elif 1:
+        l, n_bytes = compile_to_x86_32_asm_3(iform)
+        r = asm_list_to_code_obj(l, n_bytes)
     return r
 
-def compile_to_x86_32_asm(iform):
+def asm_list_to_code_obj(lines, n_bytes):
+    fp = open("/tmp/foobar.s", "w")
+    for tup in lines:
+        assert len(tup)==3
+        if tup[0] is not None:
+            txt = tup[0] + ":\t"
+        else:
+            txt = "\t"
+        if tup[1] is None:
+            assert tup[2] is None
+        else:
+            txt += tup[1]
+            if tup[2] is not None:
+                txt += " " + tup[2]
+
+        print >>fp, txt
+    fp.close()
+
+    code = os.system("as -o /tmp/foobar.o /tmp/foobar.s > /tmp/foobar.as_stdout 2> /tmp/foobar.as_stderr")
+    assert code==0, "error while running assembler"
+    assert os.path.getsize("/tmp/foobar.as_stdout")==0
+    assert os.path.getsize("/tmp/foobar.as_stderr")==0
+
+    code = os.system("ld -o /tmp/foobar.so -shared /tmp/foobar.o")
+    assert code==0, "error while creating shared library"
+
+    dl_handle = dl.open("/tmp/foobar.so")
+    addr = dl_handle.sym("func1")
+    assert type(addr) in (int,long)
+
+    code_obj = escape.code()
+    b = escape.get_bytes(addr, n_bytes)
+    for ch in b:
+        code_obj.append(ord(ch))
+    return code_obj
+
+def compile_to_x86_32_asm_1(iform):
     lines = []
     lines.append("\t.text\n")
     lines.append("\t.globl func1\n")
@@ -1239,6 +1312,192 @@ def compile_to_x86_32_asm(iform):
         code_obj.append(ord(ch))
 
     return code_obj
+
+def compile_to_x86_32_asm_2(iform):
+    lines = []
+    lines.append("\t.text\n")
+    lines.append("\t.globl func1\n")
+    lines.append("func1:\n")
+    lines.append("\tpushl %ebp\n")
+    lines.append("\tmovl %esp, %ebp\n")
+    lines.append("\tmovl $0, %eax\n")
+    lines.append("\tpopl %ebp\n")
+    lines.append("\tret\n")
+    
+    fp = open("junk.s", "w")
+    fp.writelines(lines)
+    fp.close()
+
+    err_code = os.system("as -o junk.o junk.s")
+    assert err_code==0, "Bad return code from assembler"
+
+    err_code = os.system("ld -o junk.so -shared junk.o")
+    assert err_code==0, "Bad return code from linker"
+
+    h = dl.open("/home/ramb/src/pylex/src/junk.so")
+    addr = h.sym("func1")
+
+    code_obj = escape.code()
+    b = escape.get_bytes(addr, 20)
+    for ch in b:
+        code_obj.append(ord(ch))
+
+    return code_obj
+
+
+def compile_to_x86_32_asm_3(iform):
+    asm_list = []
+
+    reg2offset = {}
+    frame_offset = -4
+    for r in iform.all_regs:
+        reg2offset[r] = frame_offset
+        frame_offset += -4
+
+    num_bytes = 0
+    asm_list.append((None, ".text", None))
+    asm_list.append((None, ".globl", "func1"))
+    asm_list.append(("func1", None, None))
+
+    asm_list.append((None, "pushl", "%ebp"))
+    num_bytes += 1
+    asm_list.append((None, "movl", "%esp, %ebp"))
+    num_bytes += 2
+
+    for tup in iform.instructions:
+        op = tup[0]
+        if op==IFORM_LABEL:
+            asm_list.append((tup[1], None, None))
+        elif op==IFORM_LDW:
+            dst_reg = tup[1]
+            assert_is_reg(dst_reg)
+            src = tup[2]
+            if is_indirect_reg(src):
+                assert None, "ldw from indirect reg not yet supported"
+            elif is_num(src):
+                asm_list.append((None, "movl", "%d(,1), %%eax" % src))
+                num_bytes += 10
+                offset = reg2offset[dst_reg]
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % offset))
+                num_bytes += 7
+            elif is_data_label(src):
+                assert None, "ldw data src label not yet handled"
+            else:
+                assert None, "Unknown ldw src operand type"
+        elif op==IFORM_LDB:
+            dst_reg = tup[1]
+            assert_is_reg(dst_reg)
+            src = tup[2]
+            if is_indirect_reg(src):
+                src2 = indirect_reg_get_reg(src)
+                offset = reg2offset[src2]
+                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % offset))
+                asm_list.append((None, "movb", "(%eax), %al"))
+                offset = reg2offset[dst_reg]
+                asm_list.append((None, "movb", "%%al, %d(%%ebx)" % offset))
+            elif is_num(src):
+                asm_list.append((None, "movl", "$0, %eax"))
+                asm_list.append((None, "movb", "%d(,1), %%eal" % src))
+                num_bytes += 10
+                offset = reg2offset[dst_reg]
+                asm_list.append((None, "movb", "%%eax, %d(%%ebp)" % offset))
+                num_bytes += 7
+            elif is_data_label(src):
+                assert None, "ldb data src label not yet handled"
+            else:
+                assert None, "Unknown ldb src operand type"
+        elif op==IFORM_STW:
+            assert None, "op not yet supported"
+        elif op==IFORM_STB:
+            assert None, "op not yet supported"
+        elif op==IFORM_SET:
+            dst = tup[1]
+            src = tup[2]
+            assert_is_reg(dst)
+            assert_is_const(src)
+            offset = reg2offset[dst]
+            asm_list.append((None, "movl", "$%d, %d(%%ebp)" % (src, offset)))
+            num_bytes += 6
+        elif op==IFORM_CMP:
+            r = tup[1]
+            v = tup[2]
+            assert_is_reg(r)
+            r_off = reg2offset[r]
+
+            if is_reg(v):
+                v_off = reg2offset[v]
+                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                num_bytes += 6
+                asm_list.append((None, "cmpl", "%d(%%ebx), %%eax" % v_off))
+                num_bytes += 6
+            else:
+                assert is_num(v)
+                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                num_bytes += 6
+                asm_list.append((None, "cmpl", "$%d, %%eax" % v))
+                num_bytes += 6
+        elif op==IFORM_BEQ:
+            dst_lab = tup[1]
+            asm_list.append((None, "je", dst_lab))
+            num_bytes += 2
+        elif op==IFORM_BNE:
+            dst_lab = tup[1]
+            asm_list.append((None, "jne", dst_lab))
+            num_bytes += 2
+        elif op==IFORM_BR:
+            assert None, "op not yet supported:" + instr2txt[op]
+        elif op==IFORM_NOP:
+            assert None, "op not yet supported:" + instr2txt[op]
+        elif op==IFORM_ADD:
+            r = tup[1]
+            assert_is_reg(r)
+            val = tup[2]
+            if is_reg(val):
+                r_off = reg2offset[r]
+                v_off = reg2offset[val]
+                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                num_bytes += 6
+                asm_list.append((None, "addl", "%d(%%ebx), %%eax" % v_off))
+                num_bytes += 6
+                asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
+                num_bytes += 6
+            else:
+                assert is_num(val)
+                r_off = reg2offset[r]
+                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                num_bytes += 6
+                asm_list.append((None, "addl", "$%d, %%eax" % val))
+                num_bytes += 6
+                asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
+                num_bytes += 6
+        elif op==IFORM_RET:
+            reg = tup[1]
+            assert_is_reg(reg)
+            offset = reg2offset[reg]
+            asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
+            num_bytes += 5
+            asm_list.append((None, "popl", "%ebp"))
+            num_bytes += 1
+            asm_list.append((None, "ret", None))
+            num_bytes += 1
+        elif op==IFORM_COM:
+            pass
+        elif op==IFORM_CALL:
+            dst_reg = tup[1]
+            fptr    = tup[2]
+            if len(tup) == 3:
+                asm_list.append((None, "call", "%d" % fptr))
+                num_bytes += 2
+            else:
+                args = tup[3:]
+                asm_list.append((None, "call", "%d" % fptr))
+                num_bytes += 2
+        elif op==IFORM_GPARM:
+            assert None, "op not yet supported:" + instr2txt[op]
+        else:
+            assert None, "Unknown op code"
+
+    return (asm_list, num_bytes)
 
 def compile_to_x86_32_direct(iform):
     return None
@@ -1339,17 +1598,17 @@ class simulator(object):
                     self.is_eql = False
             elif op == IFORM_BEQ:
                 dst_lab = tup[1]
-                assert_is_label(dst_lab)
+                assert_is_code_label(dst_lab)
                 if self.is_eql == True:
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_BNE:
                 dst_lab = tup[1]
-                assert_is_label(dst_lab)
+                assert_is_code_label(dst_lab)
                 if self.is_eql == False:
                     iptr = self.label2pos[dst_lab]
             elif op == IFORM_BR:
                 dst_lab = tup[1]
-                assert_is_label(dst_lab)
+                assert_is_code_label(dst_lab)
                 iptr = self.label2pos[dst_lab]
             elif op == IFORM_NOP:
                 pass
@@ -1588,7 +1847,7 @@ def run_vcode_simulation(code_obj, lstate):
                 print "  cmp", arg1, "vs", arg2, "flag=", is_eql
         elif op == IFORM_BEQ:
             dst_lab = tup[1]
-            assert_is_label(dst_lab)
+            assert_is_code_label(dst_lab)
             is_taken = False
             if is_eql == True:
                 iptr = label2idx[dst_lab]
@@ -1597,7 +1856,7 @@ def run_vcode_simulation(code_obj, lstate):
                 print "  beq taken=", is_taken, "iptr=", iptr
         elif op == IFORM_BNE:
             dst_lab = tup[1]
-            assert_is_label(dst_lab)
+            assert_is_code_label(dst_lab)
             is_taken = False
             if is_eql == False:
                 iptr = label2idx[dst_lab]
@@ -1606,7 +1865,7 @@ def run_vcode_simulation(code_obj, lstate):
                 print "  beq taken=", is_taken, "iptr=", iptr
         elif op == IFORM_BR:
             dst_lab = tup[1]
-            assert_is_label(dst_lab)
+            assert_is_code_label(dst_lab)
             iptr = label2idx[dst_lab]
             if debug_flag:
                 print "  br iptr=", iptr

@@ -508,13 +508,6 @@ code_get_token(PyObject *arg_self, PyObject *args)
   }
 
   //__asm__ __volatile__ ( "mfence" : : : "memory" );
-
-  // 8 --> 256
-  // 9 --> 512
-  // 10 --> 1024
-  // 11 -> 2048
-  // 12 --> 4096
-
   base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
   status = mprotect(base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
   if (status != 0) {
