@@ -863,7 +863,7 @@ def str_iform_call(tup):
     func = tup[2]
     tmp = [str(item) for item in tup[3:]]
     args = ", ".join(tmp)
-    return "    call %s <-- %s(%s)" % (dst, func, args)
+    return "    call %s <-- %x(%s)" % (dst, func, args)
 
 def str_iform_gparm(tup):
     assert len(tup)==3 and tup[0]==IFORM_GPARM
@@ -1246,14 +1246,17 @@ def compile_to_x86_32(iform):
         r = asm_list_to_code_obj(l)
     return r
 
-def asm_list_to_code_obj(lines):
+def asm_list_to_code_obj(lines, print_asm_txt=False):
     fp = open("/tmp/foobar.s", "w")
     for tup in lines:
         assert len(tup)==3
-        if tup[0] is not None:
-            txt = tup[0] + ":\t"
-        else:
+        if tup[0] is None:
             txt = "\t"
+        elif tup[0][0] == "#":
+            txt = "#"
+        else:
+            txt = tup[0] + ":\t"
+
         if tup[1] is None:
             assert tup[2] is None
         else:
@@ -1263,6 +1266,15 @@ def asm_list_to_code_obj(lines):
 
         print >>fp, txt
     fp.close()
+
+    if print_asm_txt:
+        print "-----------------"
+        print "asm text:"
+        fp = open("/tmp/foobar.s", "r")
+        for l in fp:
+            print l,
+        fp.close()
+        print "-----------------"
 
     code = os.system("as -o /tmp/foobar.o /tmp/foobar.s > /tmp/foobar.as_stdout 2> /tmp/foobar.as_stderr")
     assert code==0, "error while running assembler"
@@ -1285,6 +1297,11 @@ def asm_list_to_code_obj(lines):
     for ch in b:
         code_obj.append(ord(ch))
     return code_obj
+
+def print_asm_list(asm_list):
+    for tup in asm_list:
+        print tup
+    return
 
 def compile_to_x86_32_asm_1(iform):
     lines = []
@@ -1357,20 +1374,28 @@ def compile_to_x86_32_asm_3(iform):
     for r in iform.all_regs:
         reg2offset[r] = frame_offset
         frame_offset += -4
+    n_locals = len(iform.all_regs)
+    locals_size = n_locals * 4
 
     asm_list.append((None, ".text", None))
     asm_list.append((None, ".globl", "func1"))
     asm_list.append((None, ".globl", "func2"))
-    asm_list.append(("func1", None, None))
 
+    asm_list.append(("func1", None, None))
     asm_list.append((None, "pushl", "%ebp"))
     asm_list.append((None, "movl", "%esp, %ebp"))
+    asm_list.append(("#", "n_locals=%d" % n_locals, None))
+    asm_list.append((None, "add", "$%d, %%esp" % -locals_size))
+
+    data_lab_num = 0
+    code_lab_num = 0
 
     for tup in iform.instructions:
         op = tup[0]
         if op==IFORM_LABEL:
             asm_list.append((tup[1], None, None))
         elif op==IFORM_LDW:
+            asm_list.append(("#", "ldw", None))
             dst_reg = tup[1]
             assert_is_reg(dst_reg)
             src = tup[2]
@@ -1385,16 +1410,17 @@ def compile_to_x86_32_asm_3(iform):
             else:
                 assert None, "Unknown ldw src operand type"
         elif op==IFORM_LDB:
+            asm_list.append(("#", "ldb", None))
             dst_reg = tup[1]
             assert_is_reg(dst_reg)
             src = tup[2]
             if is_indirect_reg(src):
                 src2 = indirect_reg_get_reg(src)
                 offset = reg2offset[src2]
-                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % offset))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
                 asm_list.append((None, "movb", "(%eax), %al"))
                 offset = reg2offset[dst_reg]
-                asm_list.append((None, "movb", "%%al, %d(%%ebx)" % offset))
+                asm_list.append((None, "movb", "%%al, %d(%%ebp)" % offset))
             elif is_num(src):
                 asm_list.append((None, "movl", "$0, %eax"))
                 asm_list.append((None, "movb", "%d(,1), %%eal" % src))
@@ -1409,6 +1435,7 @@ def compile_to_x86_32_asm_3(iform):
         elif op==IFORM_STB:
             assert None, "op not yet supported"
         elif op==IFORM_SET:
+            asm_list.append(("#", "set", None))
             dst = tup[1]
             src = tup[2]
             assert_is_reg(dst)
@@ -1423,11 +1450,11 @@ def compile_to_x86_32_asm_3(iform):
 
             if is_reg(v):
                 v_off = reg2offset[v]
-                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                asm_list.append((None, "cmpl", "%d(%%ebx), %%eax" % v_off))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
+                asm_list.append((None, "cmpl", "%d(%%ebp), %%eax" % v_off))
             else:
                 assert is_num(v)
-                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "cmpl", "$%d, %%eax" % v))
         elif op==IFORM_BEQ:
             dst_lab = tup[1]
@@ -1446,34 +1473,71 @@ def compile_to_x86_32_asm_3(iform):
             if is_reg(val):
                 r_off = reg2offset[r]
                 v_off = reg2offset[val]
-                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
-                asm_list.append((None, "addl", "%d(%%ebx), %%eax" % v_off))
-                asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
+                asm_list.append((None, "addl", "%d(%%ebp), %%eax" % v_off))
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % r_off))
             else:
                 assert is_num(val)
                 r_off = reg2offset[r]
-                asm_list.append((None, "movl", "%d(%%ebx), %%eax" % r_off))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "addl", "$%d, %%eax" % val))
-                asm_list.append((None, "movl", "%%eax, %d(%%ebx)" % r_off))
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % r_off))
         elif op==IFORM_RET:
             reg = tup[1]
             assert_is_reg(reg)
             offset = reg2offset[reg]
+            asm_list.append(("#", "ret", None))
             asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
+            asm_list.append((None, "movl", "%ebp, %esp"))
             asm_list.append((None, "popl", "%ebp"))
             asm_list.append((None, "ret", None))
         elif op==IFORM_COM:
-            pass
+            asm_list.append(("#", tup[1], None))
         elif op==IFORM_CALL:
+            asm_list.append(("#", "call", None))
             dst_reg = tup[1]
             fptr    = tup[2]
             if len(tup) == 3:
-                asm_list.append((None, "call", "%d" % fptr))
+                # no args
+                asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
+                asm_list.append((None, "call", "*%eax"))
+                n_pops = 0
             else:
+                # have args
                 args = tup[3:]
-                asm_list.append((None, "call", "%d" % fptr))
+                for idx in range(len(args) - 1, -1, -1):
+                    a = args[idx]
+                    if is_reg(a):
+                        o = reg2offset[a]
+                        asm_list.append((None, "movl", "%d(%%ebp), %%eax" % o))
+                        asm_list.append((None, "pushl", "%eax"))
+                    elif type(a) is str:
+                        clab = "code_lab_%d" % code_lab_num
+                        code_lab_num += 1
+                        asm_list.append((None, "call", clab))
+                        asm_list.append((None, ".asciz", "\"%s\"" % a))
+                        asm_list.append((clab, None, None))
+                        asm_list.append((None, "nop", None))
+                    else:
+                        assert a is None
+                        asm_list.append((None, "pushl", "$0"))
+                asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
+                asm_list.append((None, "call", "*%eax"))
+                n_pops = len(args)
+            if is_reg(dst_reg):
+                dst_off = reg2offset[dst_reg]
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % dst_off))
+            asm_list.append((None, "add", "$%d, %%esp" % (n_pops * 4)))
         elif op==IFORM_GPARM:
-            assert None, "op not yet supported:" + instr2txt[op]
+            asm_list.append(("#", "gparm", None))
+            dst_reg = tup[1]
+            assert_is_reg(dst_reg)
+            arg_num = tup[2]
+            assert_is_const(arg_num)
+            dst_offset = reg2offset[dst_reg]
+            arg_offset = (arg_num + 2) * 4
+            asm_list.append((None, "movl", "%d(%%ebp), %%eax" % arg_offset))
+            asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % dst_offset))
         else:
             assert None, "Unknown op code"
 

@@ -141,7 +141,7 @@ lexer_state_set_cur_offset(PyObject *arg_self, PyObject *args)
   if (!PyArg_ParseTuple(args, "i:set_cur_offset", &offset))
     return 0;
   if (self->buf==0 || self->size_of_buf==0) {
-    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    PyErr_Format(PyExc_RuntimeError, "set_offset: no input has been set");
     return 0;
   }
   if (!is_valid_ptr(self, self->buf + offset))
@@ -161,7 +161,7 @@ lexer_state_get_cur_offset(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (self->buf==0 || self->size_of_buf==0) {
-    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    PyErr_Format(PyExc_RuntimeError, "get_offset: no input has been set");
     return 0;
   }
 
@@ -181,7 +181,7 @@ lexer_state_get_cur_addr(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (self->buf==0 || self->size_of_buf==0) {
-    PyErr_Format(PyExc_RuntimeError, "no input has been set");
+    PyErr_Format(PyExc_RuntimeError, "get_addr: no input has been set");
     return 0;
   }
 
@@ -367,6 +367,8 @@ static PyObject *code_item(PyObject *, Py_ssize_t);
 static PyObject *code_get_token(PyObject *, PyObject *);
 static PyObject *code_set_type(PyObject *, PyObject *);
 static PyObject *code_append(PyObject *, PyObject *);
+static PyObject *code_get_start_addr(PyObject *, PyObject *);
+static PyObject *code_get_code(PyObject *, PyObject *);
 
 typedef struct {
   PyObject_HEAD
@@ -397,6 +399,12 @@ static PyMethodDef code_methods[] = {
 
     {"append",    code_append,    METH_VARARGS,
      "Append a single chunk of data."},
+
+    {"get_start_addr", code_get_start_addr, METH_NOARGS,
+     "Return start address of code buffer."},
+
+    {"get_code",  code_get_code, METH_NOARGS,
+     "Return code buffer."},
 
     {NULL}
 };
@@ -605,6 +613,40 @@ code_grow(code_t *self)
   return;
 }
 
+static PyObject *
+code_get_start_addr(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  if (self->u.buf == 0) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+  result = PyLong_FromLong((long)self->u.buf);
+  return result;
+}
+
+static PyObject *
+code_get_code(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  if (self->is_vcode) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+  result = PyString_FromStringAndSize(self->u.buf, self->num_in_buf);
+  return result;
+}
+
 /***************************************************************/
 /***************************************************************/
 /***                                                         ***/
@@ -661,18 +703,31 @@ escape_print_gdb_info(PyObject *self, PyObject *args)
 static PyObject *
 escape_get_obj_from_id(PyObject *self, PyObject *args)
 {
-  int ival;
+  long long llval;
+  long lval;
   PyObject *obj;
 
-  if (!PyArg_ParseTuple(args, "i:get_obj_from_id", &ival))
+  if (!PyArg_ParseTuple(args, "L:get_obj_from_id", &llval))
     return 0;
-  obj = (PyObject *)ival;
+  lval = llval;
+  obj = (PyObject *)lval;
   if (obj->ob_type != &lexer_state_type) {
     PyErr_SetString(PyExc_RuntimeError, "Bad id - not lex_state obj.");
     return 0;
   }
   Py_INCREF(obj);
   return obj;
+}
+
+static PyObject *
+escape_regtest01(PyObject *self, PyObject *args)
+{
+  PyObject *lbuf, *result;
+
+  if (!PyArg_ParseTuple(args, "O!:", &lexer_state_type, &lbuf))
+    return 0;
+  result = PyObject_CallMethod(lbuf, "get_cur_addr", 0);
+  return result;
 }
 
 static PyMethodDef escape_methods[] = {
@@ -687,6 +742,9 @@ static PyMethodDef escape_methods[] = {
 
   {"get_obj_from_id",  escape_get_obj_from_id,   METH_VARARGS,
    PyDoc_STR("Turn a python id back into an object.")},
+
+  {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
+   
 
   {NULL,     NULL}
 };
