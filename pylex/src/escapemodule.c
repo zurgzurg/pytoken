@@ -720,6 +720,21 @@ escape_get_obj_from_id(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+escape_get_char_ptr_offset(PyObject *self, PyObject *args)
+{
+  lexer_state_t lstate;
+  char *p1, *p2;
+  int offset;
+  PyObject *result;
+  
+  p1 = (char *)&lstate;
+  p2 = (char *)&lstate.next_char_ptr;
+  offset = p2 - p1;
+  result = PyInt_FromLong(offset);
+  return result;
+}
+
+static PyObject *
 escape_regtest01(PyObject *self, PyObject *args)
 {
   PyObject *lbuf, *result;
@@ -742,6 +757,9 @@ static PyMethodDef escape_methods[] = {
 
   {"get_obj_from_id",  escape_get_obj_from_id,   METH_VARARGS,
    PyDoc_STR("Turn a python id back into an object.")},
+
+  {"get_char_ptr_offset", escape_get_char_ptr_offset, METH_NOARGS,
+   PyDoc_STR("Return lex state offset for character pos ptr.")},
 
   {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
    

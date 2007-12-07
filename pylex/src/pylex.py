@@ -632,7 +632,7 @@ IFORM_LDW     =  2 # reg, addr  | reg, (reg) | reg, dlab
 IFORM_LDB     =  3 # reg, addr  | reg, (reg) | reg, dlab
 IFORM_STW     =  4 # addr, reg  | (reg), reg | dlab, reg
 IFORM_STB     =  5 # addr, reg  | (reg), reg | dlab, reg
-IFORM_SET     =  6 # reg, const
+IFORM_SET     =  6 # reg, const | reg, reg
 IFORM_CMP     =  7 # reg, reg   | reg, const
 IFORM_BEQ     =  8 # label
 IFORM_BNE     =  9 # label
@@ -707,7 +707,7 @@ def iform_stb(dst, src):
 
 def iform_set(reg, val):
     assert_is_reg(reg)
-    assert_is_const(val)
+    assert_is_reg_or_const(val)
     return (IFORM_SET, reg, val)
 
 def iform_cmp(v1, v2):
@@ -807,8 +807,11 @@ def str_iform_stb(tup):
 def str_iform_set(tup):
     assert len(tup) == 3 and tup[0] == IFORM_SET
     assert_is_reg(tup[1])
-    assert_is_const(tup[2])
-    return "    set %s <-- %d" % (tup[1], tup[2])
+    assert_is_reg_or_const(tup[2])
+    if is_reg(tup[2]):
+        return "    set %s <-- %s" % (tup[1], tup[2])
+    else:
+        return "    set %s <-- %d" % (tup[1], tup[2])
 
 def str_iform_cmp(tup):
     assert len(tup)==3 and tup[0]==IFORM_CMP
@@ -938,7 +941,7 @@ def assert_is_data_label(l):
     return
 
 def assert_is_reg_or_const(r):
-    assert (type(r) is str and r.startswith("reg_")) or type(r) is int
+    assert (type(r) is str and r.startswith("reg_")) or is_num(r)
     return
 
 def assert_is_const(r):
@@ -992,6 +995,7 @@ class iform_code(object):
         self.next_avail_reg_num = 1
         self.instructions       = []
         self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
+        self.char_ptr_offset    = escape.get_char_ptr_offset()
         self.lbuf               = None
 
         symtab = globals()
@@ -1400,7 +1404,12 @@ def compile_to_x86_32_asm_3(iform):
             assert_is_reg(dst_reg)
             src = tup[2]
             if is_indirect_reg(src):
-                assert None, "ldw from indirect reg not yet supported"
+                src2 = indirect_reg_get_reg(src)
+                so = reg2offset[src2]
+                do = reg2offset[dst_reg]
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % so))
+                asm_list.append((None, "movl", "(%eax), %eax"))
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % do))
             elif is_num(src):
                 asm_list.append((None, "movl", "%d(,1), %%eax" % src))
                 offset = reg2offset[dst_reg]
@@ -1418,9 +1427,10 @@ def compile_to_x86_32_asm_3(iform):
                 src2 = indirect_reg_get_reg(src)
                 offset = reg2offset[src2]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
-                asm_list.append((None, "movb", "(%eax), %al"))
+                asm_list.append((None, "movl", "$0, %ecx"))
+                asm_list.append((None, "movb", "(%eax), %cl"))
                 offset = reg2offset[dst_reg]
-                asm_list.append((None, "movb", "%%al, %d(%%ebp)" % offset))
+                asm_list.append((None, "movl", "%%ecx, %d(%%ebp)" % offset))
             elif is_num(src):
                 asm_list.append((None, "movl", "$0, %eax"))
                 asm_list.append((None, "movb", "%d(,1), %%eal" % src))
@@ -1439,9 +1449,14 @@ def compile_to_x86_32_asm_3(iform):
             dst = tup[1]
             src = tup[2]
             assert_is_reg(dst)
-            assert_is_const(src)
-            offset = reg2offset[dst]
-            asm_list.append((None, "movl", "$%d, %d(%%ebp)" % (src, offset)))
+            assert_is_reg_or_const(src)
+            off1 = reg2offset[dst]
+            if is_reg(src):
+                off2 = reg2offset[src]
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % off2))
+                asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % off1))
+            else:
+                asm_list.append((None, "movl", "$%d, %d(%%ebp)" % (src, off1)))
         elif op==IFORM_CMP:
             r = tup[1]
             v = tup[2]
@@ -1633,8 +1648,12 @@ class simulator(object):
                 reg = tup[1]
                 val = tup[2]
                 assert_is_reg(reg)
-                assert_is_const(val)
-                self.set_register(reg, val)
+                assert_is_reg_or_const(val)
+                if is_reg(val):
+                    v = self.resolve_reg(val)
+                    self.set_register(reg, v)
+                else:
+                    self.set_register(reg, val)
             elif op == IFORM_CMP:
                 arg1 = self.resolve_reg(tup[1])
                 arg2 = self.resolve_reg_or_const(tup[2])
@@ -1874,7 +1893,9 @@ def run_vcode_simulation(code_obj, lstate):
             reg = tup[1]
             val = tup[2]
             assert_is_reg(reg)
-            assert_is_const(val)
+            assert_is_reg_or_const(val)
+            if is_reg(val):
+                val = resolve_reg(val)
             set_reg(reg_tbl, reg, val)
             if val == 0:
                 is_eql = True

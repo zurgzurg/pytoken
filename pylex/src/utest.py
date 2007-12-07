@@ -893,7 +893,7 @@ class manual_x86_03(lex_test):
         c = pylex.iform_code(lobj)
         c.make_std_registers()
 
-        c.add_iform_gparm(c.data_reg, 0)
+        c.add_iform_gparm(c.data_reg, 1)
         c.add_iform_call(c.data_reg, c.call_method_addr, c.data_reg,
                          "get_cur_addr", None)
         #c.add_iform_ldb(c.data_reg, "(" + c.data_reg + ")")
@@ -923,6 +923,75 @@ class manual_x86_03(lex_test):
         v = code_x86.get_token(lstate)
         #print "val from code obj is", v, "done."
         self.assert_(v is not None)
+        return
+    pass
+
+class manual_x86_04(lex_test):
+    def runTest(self):
+        lobj = pylex.lexer()
+
+        c = pylex.iform_code(lobj)
+        c.make_std_registers()
+
+        c.add_iform_gparm(c.data_reg, 1)
+        c.add_iform_set(c.str_ptr_reg, c.data_reg)
+        c.add_iform_add(c.str_ptr_reg, c.char_ptr_offset)
+        c.add_iform_ldw(c.str_ptr_reg, "(" + c.str_ptr_reg + ")")
+        c.add_iform_ret(c.str_ptr_reg)
+
+        #print "-----------"
+        #pylex.print_instructions(c.instructions)
+        #print "-----------"
+
+        asm_list = pylex.compile_to_x86_32_asm_3(c)
+        #pylex.print_asm_list(asm_list)
+        code_x86 = pylex.asm_list_to_code_obj(asm_list, print_asm_txt=False)
+
+        base = code_x86.get_start_addr()
+        code_bytes = code_x86.get_code()
+        obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
+        #print "##########"
+        #for tup in obj:
+        #    print tup[2]
+        #print "##########"
+
+        lstate   = pylex.lexer_state()
+        lstate.set_input("a")
+
+        #escape.print_gdb_info()
+
+        v = code_x86.get_token(lstate)
+        #print "val from code obj is", v, "done."
+        self.assert_(v is not None)
+        return
+    pass
+
+class manual_x86_05(lex_test):
+    def runTest(self):
+        lobj = pylex.lexer()
+
+        c = pylex.iform_code(lobj)
+        c.make_std_registers()
+
+        c.add_iform_gparm(c.data_reg, 1)
+        c.add_iform_set(c.str_ptr_reg, c.data_reg)
+        c.add_iform_add(c.str_ptr_reg, c.char_ptr_offset)
+        c.add_iform_ldw(c.str_ptr_reg, "(" + c.str_ptr_reg + ")")
+        c.add_iform_ldb(c.data_reg, "(" + c.str_ptr_reg + ")")
+        c.add_iform_ret(c.data_reg)
+
+        asm_list = pylex.compile_to_x86_32_asm_3(c)
+        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+
+        base = code_x86.get_start_addr()
+        code_bytes = code_x86.get_code()
+        obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
+
+        lstate   = pylex.lexer_state()
+        lstate.set_input("a")
+
+        v = code_x86.get_token(lstate)
+        self.assert_(v == ord('a'))
         return
     pass
 
