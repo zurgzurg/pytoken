@@ -782,6 +782,7 @@ class asm15(lex_test):
 
         #pylex.print_instructions(code2)
 
+        #escape.print_gdb_info()
         r = code2.get_token(lstate)
         return
     pass
@@ -848,6 +849,30 @@ class asm18(lex_test):
 
         return
     pass
+
+##############################################################
+class asm_full_01(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a", 1)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+
+        #pylex.print_instructions(code1)
+        asm_list = pylex.compile_to_x86_32_asm_3(code1)
+        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("a")
+
+        tok = code_x86.get_token(lstate)
+        self.assert_(tok == 1)
+
+        return
+    pass
+
 
 ##############################################################
 class manual_x86_01(lex_test):

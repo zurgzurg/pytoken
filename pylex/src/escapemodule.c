@@ -29,6 +29,8 @@ static PyObject *lexer_state_ldw(PyObject *, PyObject *);
 static PyObject *lexer_state_stb(PyObject *, PyObject *);
 static PyObject *lexer_state_stw(PyObject *, PyObject *);
 
+static int  *lexer_state_get_word_ptr(PyObject *);
+static char *lexer_state_get_char_ptr(PyObject *);
 
 /*******************************************/
 /*                                         */
@@ -51,6 +53,7 @@ typedef struct {
 
 static int is_valid_ptr(lexer_state_t *, char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
+static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
 
 static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
@@ -168,7 +171,7 @@ lexer_state_get_cur_offset(PyObject *arg_self, PyObject *args)
   if (!is_valid_ptr(self, self->next_char_ptr))
     return 0;
 
-  result = PyInt_FromLong(self->next_char_ptr - self->buf);
+  result = PyLong_FromUnsignedLong(self->next_char_ptr - self->buf);
   return result;
 }
 
@@ -188,7 +191,7 @@ lexer_state_get_cur_addr(PyObject *arg_self, PyObject *args)
   if (!is_valid_ptr(self, self->next_char_ptr))
     return 0;
 
-  result = PyInt_FromLong((long)self->next_char_ptr);
+  result = PyLong_FromUnsignedLong((long)self->next_char_ptr);
   return result;
 }
 
@@ -239,15 +242,16 @@ static PyObject *
 lexer_state_ldb(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int i;
   char *ptr, ch;
-  PyObject *result;
+  PyObject *obj_arg, *result;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "i:ldb", &i))
+  if (!PyArg_ParseTuple(args, "O:ldb", &obj_arg))
     return 0;
-  ptr = (char *)i;
+  ptr = lexer_state_get_char_ptr(obj_arg);
+  if (ptr == 0)
+    return 0;
   if (!is_valid_ptr(self, ptr))
     return 0;
   ch = *ptr;
@@ -259,14 +263,18 @@ static PyObject *
 lexer_state_ldw(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int i, val, *ptr;
-  PyObject *result;
+  int *ptr;
+  long val;
+  PyObject *result, *obj_arg;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "i:ldw", &i))
+
+  if (!PyArg_ParseTuple(args, "O:ldw", &obj_arg))
     return 0;
-  ptr = (int *)i;
+  ptr = lexer_state_get_word_ptr(obj_arg);
+  if (ptr == 0)
+    return 0;
   if (!is_valid_word_ptr(self, ptr))
     return 0;
   val = *ptr;
@@ -278,14 +286,17 @@ static PyObject *
 lexer_state_stb(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int ptr_as_int, val;
+  int val;
   char *dst_ptr, ch;
+  PyObject *obj_arg;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "ii:stb", &ptr_as_int, &val))
+  if (!PyArg_ParseTuple(args, "Oi:stb", &obj_arg, &val))
     return 0;
-  dst_ptr = (char *)ptr_as_int;
+  dst_ptr = lexer_state_get_char_ptr(obj_arg);
+  if (dst_ptr==0)
+    return 0;
   if (!is_valid_ptr(self, dst_ptr))
     return 0;
 
@@ -305,13 +316,16 @@ static PyObject *
 lexer_state_stw(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int ptr_as_int, val, *dst_ptr;
+  int val, *dst_ptr;
+  PyObject *obj_arg;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "ii:stw", &ptr_as_int, &val))
+  if (!PyArg_ParseTuple(args, "Oi:stw", &obj_arg, &val))
     return 0;
-  dst_ptr = (int *)ptr_as_int;
+  dst_ptr = lexer_state_get_word_ptr(obj_arg);
+  if (dst_ptr == 0)
+    return 0;
   if (!is_valid_word_ptr(self, dst_ptr))
     return 0;
   
@@ -321,9 +335,45 @@ lexer_state_stw(PyObject *arg_self, PyObject *args)
   return Py_None;
 }
 
+static int  *
+lexer_state_get_word_ptr(PyObject *obj)
+{
+  unsigned long ul;
+  int *result;
+
+  assert(obj != 0);
+  if (PyInt_Check(obj) || PyLong_Check(obj)) {
+    ul = PyInt_AsUnsignedLongMask(obj);
+    result = (int *)ul;
+    return result;
+  }
+
+  PyErr_Format(PyExc_RuntimeError, "cannot get word pointer from non-num.");
+  return 0;
+}
+
+static char *
+lexer_state_get_char_ptr(PyObject *obj)
+{
+  unsigned long ul;
+  char *result;
+
+  assert(obj != 0);
+  if (PyInt_Check(obj) || PyLong_Check(obj)) {
+    ul = PyInt_AsUnsignedLongMask(obj);
+    result = (char *)ul;
+    return result;
+  }
+
+  PyErr_Format(PyExc_RuntimeError, "cannot get char pointer from non-num.");
+  return 0;
+}
+
 static int
 is_valid_ptr(lexer_state_t *self, char *ch_ptr)
 {
+  if (is_valid_lstate_ptr(self, ch_ptr))
+    return 1;
   if (ch_ptr < self->buf) {
     PyErr_Format(PyExc_RuntimeError, "Invalid char pointer: before buf");
     return 0;
@@ -338,6 +388,8 @@ is_valid_ptr(lexer_state_t *self, char *ch_ptr)
 static int
 is_valid_word_ptr(lexer_state_t *self, int *w_ptr)
 {
+  if (is_valid_lstate_ptr(self, w_ptr))
+    return 1;
   if ((char *)w_ptr < self->buf) {
     PyErr_Format(PyExc_RuntimeError, "Invalid word pointer: before buf");
     return 0;
@@ -347,6 +399,20 @@ is_valid_word_ptr(lexer_state_t *self, int *w_ptr)
     return 0;
   }
   return 1;
+}
+
+static int
+is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
+{
+  char *start, *end, *ptr2;
+
+  start = (char *)self;
+  end = start + sizeof(lexer_state_t);
+
+  ptr2 = (char *)ptr;
+  if (ptr2 >= start && ptr2 <= end)
+    return 1;
+  return 0;
 }
 
 /***************************************************************/
@@ -364,7 +430,7 @@ static void code_dealloc(PyObject *);
 static Py_ssize_t code_len(PyObject *);
 static PyObject *code_item(PyObject *, Py_ssize_t);
 
-static PyObject *code_get_token(PyObject *, PyObject *);
+static PyObject *code_get_token(PyObject *, PyObject *, PyObject *);
 static PyObject *code_set_type(PyObject *, PyObject *);
 static PyObject *code_append(PyObject *, PyObject *);
 static PyObject *code_get_start_addr(PyObject *, PyObject *);
@@ -391,7 +457,7 @@ static PyTypeObject code_type = {
 };
 
 static PyMethodDef code_methods[] = {
-    {"get_token", code_get_token, METH_VARARGS,
+    {"get_token", (PyCFunction)code_get_token, METH_KEYWORDS,
      "Return the next token."},
 
     {"set_type",  code_set_type,  METH_VARARGS,
@@ -479,13 +545,14 @@ code_item(PyObject *arg_self, Py_ssize_t i)
 }
 
 static PyObject *
-code_get_token(PyObject *arg_self, PyObject *args)
+code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
 {
   code_t *self;
-  PyObject *lbuf, *m, *d, *func, *res;
+  PyObject *lbuf, *m, *d, *func, *res, *bool_db_flag;
   typedef int (*asm_func_t)(code_t *, lexer_state_t *);
   asm_func_t asm_func;
-  int v;
+  int debug_flag, v;
+  static char *kwlist[] = {"lexer_state", "debug", 0};
 
   unsigned char *base;
   int status;
@@ -493,10 +560,14 @@ code_get_token(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   
-  if (!PyArg_ParseTuple(args, "O!:get_token", &lexer_state_type, &lbuf))
+  debug_flag = 0;
+  if (!PyArg_ParseTupleAndKeywords(args, kwdict, "O!|i:get_token", kwlist,
+				   &lexer_state_type, &lbuf, &debug_flag))
     return 0;
 
   if (self->is_vcode) {
+    bool_db_flag = PyBool_FromLong(debug_flag);
+
     m = PyImport_ImportModule("pylex");
     if (m==0)
       return 0;
@@ -511,7 +582,7 @@ code_get_token(PyObject *arg_self, PyObject *args)
       PyErr_Format(PyExc_RuntimeError, "run_vcode_simulation not a function");
       return 0;
     }
-    res = PyObject_CallFunctionObjArgs(func, arg_self, lbuf, 0);
+    res = PyObject_CallFunctionObjArgs(func, arg_self, lbuf, bool_db_flag, 0);
     return res;
   }
 

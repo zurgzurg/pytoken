@@ -866,6 +866,8 @@ def str_iform_call(tup):
     func = tup[2]
     tmp = [str(item) for item in tup[3:]]
     args = ", ".join(tmp)
+    if is_reg(func):
+        return "    call %s <-- %s(%s)" % (dst, func, args)
     return "    call %s <-- %x(%s)" % (dst, func, args)
 
 def str_iform_gparm(tup):
@@ -969,6 +971,8 @@ def indirect_reg_get_reg(r):
 def print_instructions(arg):
     if type(arg) is list:
         tmp_list = arg
+    elif isinstance(arg, iform_code):
+        tmp_list = arg.instructions
     elif isinstance(arg, escape.code):
         n = len(arg)
         tmp_list = [arg[i] for i in xrange(n)]
@@ -1195,7 +1199,8 @@ def compile_to_intermediate_form2(lexer, dfa_obj):
         s.label = "lab_%d" % i
 
     code.add_iform_gparm(code.tmp_reg1, 1)
-    code.add_iform_call(code.str_ptr_reg, code.tmp_reg1, "get_cur_addr")
+    code.add_iform_add(code.tmp_reg1, code.char_ptr_offset)
+    code.add_iform_ldw(code.str_ptr_reg, "(" + code.tmp_reg1 + ")")
 
     for s in dfa_obj.states:
         tmp = compile_one_node2(code, s, dfa_obj)
@@ -1212,8 +1217,7 @@ def compile_one_node2(code, state, dfa_obj):
         code.ladd_iform_ldb(lst, code.data_reg, ld_src)
         code.ladd_iform_add(lst, code.str_ptr_reg, 1)
     if state.user_action:
-        code.ladd_iform_call(lst, code.tmp_reg2, code.tmp_reg1,
-                             "set_cur_addr", code.str_ptr_reg)
+        code.ladd_iform_stw(lst, "(" + code.tmp_reg1 + ")", code.str_ptr_reg)
         code.ladd_iform_set(lst, code.data_reg, state.user_action)
         code.ladd_iform_ret(lst, code.data_reg)
         return lst
@@ -1441,7 +1445,24 @@ def compile_to_x86_32_asm_3(iform):
             else:
                 assert None, "Unknown ldb src operand type"
         elif op==IFORM_STW:
-            assert None, "op not yet supported"
+            asm_list.append(("#", "stw", None))
+            dst = tup[1]
+            src = tup[2]
+            assert_is_reg(src)
+            src_o = reg2offset[src]
+            if is_num(dst):
+                asm_list.append((None, "movl", "%d(%%ebp), %eax" % src_o))
+                asm_list.append((None, "movl", "%%eax, %d(,1)" % dst))
+            elif is_indirect_reg(dst):
+                dst_reg = indirect_reg_get_reg(dst)
+                dst_o = reg2offset[dst_reg]
+                asm_list.append((None, "movl", "%d(%%ebp), %%ecx" % dst_o))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % src_o))
+                asm_list.append((None, "movl", "%eax, (%ecx)"))
+            elif is_data_label(dst):
+                assert None, "STW to data label not yet supported"
+            else:
+                assert None, "Invalid dst for STW"
         elif op==IFORM_STB:
             assert None, "op not yet supported"
         elif op==IFORM_SET:
@@ -1536,7 +1557,11 @@ def compile_to_x86_32_asm_3(iform):
                     else:
                         assert a is None
                         asm_list.append((None, "pushl", "$0"))
-                asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
+                if is_reg(fptr):
+                    o = reg2offset[fptr]
+                    asm_list.append((None, "movl", "%d(%%ebp), %%eax" % o))
+                else:
+                    asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
                 asm_list.append((None, "call", "*%eax"))
                 n_pops = len(args)
             if is_reg(dst_reg):
@@ -1814,16 +1839,18 @@ def resolve_const(arg):
     return arg
 
 
-def run_vcode_simulation(code_obj, lstate):
+def run_vcode_simulation(code_obj, lstate, debug_flag=False):
     assert lstate.has_data() == True
 
     n_instr = len(code_obj)
     if n_instr == 0:
         return None
 
-    debug_flag = False
     if debug_flag:
-        print "---------simulation-------"
+        print "---------start of simulation-------"
+        off = lstate.get_cur_offset()
+        addr = lstate.get_cur_addr()
+        print "offset=%d addr=%d=0x%x" % (off, addr, addr)
 
     reg_tbl    = {}
     label2idx  = {}
