@@ -686,33 +686,33 @@ def iform_data(dlab, val):
     return (IFORM_DATA, dlab, val)
 
 def iform_ldw(dst, src):
-    assert_is_reg(dst)
-    assert_is_addr_or_indirect_reg_or_dlab(src)
+    assert_is_var(dst)
+    assert_is_addr_or_indirect_var_or_dlab(src)
     return (IFORM_LDW, dst, src)
 
 def iform_ldb(dst, src):
-    assert_is_reg(dst)
-    assert_is_addr_or_indirect_reg_or_dlab(src)
+    assert_is_var(dst)
+    assert_is_addr_or_indirect_var_or_dlab(src)
     return (IFORM_LDB, dst, src)
 
 def iform_stw(dst, src):
-    assert_is_addr_or_indirect_reg_or_dlab(dst)
-    assert_is_reg(src)
+    assert_is_addr_or_indirect_var_or_dlab(dst)
+    assert_is_var(src)
     return (IFORM_STW, dst, src)
 
 def iform_stb(dst, src):
-    assert_is_addr_or_indirect_reg_or_dlab(dst)
-    assert_is_reg(src)
+    assert_is_addr_or_indirect_var_or_dlab(dst)
+    assert_is_var(src)
     return (IFORM_STB, dst, src)
 
-def iform_set(reg, val):
-    assert_is_reg(reg)
-    assert_is_reg_or_const(val)
-    return (IFORM_SET, reg, val)
+def iform_set(var, val):
+    assert_is_var(var)
+    assert_is_var_or_const(val)
+    return (IFORM_SET, var, val)
 
 def iform_cmp(v1, v2):
-    assert_is_reg(v1)
-    assert_is_reg_or_const(v2)
+    assert_is_var(v1)
+    assert_is_var_or_const(v2)
     return (IFORM_CMP, v1, v2)
 
 def iform_beq(lab):
@@ -730,29 +730,29 @@ def iform_br(lab):
 def iform_nop():
     return (IFORM_NOP,)
 
-def iform_add(reg, v):
-    assert_is_reg(reg)
-    assert_is_reg_or_const(v)
-    return (IFORM_ADD, reg, v)
+def iform_add(var, v):
+    assert_is_var(var)
+    assert_is_var_or_const(v)
+    return (IFORM_ADD, var, v)
 
-def iform_ret(reg):
-    assert_is_reg(reg)
-    return (IFORM_RET, reg)
+def iform_ret(var):
+    assert_is_var(var)
+    return (IFORM_RET, var)
 
 def iform_com(txt):
     return (IFORM_COM, txt)
 
-def iform_call(reg, func, *args):
-    assert_is_reg(reg)
-    assert_is_addr_or_reg(func)
-    tmp = [IFORM_CALL, reg, func]
+def iform_call(var, func, *args):
+    assert_is_var(var)
+    assert_is_addr_or_var(func)
+    tmp = [IFORM_CALL, var, func]
     tmp.extend(args)
     return tuple(tmp)
 
-def iform_gparm(reg, pnum):
-    assert_is_reg(reg)
+def iform_gparm(var, pnum):
+    assert_is_var(var)
     assert_is_const(pnum)
-    return (IFORM_GPARM, reg, pnum)
+    return (IFORM_GPARM, var, pnum)
 
 ####################################################
 
@@ -769,8 +769,8 @@ def str_iform_data(tup):
 def str_iform_ldw(tup):
     assert len(tup)==3
     assert tup[0]==IFORM_LDW
-    assert_is_reg(tup[1])
-    assert_is_addr_or_indirect_reg_or_dlab(tup[2])
+    assert_is_var(tup[1])
+    assert_is_addr_or_indirect_var_or_dlab(tup[2])
     if type(tup[2]) is str:
         return "    ldw %s <-- %s" % (tup[1], tup[2])
     else:
@@ -778,8 +778,8 @@ def str_iform_ldw(tup):
 
 def str_iform_ldb(tup):
     assert len(tup)==3 and tup[0]==IFORM_LDB
-    assert_is_reg(tup[1])
-    assert_is_addr_or_indirect_reg_or_dlab(tup[2])
+    assert_is_var(tup[1])
+    assert_is_addr_or_indirect_var_or_dlab(tup[2])
     if type(tup[2]) is str:
         return "    ldb %s <-- %s" % (tup[1], tup[2])
     else:
@@ -787,8 +787,8 @@ def str_iform_ldb(tup):
 
 def str_iform_stw(tup):
     assert len(tup)==3 and tup[0]==IFORM_STW
-    assert_is_addr_or_indirect_reg_or_dlab(tup[1])
-    assert_is_reg(tup[2])
+    assert_is_addr_or_indirect_var_or_dlab(tup[1])
+    assert_is_var(tup[2])
     if type(tup[1]) is str:
         return "    stw %s <-- %s" % (tup[1], tup[2])
     else:
@@ -797,8 +797,8 @@ def str_iform_stw(tup):
 def str_iform_stb(tup):
     assert len(tup)==3
     assert tup[0]==IFORM_STB
-    assert_is_addr_or_indirect_reg_or_dlab(tup[1])
-    assert_is_reg(tup[2])
+    assert_is_addr_or_indirect_var_or_dlab(tup[1])
+    assert_is_var(tup[2])
     if type(tup[1]) is str:
         return "    stb %s <-- %s" % (tup[1], tup[2])
     else:
@@ -806,17 +806,17 @@ def str_iform_stb(tup):
 
 def str_iform_set(tup):
     assert len(tup) == 3 and tup[0] == IFORM_SET
-    assert_is_reg(tup[1])
-    assert_is_reg_or_const(tup[2])
-    if is_reg(tup[2]):
+    assert_is_var(tup[1])
+    assert_is_var_or_const(tup[2])
+    if is_var(tup[2]):
         return "    set %s <-- %s" % (tup[1], tup[2])
     else:
         return "    set %s <-- %d" % (tup[1], tup[2])
 
 def str_iform_cmp(tup):
     assert len(tup)==3 and tup[0]==IFORM_CMP
-    assert_is_reg(tup[1])
-    assert_is_reg_or_const(tup[2])
+    assert_is_var(tup[1])
+    assert_is_var_or_const(tup[2])
     if type(tup[2]) is str:
         return "    cmp %s, %s" % (tup[1], tup[2])
     else:
@@ -843,8 +843,8 @@ def str_iform_nop(tup):
 
 def str_iform_add(tup):
     assert len(tup)==3 and tup[0]==IFORM_ADD
-    assert_is_reg(tup[1])
-    assert_is_reg_or_const(tup[2])
+    assert_is_var(tup[1])
+    assert_is_var_or_const(tup[2])
     if type(tup[2]) is str:
         return "    add %s <-- %s,%s" % (tup[1], tup[1], tup[2])
     else:
@@ -852,7 +852,7 @@ def str_iform_add(tup):
 
 def str_iform_ret(tup):
     assert len(tup)==2 and tup[0]==IFORM_RET
-    assert_is_reg(tup[1])
+    assert_is_var(tup[1])
     return "    ret %s" % tup[1]
 
 def str_iform_com(tup):
@@ -861,18 +861,18 @@ def str_iform_com(tup):
 
 def str_iform_call(tup):
     assert tup[0]==IFORM_CALL
-    assert_is_reg(tup[1])
+    assert_is_var(tup[1])
     dst  = tup[1]
     func = tup[2]
     tmp = [str(item) for item in tup[3:]]
     args = ", ".join(tmp)
-    if is_reg(func):
+    if is_var(func):
         return "    call %s <-- %s(%s)" % (dst, func, args)
     return "    call %s <-- %x(%s)" % (dst, func, args)
 
 def str_iform_gparm(tup):
     assert len(tup)==3 and tup[0]==IFORM_GPARM
-    assert_is_reg(tup[1])
+    assert_is_var(tup[1])
     assert_is_const(tup[2])
     return "    gparm %s <-- parm<%d>" % (tup[1], tup[2])
 
@@ -897,13 +897,13 @@ instr2pfunc = {
     }
 
 ####################################################
-def is_reg(r):
-    if type(r) is str and r.startswith("reg_"):
+def is_var(r):
+    if type(r) is str and r.startswith("var_"):
         return True
     return False
 
-def is_indirect_reg(r):
-    if type(r) is str and r.startswith("(reg_") and r.endswith(")"):
+def is_indirect_var(r):
+    if type(r) is str and r.startswith("(var_") and r.endswith(")"):
         return True
     return False
 
@@ -924,13 +924,13 @@ def is_code_label(lab):
 
 #################
 
-def assert_is_reg(r):
-    assert is_reg(r)
+def assert_is_var(r):
+    assert is_var(r)
     return
 
-def assert_is_addr_or_indirect_reg_or_dlab(arg):
+def assert_is_addr_or_indirect_var_or_dlab(arg):
     assert is_num(arg) \
-           or is_indirect_reg(arg) \
+           or is_indirect_var(arg) \
            or is_data_label(arg)
     return
 
@@ -942,16 +942,16 @@ def assert_is_data_label(l):
     assert is_data_label(l)
     return
 
-def assert_is_reg_or_const(r):
-    assert (type(r) is str and r.startswith("reg_")) or is_num(r)
+def assert_is_var_or_const(r):
+    assert (type(r) is str and r.startswith("var_")) or is_num(r)
     return
 
 def assert_is_const(r):
     assert is_num(r)
     return
 
-def assert_is_addr_or_reg(v):
-    assert is_num(v) or is_reg(v)
+def assert_is_addr_or_var(v):
+    assert is_num(v) or is_var(v)
     return
     
 ####################################################
@@ -963,8 +963,8 @@ def assert_is_byte(v):
 
 ####################################################
 
-def indirect_reg_get_reg(r):
-    assert is_indirect_reg(r)
+def indirect_var_get_var(r):
+    assert is_indirect_var(r)
     return r[1:-1]
 
 ####################################################
@@ -991,12 +991,12 @@ def print_instructions(arg):
 class iform_code(object):
     def __init__(self, lexer_obj):
         self.lexer              = lexer_obj
-        self.all_regs           = []
-        self.str_ptr_reg        = None
-        self.tmp_reg1           = None
-        self.tmp_reg2           = None
-        self.data_reg           = None
-        self.next_avail_reg_num = 1
+        self.all_vars           = []
+        self.str_ptr_var        = None
+        self.tmp_var1           = None
+        self.tmp_var2           = None
+        self.data_var           = None
+        self.next_avail_var_num = 1
         self.instructions       = []
         self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
         self.char_ptr_offset    = escape.get_char_ptr_offset()
@@ -1010,21 +1010,21 @@ class iform_code(object):
         pass
 
     ####################
-    def make_new_register(self):
-        r = "reg_%d" % self.next_avail_reg_num
-        self.next_avail_reg_num += 1
-        self.all_regs.append(r)
+    def make_new_var(self):
+        r = "var_%d" % self.next_avail_var_num
+        self.next_avail_var_num += 1
+        self.all_vars.append(r)
         return r
 
     def make_std_vars(self):
-        self.str_ptr_reg  = self.make_new_register()
-        self.data_reg     = self.make_new_register()
-        self.tmp_reg1     = self.make_new_register()
-        self.tmp_reg2     = self.make_new_register()
+        self.str_ptr_var  = self.make_new_var()
+        self.data_var     = self.make_new_var()
+        self.tmp_var1     = self.make_new_var()
+        self.tmp_var2     = self.make_new_var()
         return
 
-    def set_str_ptr_reg(self, val):
-        self.str_ptr_reg = val
+    def set_str_ptr_var(self, val):
+        self.str_ptr_var = val
         return
 
     ####################
@@ -1152,7 +1152,7 @@ def compile_to_intermediate_form(lexer, dfa_obj):
         s.label = "lab_%d" % i
 
     code.add_iform_label("lab_main1")
-    code.add_iform_set(code.str_ptr_reg, 0)
+    code.add_iform_set(code.str_ptr_var, 0)
     code.add_iform_label("lab_main2")
 
     for s in dfa_obj.states:
@@ -1166,23 +1166,23 @@ def compile_one_node(code, state, dfa_obj):
     code.ladd_iform_com(lst, "begin " + str(state))
     code.ladd_iform_label(lst, state.label)
     if len(state.out_chars) > 0:
-        ld_src = "(" + code.str_ptr_reg + ")"
-        code.ladd_iform_ldb(lst, code.data_reg, ld_src)
-        code.ladd_iform_add(lst, code.str_ptr_reg, 1)
+        ld_src = "(" + code.str_ptr_var + ")"
+        code.ladd_iform_ldb(lst, code.data_var, ld_src)
+        code.ladd_iform_add(lst, code.str_ptr_var, 1)
     if state.user_action:
-        code.ladd_iform_call(lst, code.data_reg, code.call_method_addr)
-        code.ladd_iform_set(lst, code.data_reg, state.user_action)
-        code.ladd_iform_ret(lst, code.data_reg)
+        code.ladd_iform_call(lst, code.data_var, code.call_method_addr)
+        code.ladd_iform_set(lst, code.data_var, state.user_action)
+        code.ladd_iform_ret(lst, code.data_var)
         return lst
     for ch in state.out_chars:
         k = (state, ch)
         dst = dfa_obj.trans_tbl[k]
         assert len(dst) == 1
         dst = dst[0]
-        code.ladd_iform_cmp(lst, code.data_reg, ord(ch))
+        code.ladd_iform_cmp(lst, code.data_var, ord(ch))
         code.ladd_iform_beq(lst, dst.label)
-    code.ladd_iform_set(lst, code.data_reg, 0)
-    code.ladd_iform_ret(lst, code.data_reg)
+    code.ladd_iform_set(lst, code.data_var, 0)
+    code.ladd_iform_ret(lst, code.data_var)
     return lst
 
 ####################################################
@@ -1198,9 +1198,9 @@ def compile_to_intermediate_form2(lexer, dfa_obj):
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 
-    code.add_iform_gparm(code.tmp_reg1, 1)
-    code.add_iform_add(code.tmp_reg1, code.char_ptr_offset)
-    code.add_iform_ldw(code.str_ptr_reg, "(" + code.tmp_reg1 + ")")
+    code.add_iform_gparm(code.tmp_var1, 1)
+    code.add_iform_add(code.tmp_var1, code.char_ptr_offset)
+    code.add_iform_ldw(code.str_ptr_var, "(" + code.tmp_var1 + ")")
 
     for s in dfa_obj.states:
         tmp = compile_one_node2(code, s, dfa_obj)
@@ -1213,23 +1213,23 @@ def compile_one_node2(code, state, dfa_obj):
     code.ladd_iform_com(lst, "begin " + str(state))
     code.ladd_iform_label(lst, state.label)
     if len(state.out_chars) > 0:
-        ld_src = "(" + code.str_ptr_reg + ")"
-        code.ladd_iform_ldb(lst, code.data_reg, ld_src)
-        code.ladd_iform_add(lst, code.str_ptr_reg, 1)
+        ld_src = "(" + code.str_ptr_var + ")"
+        code.ladd_iform_ldb(lst, code.data_var, ld_src)
+        code.ladd_iform_add(lst, code.str_ptr_var, 1)
     if state.user_action:
-        code.ladd_iform_stw(lst, "(" + code.tmp_reg1 + ")", code.str_ptr_reg)
-        code.ladd_iform_set(lst, code.data_reg, state.user_action)
-        code.ladd_iform_ret(lst, code.data_reg)
+        code.ladd_iform_stw(lst, "(" + code.tmp_var1 + ")", code.str_ptr_var)
+        code.ladd_iform_set(lst, code.data_var, state.user_action)
+        code.ladd_iform_ret(lst, code.data_var)
         return lst
     for ch in state.out_chars:
         k = (state, ch)
         dst = dfa_obj.trans_tbl[k]
         assert len(dst) == 1
         dst = dst[0]
-        code.ladd_iform_cmp(lst, code.data_reg, ord(ch))
+        code.ladd_iform_cmp(lst, code.data_var, ord(ch))
         code.ladd_iform_beq(lst, dst.label)
-    code.ladd_iform_set(lst, code.data_reg, 0)
-    code.ladd_iform_ret(lst, code.data_reg)
+    code.ladd_iform_set(lst, code.data_var, 0)
+    code.ladd_iform_ret(lst, code.data_var)
     return lst
 
 ####################################################
@@ -1377,12 +1377,12 @@ def compile_to_x86_32_asm_2(iform):
 def compile_to_x86_32_asm_3(iform):
     asm_list = []
 
-    reg2offset = {}
+    var2offset = {}
     frame_offset = -4
-    for r in iform.all_regs:
-        reg2offset[r] = frame_offset
+    for r in iform.all_vars:
+        var2offset[r] = frame_offset
         frame_offset += -4
-    n_locals = len(iform.all_regs)
+    n_locals = len(iform.all_vars)
     locals_size = n_locals * 4
 
     asm_list.append((None, ".text", None))
@@ -1404,19 +1404,19 @@ def compile_to_x86_32_asm_3(iform):
             asm_list.append((tup[1], None, None))
         elif op==IFORM_LDW:
             asm_list.append(("#", "ldw", None))
-            dst_reg = tup[1]
-            assert_is_reg(dst_reg)
+            dst_var = tup[1]
+            assert_is_var(dst_var)
             src = tup[2]
-            if is_indirect_reg(src):
-                src2 = indirect_reg_get_reg(src)
-                so = reg2offset[src2]
-                do = reg2offset[dst_reg]
+            if is_indirect_var(src):
+                src2 = indirect_var_get_var(src)
+                so = var2offset[src2]
+                do = var2offset[dst_var]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % so))
                 asm_list.append((None, "movl", "(%eax), %eax"))
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % do))
             elif is_num(src):
                 asm_list.append((None, "movl", "%d(,1), %%eax" % src))
-                offset = reg2offset[dst_reg]
+                offset = var2offset[dst_var]
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % offset))
             elif is_data_label(src):
                 assert None, "ldw data src label not yet handled"
@@ -1424,21 +1424,21 @@ def compile_to_x86_32_asm_3(iform):
                 assert None, "Unknown ldw src operand type"
         elif op==IFORM_LDB:
             asm_list.append(("#", "ldb", None))
-            dst_reg = tup[1]
-            assert_is_reg(dst_reg)
+            dst_var = tup[1]
+            assert_is_var(dst_var)
             src = tup[2]
-            if is_indirect_reg(src):
-                src2 = indirect_reg_get_reg(src)
-                offset = reg2offset[src2]
+            if is_indirect_var(src):
+                src2 = indirect_var_get_var(src)
+                offset = var2offset[src2]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
                 asm_list.append((None, "movl", "$0, %ecx"))
                 asm_list.append((None, "movb", "(%eax), %cl"))
-                offset = reg2offset[dst_reg]
+                offset = var2offset[dst_var]
                 asm_list.append((None, "movl", "%%ecx, %d(%%ebp)" % offset))
             elif is_num(src):
                 asm_list.append((None, "movl", "$0, %eax"))
                 asm_list.append((None, "movb", "%d(,1), %%eal" % src))
-                offset = reg2offset[dst_reg]
+                offset = var2offset[dst_var]
                 asm_list.append((None, "movb", "%%eax, %d(%%ebp)" % offset))
             elif is_data_label(src):
                 assert None, "ldb data src label not yet handled"
@@ -1448,14 +1448,14 @@ def compile_to_x86_32_asm_3(iform):
             asm_list.append(("#", "stw", None))
             dst = tup[1]
             src = tup[2]
-            assert_is_reg(src)
-            src_o = reg2offset[src]
+            assert_is_var(src)
+            src_o = var2offset[src]
             if is_num(dst):
                 asm_list.append((None, "movl", "%d(%%ebp), %eax" % src_o))
                 asm_list.append((None, "movl", "%%eax, %d(,1)" % dst))
-            elif is_indirect_reg(dst):
-                dst_reg = indirect_reg_get_reg(dst)
-                dst_o = reg2offset[dst_reg]
+            elif is_indirect_var(dst):
+                dst_var = indirect_var_get_var(dst)
+                dst_o = var2offset[dst_var]
                 asm_list.append((None, "movl", "%d(%%ebp), %%ecx" % dst_o))
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % src_o))
                 asm_list.append((None, "movl", "%eax, (%ecx)"))
@@ -1469,11 +1469,11 @@ def compile_to_x86_32_asm_3(iform):
             asm_list.append(("#", "set", None))
             dst = tup[1]
             src = tup[2]
-            assert_is_reg(dst)
-            assert_is_reg_or_const(src)
-            off1 = reg2offset[dst]
-            if is_reg(src):
-                off2 = reg2offset[src]
+            assert_is_var(dst)
+            assert_is_var_or_const(src)
+            off1 = var2offset[dst]
+            if is_var(src):
+                off2 = var2offset[src]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % off2))
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % off1))
             else:
@@ -1481,11 +1481,11 @@ def compile_to_x86_32_asm_3(iform):
         elif op==IFORM_CMP:
             r = tup[1]
             v = tup[2]
-            assert_is_reg(r)
-            r_off = reg2offset[r]
+            assert_is_var(r)
+            r_off = var2offset[r]
 
-            if is_reg(v):
-                v_off = reg2offset[v]
+            if is_var(v):
+                v_off = var2offset[v]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "cmpl", "%d(%%ebp), %%eax" % v_off))
             else:
@@ -1504,24 +1504,24 @@ def compile_to_x86_32_asm_3(iform):
             assert None, "op not yet supported:" + instr2txt[op]
         elif op==IFORM_ADD:
             r = tup[1]
-            assert_is_reg(r)
+            assert_is_var(r)
             val = tup[2]
-            if is_reg(val):
-                r_off = reg2offset[r]
-                v_off = reg2offset[val]
+            if is_var(val):
+                r_off = var2offset[r]
+                v_off = var2offset[val]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "addl", "%d(%%ebp), %%eax" % v_off))
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % r_off))
             else:
                 assert is_num(val)
-                r_off = reg2offset[r]
+                r_off = var2offset[r]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "addl", "$%d, %%eax" % val))
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % r_off))
         elif op==IFORM_RET:
-            reg = tup[1]
-            assert_is_reg(reg)
-            offset = reg2offset[reg]
+            var = tup[1]
+            assert_is_var(var)
+            offset = var2offset[var]
             asm_list.append(("#", "ret", None))
             asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
             asm_list.append((None, "movl", "%ebp, %esp"))
@@ -1531,7 +1531,7 @@ def compile_to_x86_32_asm_3(iform):
             asm_list.append(("#", tup[1], None))
         elif op==IFORM_CALL:
             asm_list.append(("#", "call", None))
-            dst_reg = tup[1]
+            dst_var = tup[1]
             fptr    = tup[2]
             if len(tup) == 3:
                 # no args
@@ -1543,8 +1543,8 @@ def compile_to_x86_32_asm_3(iform):
                 args = tup[3:]
                 for idx in range(len(args) - 1, -1, -1):
                     a = args[idx]
-                    if is_reg(a):
-                        o = reg2offset[a]
+                    if is_var(a):
+                        o = var2offset[a]
                         asm_list.append((None, "movl", "%d(%%ebp), %%eax" % o))
                         asm_list.append((None, "pushl", "%eax"))
                     elif type(a) is str:
@@ -1557,24 +1557,24 @@ def compile_to_x86_32_asm_3(iform):
                     else:
                         assert a is None
                         asm_list.append((None, "pushl", "$0"))
-                if is_reg(fptr):
-                    o = reg2offset[fptr]
+                if is_var(fptr):
+                    o = var2offset[fptr]
                     asm_list.append((None, "movl", "%d(%%ebp), %%eax" % o))
                 else:
                     asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
                 asm_list.append((None, "call", "*%eax"))
                 n_pops = len(args)
-            if is_reg(dst_reg):
-                dst_off = reg2offset[dst_reg]
+            if is_var(dst_var):
+                dst_off = var2offset[dst_var]
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % dst_off))
             asm_list.append((None, "add", "$%d, %%esp" % (n_pops * 4)))
         elif op==IFORM_GPARM:
             asm_list.append(("#", "gparm", None))
-            dst_reg = tup[1]
-            assert_is_reg(dst_reg)
+            dst_var = tup[1]
+            assert_is_var(dst_var)
             arg_num = tup[2]
             assert_is_const(arg_num)
-            dst_offset = reg2offset[dst_reg]
+            dst_offset = var2offset[dst_var]
             arg_offset = (arg_num + 2) * 4
             asm_list.append((None, "movl", "%d(%%ebp), %%eax" % arg_offset))
             asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % dst_offset))
@@ -1596,7 +1596,7 @@ class simulator(object):
         # each pos in memory _must_ store an int: 0 <= val <= 255
         # basically an 8 bit quantity
         self.memory           = list((None,)*mem_size)
-        self.registers        = {}
+        self.vars             = {}
         self.label2pos        = {}
         self.is_eql           = False
         self.is_little_endian = True
@@ -1608,20 +1608,20 @@ class simulator(object):
             self.memory[i] = ord(ch)
         return
 
-    def set_register(self, r, v):
-        assert r in self.registers
-        self.registers[r] = v
+    def set_var(self, r, v):
+        assert r in self.vars
+        self.vars[r] = v
         return
 
     def do_sim(self, code, start_lab="lab_main1"):
-        for r in code.all_regs:
-            self.registers[r] = 77
+        for r in code.all_vars:
+            self.vars[r] = 77
         for idx, tup in enumerate(code.instructions):
             if tup[0] == IFORM_LABEL:
                 self.label2pos[tup[1]] = idx
 
         start_pos = self.label2pos[start_lab]
-        code.set_str_ptr_reg(start_pos)
+        code.set_str_ptr_var(start_pos)
 
         iptr = 0
         while True:
@@ -1631,57 +1631,57 @@ class simulator(object):
             if op == IFORM_LABEL:
                 pass
             elif op == IFORM_LDW:
-                # reg, addr | reg, (reg)
+                # var, addr | var, (var)
                 dst = tup[1]
-                assert_is_reg(dst)
-                src = self.resolve_addr_or_indirect_reg(tup[2])
+                assert_is_var(dst)
+                src = self.resolve_addr_or_indirect_var(tup[2])
                 if self.is_little_endian:
                     val = self.do_little_endian_load_w(src)
                 else:
                     val = self.do_big_endian_load_w(src)
-                self.set_register(dst, val)
+                self.set_var(dst, val)
                 if val == 0:
                     self.is_eql = True
                 else:
                     self.is_eql = False
             elif op == IFORM_LDB:
-                # reg, addr | reg, (reg)
+                # var, addr | var, (var)
                 dst = tup[1]
-                assert_is_reg(dst)
-                src = self.resolve_addr_or_indirect_reg(tup[2])
+                assert_is_var(dst)
+                src = self.resolve_addr_or_indirect_var(tup[2])
                 val = self.do_load_b(src)
                 assert_is_byte(val)
-                self.set_register(dst, val)
+                self.set_var(dst, val)
                 if val == 0:
                     self.is_eql = True
                 else:
                     self.is_eql = False
             elif op == IFORM_STW:
-                # addr, reg | (reg), reg
-                dst = self.resolve_addr_or_indirect_reg(tup[1])
-                src = self.resolve_reg(tup[2])
+                # addr, var | (var), var
+                dst = self.resolve_addr_or_indirect_var(tup[1])
+                src = self.resolve_var(tup[2])
                 if self.is_little_endian:
                     self.do_little_endian_store_w(dst, src)
                 else:
                     self.do_big_endian_store_w(dst, src)
             elif op == IFORM_STB:
-                # addr, reg | (reg), reg
-                dst = self.resolve_addr_or_indirect_reg(tup[1])
-                src = self.resolve_reg(tup[2])
+                # addr, var | (var), var
+                dst = self.resolve_addr_or_indirect_var(tup[1])
+                src = self.resolve_var(tup[2])
                 self.do_store_b(dst, src & 0xFF)
             elif op == IFORM_SET:
-                reg = tup[1]
+                var = tup[1]
                 val = tup[2]
-                assert_is_reg(reg)
-                assert_is_reg_or_const(val)
-                if is_reg(val):
-                    v = self.resolve_reg(val)
-                    self.set_register(reg, v)
+                assert_is_var(var)
+                assert_is_var_or_const(val)
+                if is_var(val):
+                    v = self.resolve_var(val)
+                    self.set_var(var, v)
                 else:
-                    self.set_register(reg, val)
+                    self.set_var(var, val)
             elif op == IFORM_CMP:
-                arg1 = self.resolve_reg(tup[1])
-                arg2 = self.resolve_reg_or_const(tup[2])
+                arg1 = self.resolve_var(tup[1])
+                arg2 = self.resolve_var_or_const(tup[2])
                 if arg1 == arg2:
                     self.is_eql = True
                 else:
@@ -1703,12 +1703,12 @@ class simulator(object):
             elif op == IFORM_NOP:
                 pass
             elif op == IFORM_ADD:
-                arg1 = self.resolve_reg(tup[1])
-                arg2 = self.resolve_reg_or_const(tup[2])
+                arg1 = self.resolve_var(tup[1])
+                arg2 = self.resolve_var_or_const(tup[2])
                 arg1 += arg2
-                self.set_register(tup[1], arg1)
+                self.set_var(tup[1], arg1)
             elif op == IFORM_RET:
-                val = self.resolve_reg(tup[1])
+                val = self.resolve_var(tup[1])
                 return val
             elif op == IFORM_COM:
                 pass
@@ -1722,25 +1722,25 @@ class simulator(object):
 
     #######
 
-    def resolve_reg(self, reg):
-        assert_is_reg(reg)
-        v = self.registers[reg]
+    def resolve_var(self, var):
+        assert_is_var(var)
+        v = self.vars[var]
         return v
 
-    def resolve_addr_or_indirect_reg(self, arg):
+    def resolve_addr_or_indirect_var(self, arg):
         if type(arg) is str:
             assert arg[0] == "(" and arg[-1]==")"
-            reg = arg[1:-1]
-            assert_is_reg(reg)
-            v = self.registers[reg]
+            var = arg[1:-1]
+            assert_is_var(var)
+            v = self.vars[var]
             return v
         assert_is_const(arg)
         return arg
 
-    def resolve_reg_or_const(self, arg):
+    def resolve_var_or_const(self, arg):
         if type(arg) is str:
-            assert_is_reg(arg)
-            v = self.registers[arg]
+            assert_is_var(arg)
+            v = self.vars[arg]
             return v
         assert_is_const(arg)
         return arg
@@ -1808,29 +1808,29 @@ class simulator(object):
 ## simulator
 ##
 ##################################################################
-def set_reg(reg_tbl, reg, val):
-    reg_tbl[reg] = val
+def set_var(var_tbl, var, val):
+    var_tbl[var] = val
     return
 
-def resolve_reg(reg_tbl, reg):
-    assert_is_reg(reg)
-    if reg not in reg_tbl:
-        reg_tbl[reg] = 77
-    return reg_tbl[reg]
+def resolve_var(var_tbl, var):
+    assert_is_var(var)
+    if var not in var_tbl:
+        var_tbl[var] = 77
+    return var_tbl[var]
 
-def resolve_addr_or_indirect_reg(reg_tbl, arg):
+def resolve_addr_or_indirect_var(var_tbl, arg):
     if type(arg) is str:
         assert arg[0] == "(" and arg[-1]==")"
-        reg = arg[1:-1]
-        assert_is_reg(reg)
-        return resolve_reg(reg_tbl, reg)
+        var = arg[1:-1]
+        assert_is_var(var)
+        return resolve_var(var_tbl, var)
     assert_is_const(arg)
     return arg
 
-def resolve_reg_or_const(reg_tbl, arg):
+def resolve_var_or_const(var_tbl, arg):
     if type(arg) is str:
-        assert_is_reg(arg)
-        return resolve_reg(reg_tbl, arg)
+        assert_is_var(arg)
+        return resolve_var(var_tbl, arg)
     assert_is_const(arg)
     return arg
 
@@ -1852,7 +1852,7 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
         addr = lstate.get_cur_addr()
         print "offset=%d addr=%d=0x%x" % (off, addr, addr)
 
-    reg_tbl    = {}
+    var_tbl    = {}
     label2idx  = {}
     is_eql     = False
 
@@ -1875,12 +1875,12 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             if debug_flag:
                 print "  at label", tup[1]
         elif op == IFORM_LDW:
-            # reg, addr | reg, (reg)
+            # var, addr | var, (var)
             dst = tup[1]
-            assert_is_reg(dst)
-            src = resolve_addr_or_indirect_reg(reg_tbl, tup[2])
+            assert_is_var(dst)
+            src = resolve_addr_or_indirect_var(var_tbl, tup[2])
             val = lstate.ldw(src)
-            set_reg(reg_tbl, dst, val)
+            set_var(var_tbl, dst, val)
             if val == 0:
                 is_eql = True
             else:
@@ -1888,13 +1888,13 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             if debug_flag:
                 print "  ldw %s <-- %d eql_flag=%s" % (dst, val, str(is_eql))
         elif op == IFORM_LDB:
-            # reg, addr | reg, (reg)
+            # var, addr | var, (var)
             dst = tup[1]
-            assert_is_reg(dst)
-            src = resolve_addr_or_indirect_reg(reg_tbl, tup[2])
+            assert_is_var(dst)
+            src = resolve_addr_or_indirect_var(var_tbl, tup[2])
             val = lstate.ldb(src)
             assert_is_byte(val)
-            set_reg(reg_tbl, dst, val)
+            set_var(var_tbl, dst, val)
             if val == 0:
                 is_eql = True
             else:
@@ -1902,37 +1902,37 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             if debug_flag:
                 print "  ldb %s <-- %d eql_flag=%s" % (dst, val, str(is_eql))
         elif op == IFORM_STW:
-            # addr, reg | (reg), reg
-            dst = resolve_addr_or_indirect_reg(reg_tbl, tup[1])
-            src = resolve_reg(reg_tbl, tup[2])
+            # addr, var | (var), var
+            dst = resolve_addr_or_indirect_var(var_tbl, tup[1])
+            src = resolve_var(var_tbl, tup[2])
             lstate.stw(dst, src)
             if debug_flag:
                 print "  stw addr=%d <-- val=%d" % (dst, src)
         elif op == IFORM_STB:
-            # addr, reg | (reg), reg
-            dst = resolve_addr_or_indirect_reg(reg_tbl, tup[1])
-            src = resolve_reg(reg_tbl, tup[2])
+            # addr, var | (var), var
+            dst = resolve_addr_or_indirect_var(var_tbl, tup[1])
+            src = resolve_var(var_tbl, tup[2])
             val = src & 0xFF
             lstate.stb(dst, val)
             if debug_flag:
                 print "  stb addr=%d <-- val=%d" % (dst, val)
         elif op == IFORM_SET:
-            reg = tup[1]
+            var = tup[1]
             val = tup[2]
-            assert_is_reg(reg)
-            assert_is_reg_or_const(val)
-            if is_reg(val):
-                val = resolve_reg(val)
-            set_reg(reg_tbl, reg, val)
+            assert_is_var(var)
+            assert_is_var_or_const(val)
+            if is_var(val):
+                val = resolve_var(val)
+            set_var(var_tbl, var, val)
             if val == 0:
                 is_eql = True
             else:
                 is_eql = False
             if debug_flag:
-                print "  set reg=%s <-- val=%d eql_flag=%s" % (reg, val, str(is_eql))
+                print "  set var=%s <-- val=%d eql_flag=%s" % (var, val, str(is_eql))
         elif op == IFORM_CMP:
-            arg1 = resolve_reg(reg_tbl, tup[1])
-            arg2 = resolve_reg_or_const(reg_tbl, tup[2])
+            arg1 = resolve_var(var_tbl, tup[1])
+            arg2 = resolve_var_or_const(var_tbl, tup[2])
             if arg1 == arg2:
                 is_eql = True
             else:
@@ -1967,14 +1967,14 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             if debug_flag:
                 print "  nop"
         elif op == IFORM_ADD:
-            arg1 = resolve_reg(reg_tbl, tup[1])
-            arg2 = resolve_reg_or_const(reg_tbl, tup[2])
+            arg1 = resolve_var(var_tbl, tup[1])
+            arg2 = resolve_var_or_const(var_tbl, tup[2])
             arg1 += arg2
-            set_reg(reg_tbl, tup[1], arg1)
+            set_var(var_tbl, tup[1], arg1)
             if debug_flag:
                 print "  add", tup[1], arg1
         elif op == IFORM_RET:
-            val = resolve_reg(reg_tbl, tup[1])
+            val = resolve_var(var_tbl, tup[1])
             if debug_flag:
                 print "  ret", val
             return val
@@ -1982,9 +1982,9 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             if debug_flag:
                 print "  com", tup[1]
         elif op == IFORM_CALL:
-            dst_reg = tup[1]
-            assert_is_reg(dst_reg)
-            obj_id = resolve_reg_or_const(reg_tbl, tup[2])
+            dst_var = tup[1]
+            assert_is_var(dst_var)
+            obj_id = resolve_var_or_const(var_tbl, tup[2])
             obj_obj = escape.get_obj_from_id(obj_id)
             method = tup[3]
             assert type(method) is str
@@ -1994,8 +1994,8 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             else:
                 func_args = []
                 for item in tup[4:]:
-                    if item.startswith("reg_"):
-                        val = resolve_reg(reg_tbl, item)
+                    if item.startswith("var_"):
+                        val = resolve_var(var_tbl, item)
                         func_args.append(val)
                     elif type(item) is int:
                         func_args.append(val)
@@ -2003,24 +2003,24 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
                         assert None, "Unknown arg type"
                 func_args = tuple(func_args)
                 v = func(*func_args)
-            set_reg(reg_tbl, dst_reg, v)
+            set_var(var_tbl, dst_var, v)
             if debug_flag:
-                print "  call", dst_reg, "<--", v
+                print "  call", dst_var, "<--", v
         elif op == IFORM_DATA:
             if debug_flag:
                 print "  data", tup[1]
         elif op == IFORM_GPARM:
-            dst_reg = tup[1]
-            assert_is_reg(dst_reg)
+            dst_var = tup[1]
+            assert_is_var(dst_var)
             op_num = tup[2]
             assert op_num==0 or op_num==1
             if op_num==0:
                 val = id(code_obj)
             else:
                 val = id(lstate)
-            set_reg(reg_tbl, dst_reg, val)
+            set_var(var_tbl, dst_var, val)
             if debug_flag:
-                print "  gparm", dst_reg, val
+                print "  gparm", dst_var, val
         else:
             assert None, "Unknown op code=%d" % op
         pass
