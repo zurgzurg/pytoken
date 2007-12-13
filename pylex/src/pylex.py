@@ -1016,7 +1016,7 @@ class iform_code(object):
         self.all_regs.append(r)
         return r
 
-    def make_std_registers(self):
+    def make_std_vars(self):
         self.str_ptr_reg  = self.make_new_register()
         self.data_reg     = self.make_new_register()
         self.tmp_reg1     = self.make_new_register()
@@ -1147,7 +1147,7 @@ class iform_code(object):
 ####################################################
 def compile_to_intermediate_form(lexer, dfa_obj):
     code = iform_code(lexer)
-    code.make_std_registers()
+    code.make_std_vars()
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 
@@ -1194,7 +1194,7 @@ def compile_one_node(code, state, dfa_obj):
 ####################################################
 def compile_to_intermediate_form2(lexer, dfa_obj):
     code = iform_code(lexer)
-    code.make_std_registers()
+    code.make_std_vars()
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 

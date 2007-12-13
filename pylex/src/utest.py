@@ -499,7 +499,7 @@ class iform01(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code = pylex.iform_code(lobj)
-        code.make_std_registers()
+        code.make_std_vars()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 0)
         code.add_iform_ret(code.data_reg)
@@ -513,7 +513,7 @@ class iform02(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code = pylex.iform_code(lobj)
-        code.make_std_registers()
+        code.make_std_vars()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_reg, 2)
         code.add_iform_add(code.data_reg, 12)
@@ -528,7 +528,7 @@ class iform03(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code = pylex.iform_code(lobj)
-        code.make_std_registers()
+        code.make_std_vars()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
         code.add_iform_set(code.data_reg, 0xFF)
@@ -545,7 +545,7 @@ class iform04(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code = pylex.iform_code(lobj)
-        code.make_std_registers()
+        code.make_std_vars()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_register()
         code.add_iform_set(code.data_reg, 0xFFEEDDCC)
@@ -934,7 +934,7 @@ class manual_x86_01(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code_iform = pylex.iform_code(lobj)
-        code_iform.make_std_registers()
+        code_iform.make_std_vars()
         code_iform.add_iform_set(code_iform.data_reg, 0)
         code_iform.add_iform_ret(code_iform.data_reg)
 
@@ -951,7 +951,7 @@ class manual_x86_02(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
         code_iform = pylex.iform_code(lobj)
-        code_iform.make_std_registers()
+        code_iform.make_std_vars()
 
         code_iform.add_iform_set(code_iform.data_reg, 2)
         code_iform.add_iform_ret(code_iform.data_reg)
@@ -971,7 +971,7 @@ class manual_x86_03(lex_test):
         lobj = pylex.lexer()
 
         c = pylex.iform_code(lobj)
-        c.make_std_registers()
+        c.make_std_vars()
 
         c.add_iform_gparm(c.data_reg, 1)
         c.add_iform_call(c.data_reg, c.call_method_addr, c.data_reg,
@@ -1011,7 +1011,7 @@ class manual_x86_04(lex_test):
         lobj = pylex.lexer()
 
         c = pylex.iform_code(lobj)
-        c.make_std_registers()
+        c.make_std_vars()
 
         c.add_iform_gparm(c.data_reg, 1)
         c.add_iform_set(c.str_ptr_reg, c.data_reg)
@@ -1051,7 +1051,7 @@ class manual_x86_05(lex_test):
         lobj = pylex.lexer()
 
         c = pylex.iform_code(lobj)
-        c.make_std_registers()
+        c.make_std_vars()
 
         c.add_iform_gparm(c.data_reg, 1)
         c.add_iform_set(c.str_ptr_reg, c.data_reg)
