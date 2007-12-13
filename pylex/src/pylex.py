@@ -618,31 +618,31 @@ def make_string_from_token_list(tlist):
 ###################################################################
 ###################################################################
 ##
-## addressing modes: (reg) -- reg_indirect - use reg as an address
+## addressing modes: (var) -- var_indirect - use var as an address
 ## const - any integer - no worry about too large ints for now
 ## addr - any integer
 ##
-## register: string: reg_<num>
+## var     : string: var_<num>
 ## label   : string: lab_<num>  -- code label
 ## dlab    : string: dlab_<num> -- data label
 ##
 IFORM_LABEL   =  0 # label
 IFORM_DATA    =  1 # dlabel, string | dlabel, int 
-IFORM_LDW     =  2 # reg, addr  | reg, (reg) | reg, dlab
-IFORM_LDB     =  3 # reg, addr  | reg, (reg) | reg, dlab
-IFORM_STW     =  4 # addr, reg  | (reg), reg | dlab, reg
-IFORM_STB     =  5 # addr, reg  | (reg), reg | dlab, reg
-IFORM_SET     =  6 # reg, const | reg, reg
-IFORM_CMP     =  7 # reg, reg   | reg, const
+IFORM_LDW     =  2 # var, addr  | var, (var) | var, dlab
+IFORM_LDB     =  3 # var, addr  | var, (var) | var, dlab
+IFORM_STW     =  4 # addr, var  | (var), var | dlab, var
+IFORM_STB     =  5 # addr, var  | (var), var | dlab, var
+IFORM_SET     =  6 # var, const | var, var
+IFORM_CMP     =  7 # var, var   | var, const
 IFORM_BEQ     =  8 # label
 IFORM_BNE     =  9 # label
 IFORM_BR      = 10 # label
 IFORM_NOP     = 11 #
-IFORM_ADD     = 12 # reg, const | reg, reg
-IFORM_RET     = 13 # reg
+IFORM_ADD     = 12 # var, const | var, var
+IFORM_RET     = 13 # var
 IFORM_COM     = 14 # comment
-IFORM_CALL    = 15 # reg, addr, <arg>...<arg> | reg, reg, <arg>...<arg>
-IFORM_GPARM   = 16 # reg, <parm_num>
+IFORM_CALL    = 15 # var, addr, <arg>...<arg> | var, var, <arg>...<arg>
+IFORM_GPARM   = 16 # var, <parm_num>
 
 instr2txt = {
     IFORM_LABEL    : "label",
