@@ -14,6 +14,10 @@ sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
 import escape
 
 class lex_test(unittest.TestCase):
+    #def setUp(self):
+    #    #print "a test", self.__class__.__name__
+    #    return
+
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
         self.assert_(tok == exp)
@@ -869,6 +873,57 @@ class asm_full_01(lex_test):
 
         tok = code_x86.get_token(lstate)
         self.assert_(tok == 1)
+        offset = lstate.get_cur_offset()
+        self.assert_(offset == 1)
+
+        return
+    pass
+
+class asm_full_02(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("b", 22)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+
+        #pylex.print_instructions(code1)
+        asm_list = pylex.compile_to_x86_32_asm_3(code1)
+        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("b")
+
+        tok = code_x86.get_token(lstate)
+        self.assert_(tok == 22)
+        offset = lstate.get_cur_offset()
+        self.assert_(offset == 1)
+
+        return
+    pass
+
+class asm_full_03(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("b", 22)
+        lexer_obj.add_pattern("a", 44)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+
+        #pylex.print_instructions(code1)
+        asm_list = pylex.compile_to_x86_32_asm_3(code1)
+        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("ab")
+
+        tok = code_x86.get_token(lstate)
+        self.assert_(tok == 44)
+        tok = code_x86.get_token(lstate)
+        self.assert_(tok == 22)
 
         return
     pass
@@ -909,7 +964,7 @@ class manual_x86_02(lex_test):
         return
     pass
 
-import distorm
+#import distorm
 
 class manual_x86_03(lex_test):
     def runTest(self):
@@ -934,7 +989,7 @@ class manual_x86_03(lex_test):
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
+        #obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
         #print "##########"
         #for tup in obj:
         #    print tup[2]
@@ -974,7 +1029,7 @@ class manual_x86_04(lex_test):
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
+        # obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
         #print "##########"
         #for tup in obj:
         #    print tup[2]
@@ -1010,7 +1065,7 @@ class manual_x86_05(lex_test):
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
+        #obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
 
         lstate   = pylex.lexer_state()
         lstate.set_input("a")
@@ -1042,6 +1097,22 @@ class errtest02(lex_test):
     def runTest(self):
         obj = pylex.lexer()
         self.assertRaises( RuntimeError, obj.tokenize_pattern, "(")
+        return
+    pass
+
+##############################################################
+class looper(lex_test):
+    def runTest(self):
+        sym_tab = globals()
+        for n, sym in sym_tab.iteritems():
+            if type(sym) is not type or n in ("looper", "lex_test"):
+                continue
+            tc = sym()
+            nrefs = sys.gettotalrefcount()
+            for i in range(3):
+                tc.runTest()
+                nrefs2 = sys.gettotalrefcount()
+                self.assert_(nrefs2 - nrefs2 <= 3)
         return
     pass
 
