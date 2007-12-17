@@ -992,7 +992,7 @@ class manual_x86_04(lex_test):
         c.add_iform_gparm(c.data_var, 1)
         c.add_iform_set(c.str_ptr_var, c.data_var)
         c.add_iform_add(c.str_ptr_var, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, "(" + c.str_ptr_var + ")")
+        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.str_ptr_var)
 
         asm_list = pylex.compile_to_x86_32_asm_3(c)
@@ -1019,8 +1019,8 @@ class manual_x86_05(lex_test):
         c.add_iform_gparm(c.data_var, 1)
         c.add_iform_set(c.str_ptr_var, c.data_var)
         c.add_iform_add(c.str_ptr_var, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, "(" + c.str_ptr_var + ")")
-        c.add_iform_ldb(c.data_var, "(" + c.str_ptr_var + ")")
+        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
+        c.add_iform_ldb(c.data_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.data_var)
 
         asm_list = pylex.compile_to_x86_32_asm_3(c)

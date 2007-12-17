@@ -1015,6 +1015,10 @@ class iform_code(object):
         self.all_vars.append(r)
         return r
 
+    def make_indirect_var(self, v):
+        assert_is_var(v)
+        return '(' + v + ')'
+
     def make_std_vars(self):
         self.str_ptr_var  = self.make_new_var()
         self.data_var     = self.make_new_var()
