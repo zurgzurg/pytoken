@@ -1344,38 +1344,6 @@ def compile_to_x86_32_asm_1(iform):
 
     return code_obj
 
-def compile_to_x86_32_asm_2(iform):
-    lines = []
-    lines.append("\t.text\n")
-    lines.append("\t.globl func1\n")
-    lines.append("func1:\n")
-    lines.append("\tpushl %ebp\n")
-    lines.append("\tmovl %esp, %ebp\n")
-    lines.append("\tmovl $0, %eax\n")
-    lines.append("\tpopl %ebp\n")
-    lines.append("\tret\n")
-    
-    fp = open("junk.s", "w")
-    fp.writelines(lines)
-    fp.close()
-
-    err_code = os.system("as -o junk.o junk.s")
-    assert err_code==0, "Bad return code from assembler"
-
-    err_code = os.system("ld -o junk.so -shared junk.o")
-    assert err_code==0, "Bad return code from linker"
-
-    h = dl.open("/home/ramb/src/pylex/src/junk.so")
-    addr = h.sym("func1")
-
-    code_obj = escape.code()
-    b = escape.get_bytes(addr, 20)
-    for ch in b:
-        code_obj.append(ord(ch))
-
-    return code_obj
-
-
 def compile_to_x86_32_asm_3(iform):
     asm_list = []
 
