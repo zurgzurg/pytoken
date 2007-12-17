@@ -1250,7 +1250,7 @@ def compile_to_vcode(iform):
 
 def compile_to_x86_32(iform):
     if 1:
-        l = compile_to_x86_32_asm_3(iform)
+        l = compile_to_x86_32_asm(iform)
         r = asm_list_to_code_obj(l)
     return r
 
@@ -1311,7 +1311,7 @@ def print_asm_list(asm_list):
         print tup
     return
 
-def compile_to_x86_32_asm_3(iform):
+def compile_to_x86_32_asm(iform):
     asm_list = []
 
     var2offset = {}
