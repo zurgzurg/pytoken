@@ -963,7 +963,7 @@ def assert_is_byte(v):
 
 ####################################################
 
-def indirect_var_get_var(r):
+def dereference_indirect_var(r):
     assert is_indirect_var(r)
     return r[1:-1]
 
@@ -1408,7 +1408,7 @@ def compile_to_x86_32_asm_3(iform):
             assert_is_var(dst_var)
             src = tup[2]
             if is_indirect_var(src):
-                src2 = indirect_var_get_var(src)
+                src2 = dereference_indirect_var(src)
                 so = var2offset[src2]
                 do = var2offset[dst_var]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % so))
@@ -1428,7 +1428,7 @@ def compile_to_x86_32_asm_3(iform):
             assert_is_var(dst_var)
             src = tup[2]
             if is_indirect_var(src):
-                src2 = indirect_var_get_var(src)
+                src2 = dereference_indirect_var(src)
                 offset = var2offset[src2]
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
                 asm_list.append((None, "movl", "$0, %ecx"))
@@ -1454,7 +1454,7 @@ def compile_to_x86_32_asm_3(iform):
                 asm_list.append((None, "movl", "%d(%%ebp), %eax" % src_o))
                 asm_list.append((None, "movl", "%%eax, %d(,1)" % dst))
             elif is_indirect_var(dst):
-                dst_var = indirect_var_get_var(dst)
+                dst_var = dereference_indirect_var(dst)
                 dst_o = var2offset[dst_var]
                 asm_list.append((None, "movl", "%d(%%ebp), %%ecx" % dst_o))
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % src_o))
