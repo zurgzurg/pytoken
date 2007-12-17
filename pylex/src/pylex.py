@@ -994,7 +994,6 @@ class iform_code(object):
         self.all_vars           = []
         self.str_ptr_var        = None
         self.tmp_var1           = None
-        self.tmp_var2           = None
         self.data_var           = None
         self.next_avail_var_num = 1
         self.instructions       = []
@@ -1020,7 +1019,6 @@ class iform_code(object):
         self.str_ptr_var  = self.make_new_var()
         self.data_var     = self.make_new_var()
         self.tmp_var1     = self.make_new_var()
-        self.tmp_var2     = self.make_new_var()
         return
 
     def set_str_ptr_var(self, val):
