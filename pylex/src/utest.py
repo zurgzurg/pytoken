@@ -784,16 +784,12 @@ class asm15(lex_test):
         lstate = pylex.lexer_state();
         lstate.set_input("a")
 
-        #pylex.print_instructions(code2)
-
-        #escape.print_gdb_info()
         r = code2.get_token(lstate)
         return
     pass
 
 class asm16(lex_test):
     def runTest(self):
-        #escape.print_gdb_info()
         obj = pylex.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
@@ -803,8 +799,6 @@ class asm16(lex_test):
         code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
-        # pylex.print_instructions(code2)
-
         lstate = pylex.lexer_state();
         lstate.set_input("a")
 
@@ -864,7 +858,6 @@ class asm_full_01(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        #pylex.print_instructions(code1)
         asm_list = pylex.compile_to_x86_32_asm_3(code1)
         code_x86 = pylex.asm_list_to_code_obj(asm_list)
         
@@ -888,7 +881,6 @@ class asm_full_02(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        #pylex.print_instructions(code1)
         asm_list = pylex.compile_to_x86_32_asm_3(code1)
         code_x86 = pylex.asm_list_to_code_obj(asm_list)
         
@@ -913,7 +905,6 @@ class asm_full_03(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        #pylex.print_instructions(code1)
         asm_list = pylex.compile_to_x86_32_asm_3(code1)
         code_x86 = pylex.asm_list_to_code_obj(asm_list)
         
@@ -964,8 +955,6 @@ class manual_x86_02(lex_test):
         return
     pass
 
-#import distorm
-
 class manual_x86_03(lex_test):
     def runTest(self):
         lobj = pylex.lexer()
@@ -976,32 +965,19 @@ class manual_x86_03(lex_test):
         c.add_iform_gparm(c.data_var, 1)
         c.add_iform_call(c.data_var, c.call_method_addr, c.data_var,
                          "get_cur_addr", None)
-        #c.add_iform_ldb(c.data_var, "(" + c.data_var + ")")
         c.add_iform_ret(c.data_var)
 
-        #print "-----------"
-        #pylex.print_instructions(c.instructions)
-        #print "-----------"
-
         asm_list = pylex.compile_to_x86_32_asm_3(c)
-        #pylex.print_asm_list(asm_list)
         code_x86 = pylex.asm_list_to_code_obj(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        #obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
-        #print "##########"
-        #for tup in obj:
-        #    print tup[2]
-        #print "##########"
 
         lstate   = pylex.lexer_state()
         lstate.set_input("a")
 
-        #escape.print_gdb_info()
 
         v = code_x86.get_token(lstate)
-        #print "val from code obj is", v, "done."
         self.assert_(v is not None)
         return
     pass
@@ -1019,29 +995,16 @@ class manual_x86_04(lex_test):
         c.add_iform_ldw(c.str_ptr_var, "(" + c.str_ptr_var + ")")
         c.add_iform_ret(c.str_ptr_var)
 
-        #print "-----------"
-        #pylex.print_instructions(c.instructions)
-        #print "-----------"
-
         asm_list = pylex.compile_to_x86_32_asm_3(c)
-        #pylex.print_asm_list(asm_list)
         code_x86 = pylex.asm_list_to_code_obj(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        # obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
-        #print "##########"
-        #for tup in obj:
-        #    print tup[2]
-        #print "##########"
 
         lstate   = pylex.lexer_state()
         lstate.set_input("a")
 
-        #escape.print_gdb_info()
-
         v = code_x86.get_token(lstate)
-        #print "val from code obj is", v, "done."
         self.assert_(v is not None)
         return
     pass
@@ -1065,7 +1028,6 @@ class manual_x86_05(lex_test):
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
-        #obj = distorm.Decode(base, code_bytes, distorm.Decode32Bits)
 
         lstate   = pylex.lexer_state()
         lstate.set_input("a")
