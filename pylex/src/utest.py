@@ -566,7 +566,6 @@ class asm01(lex_test):
         nfa_obj = obj.postfix_to_nfa(p)
         dfa_obj = nfa_obj.convert_to_dfa()
         iform = pylex.compile_to_intermediate_form(obj, dfa_obj)
-        sim = pylex.simulator()
         return
     pass
 
@@ -582,8 +581,6 @@ class asm02(lex_test):
         lstate = pylex.lexer_state()
         lstate.set_input("a")
 
-        sim = pylex.simulator()
-        sim.set_memory("a")
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 1)
         return
@@ -598,9 +595,10 @@ class asm03(lex_test):
         dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
-        sim = pylex.simulator()
-        sim.set_memory("b")
-        v = sim.do_sim(code)
+        lstate = pylex.lexer_state()
+        lstate.set_input("b")
+
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
         return
     pass
@@ -614,9 +612,10 @@ class asm04(lex_test):
         dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
-        sim = pylex.simulator()
-        sim.set_memory("ab")
-        v = sim.do_sim(code)
+        lstate = pylex.lexer_state()
+        lstate.set_input("ab")
+
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
         return
     pass
@@ -630,14 +629,14 @@ class asm05(lex_test):
         dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
-        sim = pylex.simulator()
+        lstate = pylex.lexer_state()
 
-        sim.set_memory("a")
-        v = sim.do_sim(code)
+        lstate.set_input("a")
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
 
-        sim.set_memory("b")
-        v = sim.do_sim(code)
+        lstate.set_input("b")
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
 
         return
@@ -652,14 +651,14 @@ class asm06(lex_test):
         dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
-        sim = pylex.simulator()
+        lstate = pylex.lexer_state()
 
-        sim.set_memory("a")
-        v = sim.do_sim(code)
+        lstate.set_input("a")
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
 
-        sim.set_memory("aa")
-        v = sim.do_sim(code)
+        lstate.set_input("aa")
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 2)
 
         return
