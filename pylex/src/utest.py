@@ -579,9 +579,12 @@ class asm02(lex_test):
         dfa_obj = obj.build_dfa()
         code = obj.compile_to_iform()
 
+        lstate = pylex.lexer_state()
+        lstate.set_input("a")
+
         sim = pylex.simulator()
         sim.set_memory("a")
-        v = sim.do_sim(code)
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 1)
         return
     pass
@@ -781,7 +784,7 @@ class asm15(lex_test):
         code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
-        lstate = pylex.lexer_state();
+        lstate = pylex.lexer_state()
         lstate.set_input("a")
 
         r = code2.get_token(lstate)
@@ -858,8 +861,8 @@ class asm_full_01(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        asm_list = pylex.compile_to_x86_32_asm(code1)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("a")
@@ -881,8 +884,8 @@ class asm_full_02(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        asm_list = pylex.compile_to_x86_32_asm(code1)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("b")
@@ -905,8 +908,8 @@ class asm_full_03(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
 
-        asm_list = pylex.compile_to_x86_32_asm(code1)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("ab")
@@ -929,8 +932,8 @@ class manual_x86_01(lex_test):
         code_iform.add_iform_set(code_iform.data_var, 0)
         code_iform.add_iform_ret(code_iform.data_var)
 
-        l = pylex.compile_to_x86_32_asm(code_iform)
-        code_x86 = pylex.asm_list_to_code_obj(l)
+        l = pylex.iform_to_asm_list_x86_32(code_iform)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(l)
 
         lstate   = pylex.lexer_state()
         v = code_x86.get_token(lstate)
@@ -967,8 +970,8 @@ class manual_x86_03(lex_test):
                          "get_cur_addr", None)
         c.add_iform_ret(c.data_var)
 
-        asm_list = pylex.compile_to_x86_32_asm(c)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list, print_asm_txt=False)
+        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -995,8 +998,8 @@ class manual_x86_04(lex_test):
         c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.str_ptr_var)
 
-        asm_list = pylex.compile_to_x86_32_asm(c)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list, print_asm_txt=False)
+        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -1023,8 +1026,8 @@ class manual_x86_05(lex_test):
         c.add_iform_ldb(c.data_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.data_var)
 
-        asm_list = pylex.compile_to_x86_32_asm(c)
-        code_x86 = pylex.asm_list_to_code_obj(asm_list)
+        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()

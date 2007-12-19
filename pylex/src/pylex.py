@@ -1008,6 +1008,12 @@ class iform_code(object):
 
         pass
 
+    def __len__(self):
+        return len(self.instructions)
+
+    def __getitem__(self, key):
+        return self.instructions[key]
+
     ####################
     def make_new_var(self):
         r = "var_%d" % self.next_avail_var_num
@@ -1148,6 +1154,8 @@ class iform_code(object):
 ####################################################
 ####################################################
 def compile_to_intermediate_form(lexer, dfa_obj):
+    return compile_to_intermediate_form2(lexer, dfa_obj)
+
     code = iform_code(lexer)
     code.make_std_vars()
     for i, s in enumerate(dfa_obj.states):
@@ -1250,11 +1258,11 @@ def compile_to_vcode(iform):
 
 def compile_to_x86_32(iform):
     if 1:
-        l = compile_to_x86_32_asm(iform)
-        r = asm_list_to_code_obj(l)
+        l = iform_to_asm_list_x86_32(iform)
+        r = asm_list_x86_32_to_code_obj(l)
     return r
 
-def asm_list_to_code_obj(lines, print_asm_txt=False):
+def asm_list_x86_32_to_code_obj(lines, print_asm_txt=False):
     fp = open("/tmp/foobar.s", "w")
     for tup in lines:
         assert len(tup)==3
@@ -1311,7 +1319,7 @@ def print_asm_list(asm_list):
         print tup
     return
 
-def compile_to_x86_32_asm(iform):
+def iform_to_asm_list_x86_32(iform):
     asm_list = []
 
     var2offset = {}
@@ -1521,9 +1529,6 @@ def compile_to_x86_32_asm(iform):
     asm_list.append(("func2", None, None))
     asm_list.append((None, "nop", None))
     return asm_list
-
-def compile_to_x86_32_direct(iform):
-    return None
 
 ####################################################
 ####################################################

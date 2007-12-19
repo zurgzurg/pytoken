@@ -65,26 +65,24 @@ static PyMethodDef lexer_state_methods[] = {
 
     {"set_cur_offset",    lexer_state_set_cur_offset,    METH_VARARGS,
      "Set index of next valid character to scan."},
-
     {"get_cur_offset",    lexer_state_get_cur_offset,    METH_NOARGS,
      "Return index of next char to scan."},
 
     {"set_cur_addr",      lexer_state_set_cur_addr,      METH_VARARGS,
      "Return index of next char to scan."},
-
     {"get_cur_addr",      lexer_state_get_cur_addr,      METH_NOARGS,
      "Return index of next char to scan."},
 
     {"set_input",         lexer_state_set_input,         METH_VARARGS,
      "Set source of chars to read."},
 
-    {"ldb",       lexer_state_ldb,                 METH_VARARGS,
+    {"ldb",               lexer_state_ldb,               METH_VARARGS,
      "simulator method - load byte"},
-    {"ldw",       lexer_state_ldw,                 METH_VARARGS,
+    {"ldw",               lexer_state_ldw,               METH_VARARGS,
      "simulator method - load word"},
-    {"stb",       lexer_state_stb,                 METH_VARARGS,
+    {"stb",               lexer_state_stb,               METH_VARARGS,
      "simulator method - store byte"},
-    {"stw",       lexer_state_stw,                 METH_VARARGS,
+    {"stw",               lexer_state_stw,               METH_VARARGS,
      "simulator method - store word"},
 
     {NULL}
