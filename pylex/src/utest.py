@@ -521,8 +521,11 @@ class iform02(lex_test):
         code.add_iform_set(code.data_var, 2)
         code.add_iform_add(code.data_var, 12)
         code.add_iform_ret(code.data_var)
-        sim = pylex.simulator()
-        v = sim.do_sim(code)
+
+        lstate = pylex.lexer_state()
+        lstate.set_input("a")
+
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 14)
         return
     pass
@@ -535,11 +538,15 @@ class iform03(lex_test):
         code.add_iform_label("lab_main1")
         r2 = code.make_new_var()
         code.add_iform_set(code.data_var, 0xFF)
-        code.add_iform_stb(0, code.data_var)
-        code.add_iform_ldb(r2, 0)
+        code.add_iform_set(r2, code.data_var)
         code.add_iform_ret(r2)
-        sim = pylex.simulator(mem_size=2)
-        v = sim.do_sim(code)
+
+        lstate = pylex.lexer_state()
+        lstate.set_input("a")
+
+        #sim = pylex.simulator(mem_size=2)
+        #v = sim.do_sim(code)
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 0xFF)
         return
     pass

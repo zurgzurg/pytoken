@@ -1815,7 +1815,7 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             assert_is_var(var)
             assert_is_var_or_const(val)
             if is_var(val):
-                val = resolve_var(val)
+                val = resolve_var(var_tbl, val)
             set_var(var_tbl, var, val)
             if val == 0:
                 is_eql = True
