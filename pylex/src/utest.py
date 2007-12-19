@@ -565,9 +565,7 @@ class iform04(lex_test):
         lstate = pylex.lexer_state()
         lstate.set_input("a")
 
-        #sim = pylex.simulator(mem_size=4)
         v = pylex.run_vcode_simulation(code, lstate)
-        #v = sim.do_sim(code)
         self.assert_(v == 0xFFEEDDCC)
         return
     pass
