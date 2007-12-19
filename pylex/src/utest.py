@@ -503,8 +503,11 @@ class iform01(lex_test):
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_var, 0)
         code.add_iform_ret(code.data_var)
-        sim = pylex.simulator()
-        v = sim.do_sim(code)
+
+        lstate = pylex.lexer_state()
+        lstate.set_input("a")
+
+        v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(v == 0)
         return
     pass
