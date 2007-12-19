@@ -780,7 +780,7 @@ class asm15(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state()
@@ -798,7 +798,7 @@ class asm16(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
@@ -816,7 +816,7 @@ class asm17(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
@@ -835,7 +835,7 @@ class asm18(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
@@ -858,7 +858,7 @@ class asm_full_01(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
@@ -881,7 +881,7 @@ class asm_full_02(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
@@ -905,7 +905,7 @@ class asm_full_03(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1 = pylex.compile_to_intermediate_form2(lexer_obj, dfa_obj)
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)

@@ -1154,55 +1154,6 @@ class iform_code(object):
 ####################################################
 ####################################################
 def compile_to_intermediate_form(lexer, dfa_obj):
-    return compile_to_intermediate_form2(lexer, dfa_obj)
-
-    code = iform_code(lexer)
-    code.make_std_vars()
-    for i, s in enumerate(dfa_obj.states):
-        s.label = "lab_%d" % i
-
-    code.add_iform_label("lab_main1")
-    code.add_iform_set(code.str_ptr_var, 0)
-    code.add_iform_label("lab_main2")
-
-    for s in dfa_obj.states:
-        tmp = compile_one_node(code, s, dfa_obj)
-        code.instructions.extend(tmp)
-
-    return code
-
-def compile_one_node(code, state, dfa_obj):
-    lst = []
-    code.ladd_iform_com(lst, "begin " + str(state))
-    code.ladd_iform_label(lst, state.label)
-    if len(state.out_chars) > 0:
-        ld_src = "(" + code.str_ptr_var + ")"
-        code.ladd_iform_ldb(lst, code.data_var, ld_src)
-        code.ladd_iform_add(lst, code.str_ptr_var, 1)
-    if state.user_action:
-        code.ladd_iform_call(lst, code.data_var, code.call_method_addr)
-        code.ladd_iform_set(lst, code.data_var, state.user_action)
-        code.ladd_iform_ret(lst, code.data_var)
-        return lst
-    for ch in state.out_chars:
-        k = (state, ch)
-        dst = dfa_obj.trans_tbl[k]
-        assert len(dst) == 1
-        dst = dst[0]
-        code.ladd_iform_cmp(lst, code.data_var, ord(ch))
-        code.ladd_iform_beq(lst, dst.label)
-    code.ladd_iform_set(lst, code.data_var, 0)
-    code.ladd_iform_ret(lst, code.data_var)
-    return lst
-
-####################################################
-####################################################
-##
-## intermediate form generator
-##
-####################################################
-####################################################
-def compile_to_intermediate_form2(lexer, dfa_obj):
     code = iform_code(lexer)
     code.make_std_vars()
     for i, s in enumerate(dfa_obj.states):
@@ -1213,12 +1164,12 @@ def compile_to_intermediate_form2(lexer, dfa_obj):
     code.add_iform_ldw(code.str_ptr_var, "(" + code.tmp_var1 + ")")
 
     for s in dfa_obj.states:
-        tmp = compile_one_node2(code, s, dfa_obj)
+        tmp = compile_one_node(code, s, dfa_obj)
         code.instructions.extend(tmp)
 
     return code
 
-def compile_one_node2(code, state, dfa_obj):
+def compile_one_node(code, state, dfa_obj):
     lst = []
     code.ladd_iform_com(lst, "begin " + str(state))
     code.ladd_iform_label(lst, state.label)
