@@ -933,6 +933,28 @@ class asm_full_03(lex_test):
         return
     pass
 
+class asm_full_04(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a",  22)
+        lexer_obj.add_pattern("ab", 44)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1 = pylex.compile_to_intermediate_form(lexer_obj, dfa_obj)
+
+        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("ab")
+
+        tok = code_x86.get_token(lstate)
+        self.assert_(tok == 44)
+
+        return
+    pass
+
 
 ##############################################################
 class manual_x86_01(lex_test):
