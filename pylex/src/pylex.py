@@ -212,6 +212,7 @@ class nfa(fsa):
 class dfa(fsa):
     def __init__(self, lexer):
         super(dfa, self).__init__(lexer)
+        self.has_end_of_buf_edges = False
         return
     pass
 
@@ -327,6 +328,8 @@ class fsa_state(object):
 class lexer(object):
     def __init__(self):
         self.pats             = []
+        self.actions          = []
+
         self.next_avail_state = 1
 
         self.nfa_obj          = None
@@ -345,7 +348,16 @@ class lexer(object):
     #######################################
     #######################################
     def add_pattern(self, pat, action):
+        """Add a pattern to the lexer.
+        The pattern is a regular expression, currently the only
+        meta characters supported are * [] and |. The action argument
+        can be anything. If action is None then those tokens are discarded
+        by the lexer. If the action is a non-callable then when that
+        pattern is found it will be returned, for callable actions, the
+        action will be called (args??) and the return value from the
+        callable will be returned."""
         self.pats.append((pat, action))
+        self.actions.append(action)
         return
 
     def build_nfa(self):
@@ -373,6 +385,21 @@ class lexer(object):
     def build_dfa(self):
         self.dfa_obj = self.nfa_obj.convert_to_dfa()
         return self.dfa_obj
+
+    def add_end_of_buf_edges(self, dfa_obj):
+        assert dfa_obj.has_end_of_buf_edges == False, "Edges already present"
+        dfa_obj.has_end_of_buf_edges = True
+
+        end1 = dfa_obj.get_new_state()
+        end2 = dfa_obj.get_new_state()
+        end3 = dfa_obj.get_new_state()
+
+        dfa_obj.add_edge(end1, '\x00', end2)
+        dfa_obj.add_edge(end2, '\x00', end3)
+
+        dfa_obj.set_accepting_state(end3)
+        end3.user_action = 1
+        return
 
     def compile_to_iform(self):
         self.iform = compile_to_intermediate_form(self, self.dfa_obj)
@@ -1028,6 +1055,9 @@ class iform_code(object):
     def make_std_vars(self):
         self.str_ptr_var  = self.make_new_var()
         self.data_var     = self.make_new_var()
+        self.saved_valid  = self.make_new_var()
+        self.saved_ptr    = self.make_new_var()
+        self.saved_result = self.make_new_var()
         self.tmp_var1     = self.make_new_var()
         return
 
@@ -1151,6 +1181,37 @@ class iform_code(object):
 ##
 ## intermediate form generator
 ##
+## General approach: in each state get the next char
+## and add 1 to the next char pointer. The char is compared
+## to all outgoing edges from the current state. When a
+## match is found, branch to that state.
+##
+## The end of buffer detection is stolen from Flex. Two
+## null chars are placed sequentially. All states have
+## out edges to detect this case. Hopefully the two-null
+## char sequence is very rare in the users input.
+##
+## The code object should be called like this
+## code_obj_addr(code_obj, lex_state)
+##
+## initial code sequence
+##   load second arg
+##   add offset to get address of lex_state->next_char_ptr
+##   deref ptr to get actual next_char_ptr
+##
+## each state looks roughly like this
+##   if this is an accepting state - save the
+##   char pointer, return value, and set the
+##   flag to indicate saved data is available
+##
+##   load cur char
+##
+##   branch to appopriate state based on char
+##
+##   if no appropriate char is found - then the
+##   lexer is wedged - since this is an input that
+##   is not matched by any user pattern - return a zero
+##
 ####################################################
 ####################################################
 def compile_to_intermediate_form(lexer, dfa_obj):
@@ -1159,9 +1220,13 @@ def compile_to_intermediate_form(lexer, dfa_obj):
     for i, s in enumerate(dfa_obj.states):
         s.label = "lab_%d" % i
 
+    code.add_iform_com("main")
     code.add_iform_gparm(code.tmp_var1, 1)
+    code.add_iform_com("get saved data ptr")
     code.add_iform_add(code.tmp_var1, code.char_ptr_offset)
     code.add_iform_ldw(code.str_ptr_var, "(" + code.tmp_var1 + ")")
+    code.add_iform_com("no valid data yet")
+    code.add_iform_set(code.saved_valid, 0)
 
     for s in dfa_obj.states:
         tmp = compile_one_node(code, s, dfa_obj)
@@ -1177,11 +1242,6 @@ def compile_one_node(code, state, dfa_obj):
         ld_src = "(" + code.str_ptr_var + ")"
         code.ladd_iform_ldb(lst, code.data_var, ld_src)
         code.ladd_iform_add(lst, code.str_ptr_var, 1)
-    if state.user_action:
-        code.ladd_iform_stw(lst, "(" + code.tmp_var1 + ")", code.str_ptr_var)
-        code.ladd_iform_set(lst, code.data_var, state.user_action)
-        code.ladd_iform_ret(lst, code.data_var)
-        return lst
     for ch in state.out_chars:
         k = (state, ch)
         dst = dfa_obj.trans_tbl[k]
@@ -1189,6 +1249,11 @@ def compile_one_node(code, state, dfa_obj):
         dst = dst[0]
         code.ladd_iform_cmp(lst, code.data_var, ord(ch))
         code.ladd_iform_beq(lst, dst.label)
+    if state.user_action:
+        code.ladd_iform_stw(lst, "(" + code.tmp_var1 + ")", code.str_ptr_var)
+        code.ladd_iform_set(lst, code.data_var, state.user_action)
+        code.ladd_iform_ret(lst, code.data_var)
+        return lst
     code.ladd_iform_set(lst, code.data_var, 0)
     code.ladd_iform_ret(lst, code.data_var)
     return lst
