@@ -335,6 +335,7 @@ class lexer(object):
         self.nfa_obj          = None
         self.dfa_obj          = None
         self.iform            = None
+        self.code_obj         = None
 
         return
 
@@ -379,7 +380,7 @@ class lexer(object):
         self.nfa_obj = the_nfa
         return the_nfa
         
-        iform = compile_to_intermediate_form(self, the_dfa)
+        iform = self.compile_to_intermediate_form()
         return iform
 
     def build_dfa(self):
@@ -401,9 +402,88 @@ class lexer(object):
         end3.user_action = 1
         return
 
-    def compile_to_iform(self):
-        self.iform = compile_to_intermediate_form(self, self.dfa_obj)
-        return self.iform
+    ####################################################
+    ####################################################
+    ##
+    ## intermediate form generator
+    ##
+    ## General approach: in each state get the next char
+    ## and add 1 to the next char pointer. The char is compared
+    ## to all outgoing edges from the current state. When a
+    ## match is found, branch to that state.
+    ##
+    ## The end of buffer detection is stolen from Flex. Two
+    ## null chars are placed sequentially. All states have
+    ## out edges to detect this case. Hopefully the two-null
+    ## char sequence is very rare in the users input.
+    ##
+    ## The code object should be called like this
+    ## code_obj_addr(code_obj, lex_state)
+    ##
+    ## initial code sequence
+    ##   load second arg
+    ##   add offset to get address of lex_state->next_char_ptr
+    ##   deref ptr to get actual next_char_ptr
+    ##
+    ## each state looks roughly like this
+    ##   if this is an accepting state - save the
+    ##   char pointer, return value, and set the
+    ##   flag to indicate saved data is available
+    ##
+    ##   load cur char
+    ##
+    ##   branch to appopriate state based on char
+    ##
+    ##   if no appropriate char is found - then the
+    ##   lexer is wedged - since this is an input that
+    ##   is not matched by any user pattern - return a zero
+    ##
+    ####################################################
+    ####################################################
+    def compile_to_intermediate_form(self):
+        self.iform = iform_code(self)
+        c = self.iform
+        c.make_std_vars()
+        for i, s in enumerate(self.dfa_obj.states):
+            s.label = "lab_%d" % i
+
+        c.add_iform_com("main")
+        c.add_iform_gparm(c.tmp_var1, 1)
+        c.add_iform_com("get saved data ptr")
+        c.add_iform_add(c.tmp_var1, c.char_ptr_offset)
+        c.add_iform_ldw(c.str_ptr_var, "(" + c.tmp_var1 + ")")
+        c.add_iform_com("no valid data yet")
+        c.add_iform_set(c.saved_valid, 0)
+
+        for s in self.dfa_obj.states:
+            tmp = self.compile_one_node(c, s)
+            c.instructions.extend(tmp)
+
+        return c
+
+    def compile_one_node(self, c, state):
+        lst = []
+        c.ladd_iform_com(lst, "begin " + str(state))
+        c.ladd_iform_label(lst, state.label)
+        if len(state.out_chars) > 0:
+            ld_src = "(" + c.str_ptr_var + ")"
+            c.ladd_iform_ldb(lst, c.data_var, ld_src)
+            c.ladd_iform_add(lst, c.str_ptr_var, 1)
+        for ch in state.out_chars:
+            k = (state, ch)
+            dst = self.dfa_obj.trans_tbl[k]
+            assert len(dst) == 1
+            dst = dst[0]
+            c.ladd_iform_cmp(lst, c.data_var, ord(ch))
+            c.ladd_iform_beq(lst, dst.label)
+        if state.user_action:
+            c.ladd_iform_stw(lst, "("+c.tmp_var1+")", c.str_ptr_var)
+            c.ladd_iform_set(lst, c.data_var, state.user_action)
+            c.ladd_iform_ret(lst, c.data_var)
+            return lst
+        c.ladd_iform_set(lst, c.data_var, 0)
+        c.ladd_iform_ret(lst, c.data_var)
+        return lst
 
     #######################################
     ##
@@ -949,6 +1029,13 @@ def is_code_label(lab):
         return True
     return False
 
+def is_byte(v):
+    if type(v) is not int:
+        return False
+    if (v >= -128 and v <= 255):
+        return True
+    return False
+    
 #################
 
 def assert_is_var(r):
@@ -984,8 +1071,7 @@ def assert_is_addr_or_var(v):
 ####################################################
 
 def assert_is_byte(v):
-    assert type(v) is int
-    assert v >= 0 and v <= 255
+    assert is_byte(v)
     return
 
 ####################################################
@@ -1175,88 +1261,6 @@ class iform_code(object):
         l.append(iform_gparm(*args))
         return
     pass
-
-####################################################
-####################################################
-##
-## intermediate form generator
-##
-## General approach: in each state get the next char
-## and add 1 to the next char pointer. The char is compared
-## to all outgoing edges from the current state. When a
-## match is found, branch to that state.
-##
-## The end of buffer detection is stolen from Flex. Two
-## null chars are placed sequentially. All states have
-## out edges to detect this case. Hopefully the two-null
-## char sequence is very rare in the users input.
-##
-## The code object should be called like this
-## code_obj_addr(code_obj, lex_state)
-##
-## initial code sequence
-##   load second arg
-##   add offset to get address of lex_state->next_char_ptr
-##   deref ptr to get actual next_char_ptr
-##
-## each state looks roughly like this
-##   if this is an accepting state - save the
-##   char pointer, return value, and set the
-##   flag to indicate saved data is available
-##
-##   load cur char
-##
-##   branch to appopriate state based on char
-##
-##   if no appropriate char is found - then the
-##   lexer is wedged - since this is an input that
-##   is not matched by any user pattern - return a zero
-##
-####################################################
-####################################################
-def compile_to_intermediate_form(lexer, dfa_obj):
-    code = iform_code(lexer)
-    code.make_std_vars()
-    for i, s in enumerate(dfa_obj.states):
-        s.label = "lab_%d" % i
-
-    code.add_iform_com("main")
-    code.add_iform_gparm(code.tmp_var1, 1)
-    code.add_iform_com("get saved data ptr")
-    code.add_iform_add(code.tmp_var1, code.char_ptr_offset)
-    code.add_iform_ldw(code.str_ptr_var, "(" + code.tmp_var1 + ")")
-    code.add_iform_com("no valid data yet")
-    code.add_iform_set(code.saved_valid, 0)
-
-    for s in dfa_obj.states:
-        tmp = compile_one_node(code, s, dfa_obj)
-        code.instructions.extend(tmp)
-
-    return code
-
-def compile_one_node(code, state, dfa_obj):
-    lst = []
-    code.ladd_iform_com(lst, "begin " + str(state))
-    code.ladd_iform_label(lst, state.label)
-    if len(state.out_chars) > 0:
-        ld_src = "(" + code.str_ptr_var + ")"
-        code.ladd_iform_ldb(lst, code.data_var, ld_src)
-        code.ladd_iform_add(lst, code.str_ptr_var, 1)
-    for ch in state.out_chars:
-        k = (state, ch)
-        dst = dfa_obj.trans_tbl[k]
-        assert len(dst) == 1
-        dst = dst[0]
-        code.ladd_iform_cmp(lst, code.data_var, ord(ch))
-        code.ladd_iform_beq(lst, dst.label)
-    if state.user_action:
-        code.ladd_iform_stw(lst, "(" + code.tmp_var1 + ")", code.str_ptr_var)
-        code.ladd_iform_set(lst, code.data_var, state.user_action)
-        code.ladd_iform_ret(lst, code.data_var)
-        return lst
-    code.ladd_iform_set(lst, code.data_var, 0)
-    code.ladd_iform_ret(lst, code.data_var)
-    return lst
 
 ####################################################
 ####################################################
@@ -1636,6 +1640,8 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             assert_is_var(dst)
             src = resolve_addr_or_indirect_var(var_tbl, tup[2])
             val = lstate.ldb(src)
+            #if not is_byte(val):
+            #    pdb.set_trace()
             assert_is_byte(val)
             set_var(var_tbl, dst, val)
             if val == 0:
