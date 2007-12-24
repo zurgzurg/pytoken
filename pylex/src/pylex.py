@@ -453,7 +453,14 @@ class lexer(object):
     ##
     ##   if no appropriate char is found - then the
     ##   lexer is wedged - since this is an input that
-    ##   is not matched by any user pattern - return a zero
+    ##   is not matched by any user pattern - return a 1
+    ##
+    ## The return value from the lexer is always an integer, which
+    ## is used as an index into the self.actions list to find out
+    ## what actual action to perform. The first two entries in the
+    ## actions list are fill buffer and unhandled input. Therefore
+    ## if the lexer returns 0 a fill buffer operation is performed
+    ## and a 1 indicates an unmatched input.
     ##
     ####################################################
     ####################################################
@@ -468,7 +475,7 @@ class lexer(object):
         c.add_iform_gparm(c.tmp_var1, 1)
         c.add_iform_com("get saved data ptr")
         c.add_iform_add(c.tmp_var1, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, "(" + c.tmp_var1 + ")")
+        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.tmp_var1))
         c.add_iform_com("no valid data yet")
         c.add_iform_set(c.saved_valid, 0)
 
@@ -483,22 +490,26 @@ class lexer(object):
         c.ladd_iform_com(lst, "begin " + str(state))
         c.ladd_iform_label(lst, state.label)
         if len(state.out_chars) > 0:
-            ld_src = "(" + c.str_ptr_var + ")"
+            ld_src = c.make_indirect_var(c.str_ptr_var)
             c.ladd_iform_ldb(lst, c.data_var, ld_src)
             c.ladd_iform_add(lst, c.str_ptr_var, 1)
-        for ch in state.out_chars:
-            k = (state, ch)
-            dst = self.dfa_obj.trans_tbl[k]
-            assert len(dst) == 1
-            dst = dst[0]
-            c.ladd_iform_cmp(lst, c.data_var, ord(ch))
-            c.ladd_iform_beq(lst, dst.label)
+
+            for ch in state.out_chars:
+                k = (state, ch)
+                dst = self.dfa_obj.trans_tbl[k]
+                assert len(dst) == 1
+                dst = dst[0]
+                c.ladd_iform_cmp(lst, c.data_var, ord(ch))
+                c.ladd_iform_beq(lst, dst.label)
+
         if state.user_action:
-            c.ladd_iform_stw(lst, "("+c.tmp_var1+")", c.str_ptr_var)
+            c.ladd_iform_stw(lst, c.make_indirect_var(c.tmp_var1),
+                             c.str_ptr_var)
             c.ladd_iform_set(lst, c.data_var, state.user_action)
             c.ladd_iform_ret(lst, c.data_var)
             return lst
-        c.ladd_iform_set(lst, c.data_var, 0)
+        c.ladd_iform_com(lst, "unmatched input")
+        c.ladd_iform_set(lst, c.data_var, 1)
         c.ladd_iform_ret(lst, c.data_var)
         return lst
 
