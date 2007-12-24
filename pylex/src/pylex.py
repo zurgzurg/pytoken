@@ -328,7 +328,8 @@ class fsa_state(object):
 class lexer(object):
     def __init__(self):
         self.pats             = []
-        self.actions          = []
+        self.actions          = [self.runtime_fill_buffer,
+                                 self.runtime_unhandled_input]
 
         self.next_avail_state = 1
 
@@ -357,8 +358,9 @@ class lexer(object):
         pattern is found it will be returned, for callable actions, the
         action will be called (args??) and the return value from the
         callable will be returned."""
-        self.pats.append((pat, action))
+        idx = len(self.actions)
         self.actions.append(action)
+        self.pats.append((pat, idx))
         return
 
     def build_nfa(self):
@@ -401,6 +403,21 @@ class lexer(object):
         dfa_obj.set_accepting_state(end3)
         end3.user_action = 1
         return
+
+    def compile_to_machine_code(self):
+        self.code_obj = compile_to_x86_32(self.iform)
+        return self.code_obj
+
+    def get_token(self, lstate):
+        assert self.code_obj is not None
+        idx = self.code_obj.get_token(lstate)
+        assert type(idx) is int and idx >= 0 and idx < len(self.actions)
+        action = self.actions[idx]
+        if callable(action):
+            r = action(lstate)
+        else:
+            r = action
+        return r
 
     ####################################################
     ####################################################
@@ -484,6 +501,17 @@ class lexer(object):
         c.ladd_iform_set(lst, c.data_var, 0)
         c.ladd_iform_ret(lst, c.data_var)
         return lst
+
+    #######################################
+    ##
+    ## runtime support
+    ##
+    #######################################
+    def runtime_fill_buffer(self, lstate):
+        return
+
+    def runtime_unhandled_input(self, lstate):
+        raise RuntimeError, "no rule to match input"
 
     #######################################
     ##
@@ -1094,10 +1122,13 @@ def print_instructions(arg):
         tmp_list = [arg]
 
     for tup in tmp_list:
-        op     = tup[0]
-        func   = instr2pfunc[op]
-        s = func(tup)
-        print s
+        op = tup[0]
+        if op in instr2pfunc:
+            func   = instr2pfunc[op]
+            s = func(tup)
+            print s
+        else:
+            print tup
     return
 
 ####################################################
@@ -1333,11 +1364,6 @@ def asm_list_x86_32_to_code_obj(lines, print_asm_txt=False):
     for ch in b:
         code_obj.append(ord(ch))
     return code_obj
-
-def print_asm_list(asm_list):
-    for tup in asm_list:
-        print tup
-    return
 
 def iform_to_asm_list_x86_32(iform):
     asm_list = []

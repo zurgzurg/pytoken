@@ -14,9 +14,11 @@ sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
 import escape
 
 class lex_test(unittest.TestCase):
-    #def setUp(self):
-    #    #print "a test", self.__class__.__name__
-    #    return
+    def setUp(self):
+        if 1:
+            return
+        print "a test", self.__class__.__name__
+        return
 
     def check_token(self, obj, txt, exp):
         tok = obj.parse(txt)
@@ -594,7 +596,7 @@ class asm02(lex_test):
         lstate.set_input("a")
 
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 1)
+        self.assert_(obj.actions[v] == 1)
         return
     pass
 
@@ -611,7 +613,7 @@ class asm03(lex_test):
         lstate.set_input("b")
 
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v]==2)
         return
     pass
 
@@ -628,7 +630,7 @@ class asm04(lex_test):
         lstate.set_input("ab")
 
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v] == 2)
         return
     pass
 
@@ -645,11 +647,11 @@ class asm05(lex_test):
 
         lstate.set_input("a")
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v] == 2)
 
         lstate.set_input("b")
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v] == 2)
 
         return
     pass
@@ -667,11 +669,11 @@ class asm06(lex_test):
 
         lstate.set_input("a")
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v] == 2)
 
         lstate.set_input("aa")
         v = pylex.run_vcode_simulation(code, lstate)
-        self.assert_(v == 2)
+        self.assert_(obj.actions[v] == 2)
 
         return
     pass
@@ -835,7 +837,7 @@ class asm17(lex_test):
         lstate.set_input("ab")
 
         tok = code2.get_token(lstate)
-        self.assert_(tok == 1)
+        self.assert_(lexer_obj.actions[tok] == 1)
         return
     pass
 
@@ -854,10 +856,10 @@ class asm18(lex_test):
         lstate.set_input("ab")
 
         tok = code2.get_token(lstate)
-        self.assert_(tok == 1)
+        self.assert_(lexer_obj.actions[tok] == 1)
 
         tok = code2.get_token(lstate)
-        self.assert_(tok == 2)
+        self.assert_(lexer_obj.actions[tok] == 2)
 
         return
     pass
@@ -871,6 +873,10 @@ class asm_full_01(lex_test):
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
+        if 0:
+            print "---------------"
+            pylex.print_instructions(code1)
+            print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
@@ -879,7 +885,7 @@ class asm_full_01(lex_test):
         lstate.set_input("a")
 
         tok = code_x86.get_token(lstate)
-        self.assert_(tok == 1)
+        self.assert_(lexer_obj.actions[tok] == 1)
         offset = lstate.get_cur_offset()
         self.assert_(offset == 1)
 
@@ -896,13 +902,14 @@ class asm_full_02(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        #pylex.print_instructions(asm_list)
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("b")
 
         tok = code_x86.get_token(lstate)
-        self.assert_(tok == 22)
+        self.assert_(lexer_obj.actions[tok] == 22)
         offset = lstate.get_cur_offset()
         self.assert_(offset == 1)
 
@@ -926,9 +933,9 @@ class asm_full_03(lex_test):
         lstate.set_input("ab")
 
         tok = code_x86.get_token(lstate)
-        self.assert_(tok == 44)
+        self.assert_(lexer_obj.actions[tok] == 44)
         tok = code_x86.get_token(lstate)
-        self.assert_(tok == 22)
+        self.assert_(lexer_obj.actions[tok] == 22)
 
         return
     pass
@@ -950,7 +957,26 @@ class asm_full_04(lex_test):
         lstate.set_input("ab")
 
         tok = code_x86.get_token(lstate)
-        self.assert_(tok == 44)
+        self.assert_(lexer_obj.actions[tok] == 44)
+
+        return
+    pass
+
+class asm_full_05(lex_test):
+    def runTest(self):
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a",  22)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1   = lexer_obj.compile_to_intermediate_form()
+        code2   = lexer_obj.compile_to_machine_code()
+
+        lstate = pylex.lexer_state();
+        lstate.set_input("a")
+
+        tok = lexer_obj.get_token(lstate)
+        self.assert_(tok == 22)
 
         return
     pass
