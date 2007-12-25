@@ -23,6 +23,7 @@ static PyObject *lexer_state_get_cur_offset(PyObject *, PyObject *);
 static PyObject *lexer_state_set_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_get_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
+static PyObject *lexer_state_set_fill_method(PyObject *, PyObject *);
 
 static PyObject *lexer_state_ldb(PyObject *, PyObject *);
 static PyObject *lexer_state_ldw(PyObject *, PyObject *);
@@ -46,14 +47,16 @@ static char *lexer_state_get_char_ptr(PyObject *);
 typedef struct {
   PyObject_HEAD
 
-  char   *next_char_ptr;
-  char   *buf;
-  int     size_of_buf;
+  char      *next_char_ptr;
+  char      *buf;
+  int        size_of_buf;
+  PyObject  *fill_method;
 } lexer_state_t;
 
 static int is_valid_ptr(lexer_state_t *, char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
 static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
+static int lexer_state_call_fill_method(lexer_state_t *self);
 
 static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
@@ -74,6 +77,8 @@ static PyMethodDef lexer_state_methods[] = {
      "Return index of next char to scan."},
 
     {"set_input",         lexer_state_set_input,         METH_VARARGS,
+     "Set source of chars to read."},
+    {"set_fill_method",   lexer_state_set_fill_method,   METH_VARARGS,
      "Set source of chars to read."},
 
     {"ldb",               lexer_state_ldb,               METH_VARARGS,
@@ -226,11 +231,34 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
     return 0;
   if (self->buf)
     free(self->buf);
-  self->buf = malloc(tmp_buf_len);
-  self->size_of_buf = tmp_buf_len;
+  self->buf = malloc(tmp_buf_len + 2);
+  self->size_of_buf = tmp_buf_len + 2;
   for (i=0; i<tmp_buf_len; i++)
     self->buf[i] = tmp_buf[i];
+  self->buf[tmp_buf_len]     = '\0';
+  self->buf[tmp_buf_len + 1] = '\0';
   self->next_char_ptr = self->buf;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+lexer_state_set_fill_method(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *func;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "O:set_fill_method", &func))
+    return 0;
+  if ( PyCallable_Check(func) != 1) {
+    PyErr_Format(PyExc_RuntimeError, "Fill method is not callable");
+    return 0;
+  }
+  Py_INCREF(func);
+  self->fill_method = func;
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -410,6 +438,21 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
   ptr2 = (char *)ptr;
   if (ptr2 >= start && ptr2 <= end)
     return 1;
+  return 0;
+}
+
+/****************************************************************/
+/*                                                              */
+/* fill protocol - when end of buffer is found the fill method  */
+/* will be called. The method should return 0 if no new data is */
+/* added to the buffer. A 1 should be returned if new data is   */
+/* added to the buffer, -- need to figure out how to shift the  */
+/* buffer contents                                              */
+/*                                                              */
+/****************************************************************/
+static int
+lexer_state_call_fill_method(lexer_state_t *self)
+{
   return 0;
 }
 
@@ -734,6 +777,8 @@ escape_get_func_addr(PyObject *self, PyObject *args)
     return 0;
   if (strcmp(func_name, "PyObject_CallMethod")==0)
     func_ptr = &PyObject_CallMethod;
+  else if (strcmp(func_name, "lexer_state_call_fill_method")==0)
+    func_ptr = &lexer_state_call_fill_method;
   else {
     PyErr_SetString(PyExc_RuntimeError, "Unknown function name");
     return 0;

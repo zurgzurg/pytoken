@@ -593,7 +593,7 @@ class asm02(lex_test):
         code    = obj.compile_to_intermediate_form()
 
         lstate = pylex.lexer_state()
-        lstate.set_input("a")
+        lstate.set_input("aa")
 
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 1)
@@ -610,7 +610,7 @@ class asm03(lex_test):
         code    = obj.compile_to_intermediate_form()
 
         lstate = pylex.lexer_state()
-        lstate.set_input("b")
+        lstate.set_input("bb")
 
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v]==2)
@@ -627,7 +627,7 @@ class asm04(lex_test):
         code    = obj.compile_to_intermediate_form()
 
         lstate = pylex.lexer_state()
-        lstate.set_input("ab")
+        lstate.set_input("abab")
 
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
@@ -645,11 +645,11 @@ class asm05(lex_test):
 
         lstate = pylex.lexer_state()
 
-        lstate.set_input("a")
+        lstate.set_input("aa")
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
-        lstate.set_input("b")
+        lstate.set_input("bb")
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
@@ -667,11 +667,11 @@ class asm06(lex_test):
 
         lstate = pylex.lexer_state()
 
-        lstate.set_input("a")
+        lstate.set_input("ab")
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
-        lstate.set_input("aa")
+        lstate.set_input("aab")
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
@@ -853,7 +853,7 @@ class asm18(lex_test):
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("ab")
+        lstate.set_input("abc")
 
         tok = code2.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 1)
@@ -882,7 +882,7 @@ class asm_full_01(lex_test):
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("a")
+        lstate.set_input("aa")
 
         tok = code_x86.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 1)
@@ -906,7 +906,7 @@ class asm_full_02(lex_test):
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("b")
+        lstate.set_input("bb")
 
         tok = code_x86.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 22)
@@ -930,7 +930,7 @@ class asm_full_03(lex_test):
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("ab")
+        lstate.set_input("abc")
 
         tok = code_x86.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 44)
@@ -954,7 +954,7 @@ class asm_full_04(lex_test):
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("ab")
+        lstate.set_input("abc")
 
         tok = code_x86.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 44)
@@ -969,11 +969,19 @@ class asm_full_05(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
+        if 0:
+            print "----------"
+            print "dfa:"
+            print dfa_obj
         code1   = lexer_obj.compile_to_intermediate_form()
+        if 0:
+            print "----------"
+            pylex.print_instructions(code1)
+            print "----------"
         code2   = lexer_obj.compile_to_machine_code()
 
         lstate = pylex.lexer_state();
-        lstate.set_input("a")
+        lstate.set_input("aa")
 
         tok = lexer_obj.get_token(lstate)
         self.assert_(tok == 22)

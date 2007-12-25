@@ -326,6 +326,9 @@ class fsa_state(object):
     pass
 
 class lexer(object):
+    ACTION_NEED_FILL   = 0
+    ACTION_FOUND_UNEXP = 1
+
     def __init__(self):
         self.pats             = []
         self.actions          = [self.runtime_fill_buffer,
@@ -387,6 +390,7 @@ class lexer(object):
 
     def build_dfa(self):
         self.dfa_obj = self.nfa_obj.convert_to_dfa()
+        self.add_end_of_buf_edges(self.dfa_obj)
         return self.dfa_obj
 
     def add_end_of_buf_edges(self, dfa_obj):
@@ -395,13 +399,23 @@ class lexer(object):
 
         end1 = dfa_obj.get_new_state()
         end2 = dfa_obj.get_new_state()
-        end3 = dfa_obj.get_new_state()
 
         dfa_obj.add_edge(end1, '\x00', end2)
-        dfa_obj.add_edge(end2, '\x00', end3)
 
-        dfa_obj.set_accepting_state(end3)
-        end3.user_action = 1
+        dfa_obj.set_accepting_state(end2)
+        end2.user_action = lexer.ACTION_NEED_FILL
+        
+        for s in dfa_obj.states:
+            if s not in (end1, end2):
+                dfa_obj.add_edge(s, '\x00', end1)
+                assert '\x00' not in s.out_chars
+                s.out_chars.append('\x00')
+
+        if 0:
+            print "-----------------"
+            print "At end of add_end_of_buf_edges"
+            print dfa_obj
+            print "-----------------"
         return
 
     def compile_to_machine_code(self):
@@ -503,13 +517,15 @@ class lexer(object):
                 c.ladd_iform_beq(lst, dst.label)
 
         if state.user_action:
+            c.ladd_iform_com(lst, "save string pointer - before exit")
+            c.ladd_iform_add(lst, c.str_ptr_var, -1)
             c.ladd_iform_stw(lst, c.make_indirect_var(c.tmp_var1),
                              c.str_ptr_var)
             c.ladd_iform_set(lst, c.data_var, state.user_action)
             c.ladd_iform_ret(lst, c.data_var)
             return lst
         c.ladd_iform_com(lst, "unmatched input")
-        c.ladd_iform_set(lst, c.data_var, 1)
+        c.ladd_iform_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
         c.ladd_iform_ret(lst, c.data_var)
         return lst
 
