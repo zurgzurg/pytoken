@@ -50,13 +50,12 @@ typedef struct {
   char      *next_char_ptr;
   char      *buf;
   int        size_of_buf;
-  PyObject  *fill_method;
+  PyObject  *fill_ptr;
 } lexer_state_t;
 
 static int is_valid_ptr(lexer_state_t *, char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
 static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
-static int lexer_state_call_fill_method(lexer_state_t *self);
 
 static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
@@ -258,7 +257,7 @@ lexer_state_set_fill_method(PyObject *arg_self, PyObject *args)
     return 0;
   }
   Py_INCREF(func);
-  self->fill_method = func;
+  self->fill_ptr = func;
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -441,21 +440,6 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
   return 0;
 }
 
-/****************************************************************/
-/*                                                              */
-/* fill protocol - when end of buffer is found the fill method  */
-/* will be called. The method should return 0 if no new data is */
-/* added to the buffer. A 1 should be returned if new data is   */
-/* added to the buffer, -- need to figure out how to shift the  */
-/* buffer contents                                              */
-/*                                                              */
-/****************************************************************/
-static int
-lexer_state_call_fill_method(lexer_state_t *self)
-{
-  return 0;
-}
-
 /***************************************************************/
 /***************************************************************/
 /***                                                         ***/
@@ -477,6 +461,9 @@ static PyObject *code_append(PyObject *, PyObject *);
 static PyObject *code_get_start_addr(PyObject *, PyObject *);
 static PyObject *code_get_code(PyObject *, PyObject *);
 
+static PyObject *code_get_fill_caller_addr(PyObject *, PyObject *);
+static int code_call_fill_ptr(lexer_state_t *self);
+
 typedef struct {
   PyObject_HEAD
 
@@ -486,8 +473,9 @@ typedef struct {
   } u;
   int     size_of_buf; /* in objects */
   int     num_in_buf;  /* num objs   */
-  int     obj_size;  /* machine code : obj_size=1 : bytes */
-                     /* vcode : obj_size=4 : PyObjects - likely tuples */
+  int     obj_size;    /* machine code : obj_size=1 : bytes */
+                       /* vcode : obj_size=4 : PyObjects - likely tuples */
+
   int     is_vcode;
 } code_t;
 
@@ -509,6 +497,9 @@ static PyMethodDef code_methods[] = {
 
     {"get_start_addr", code_get_start_addr, METH_NOARGS,
      "Return start address of code buffer."},
+
+    {"get_fill_caller_addr", code_get_fill_caller_addr, METH_NOARGS,
+     "Return address of function that can call the lexer_state fill method."},
 
     {"get_code",  code_get_code, METH_NOARGS,
      "Return code buffer."},
@@ -588,7 +579,7 @@ code_item(PyObject *arg_self, Py_ssize_t i)
 static PyObject *
 code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
 {
-  code_t *self;
+  code_t *code_obj_ptr;
   PyObject *lbuf, *m, *d, *func, *res, *bool_db_flag;
   typedef int (*asm_func_t)(code_t *, lexer_state_t *);
   asm_func_t asm_func;
@@ -599,14 +590,14 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   int status;
 
   assert(arg_self->ob_type == &code_type);
-  self = (code_t *)arg_self;
+  code_obj_ptr = (code_t *)arg_self;
   
   debug_flag = 0;
   if (!PyArg_ParseTupleAndKeywords(args, kwdict, "O!|i:get_token", kwlist,
 				   &lexer_state_type, &lbuf, &debug_flag))
     return 0;
 
-  if (self->is_vcode) {
+  if (code_obj_ptr->is_vcode) {
     bool_db_flag = PyBool_FromLong(debug_flag);
 
     m = PyImport_ImportModule("pylex");
@@ -628,15 +619,15 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   }
 
   //__asm__ __volatile__ ( "mfence" : : : "memory" );
-  base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
+  base = (unsigned char *)((unsigned int)code_obj_ptr->u.buf & 0xFFFFF000);
   status = mprotect(base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
   if (status != 0) {
     perror("mprotect failed.\n");
     exit(1);
   }
 
-  asm_func = (asm_func_t)(self->u.buf);
-  v = (*asm_func)(self, (lexer_state_t*)lbuf);
+  asm_func = (asm_func_t)(code_obj_ptr->u.buf);
+  v = (*asm_func)(code_obj_ptr, (lexer_state_t*)lbuf);
   res = PyInt_FromLong(v);
   return res;
 }
@@ -759,6 +750,67 @@ code_get_code(PyObject *arg_self, PyObject *args)
   return result;
 }
 
+/****************************************************************/
+/*                                                              */
+/* fill protocol - when end of buffer is found the fill method  */
+/* will be called. The method should return 0 if no new data is */
+/* added to the buffer. A 1 should be returned if new data is   */
+/* added to the buffer, -- need to figure out how to shift the  */
+/* buffer contents. A 2 indicates some kind of error, a python  */
+/* error is expected to be set.                                 */
+/*                                                              */
+/****************************************************************/
+static PyObject *
+code_get_fill_caller_addr(PyObject *arg_self, PyObject *args)
+{
+  PyObject *result;
+  long addr;
+
+  addr = (long)&code_call_fill_ptr;
+  result = PyInt_FromLong(addr);
+  return result;
+}
+
+static int
+code_call_fill_ptr(lexer_state_t *lstate)
+{
+  PyObject *fill_status, *arg_list;
+  long val;
+
+  if (lstate == 0) {
+    PyErr_Format(PyExc_RuntimeError, "null lexer state sent to fill runtime");
+    return 2;
+  }
+  if (lstate->fill_ptr == 0) {
+    PyErr_Format(PyExc_RuntimeError, "no fill pointer set in lexer state obj");
+    return 2;
+  }
+  arg_list = Py_BuildValue("(O)", lstate);
+  if (arg_list == 0)
+    return 2;
+
+  fill_status = PyObject_Call(lstate->fill_ptr, arg_list, 0);
+  if (fill_status == 0)
+    return 2;
+
+  if ( ! PyNumber_Check(fill_status)) {
+    PyErr_Format(PyExc_RuntimeError, "Fill method returned non-numeric");
+    Py_DECREF(fill_status);
+    return 2;
+  }
+
+  val = PyInt_AsLong(fill_status);
+  Py_DECREF(fill_status);
+  if (val != 0 && val != 1) {
+    PyErr_Format(PyExc_RuntimeError,
+		 "Unexpected return val from fill method=%ld", val);
+    return 2;
+  }
+  
+
+  return val;
+}
+
 /***************************************************************/
 /***************************************************************/
 /***                                                         ***/
@@ -777,8 +829,6 @@ escape_get_func_addr(PyObject *self, PyObject *args)
     return 0;
   if (strcmp(func_name, "PyObject_CallMethod")==0)
     func_ptr = &PyObject_CallMethod;
-  else if (strcmp(func_name, "lexer_state_call_fill_method")==0)
-    func_ptr = &lexer_state_call_fill_method;
   else {
     PyErr_SetString(PyExc_RuntimeError, "Unknown function name");
     return 0;
@@ -849,6 +899,17 @@ escape_get_char_ptr_offset(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+escape_get_fill_caller_addr(PyObject *self, PyObject *args)
+{
+  long addr;
+  PyObject *r;
+
+  addr = (long)&code_call_fill_ptr;
+  r = PyInt_FromLong(addr);
+  return r;
+}
+
+static PyObject *
 escape_regtest01(PyObject *self, PyObject *args)
 {
   PyObject *lbuf, *result;
@@ -874,6 +935,9 @@ static PyMethodDef escape_methods[] = {
 
   {"get_char_ptr_offset", escape_get_char_ptr_offset, METH_NOARGS,
    PyDoc_STR("Return lex state offset for character pos ptr.")},
+
+  {"get_fill_caller_addr", escape_get_fill_caller_addr, METH_NOARGS,
+   PyDoc_STR("Get address of code_call_fill_ptr function.")},
 
   {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
    

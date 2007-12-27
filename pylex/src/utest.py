@@ -798,7 +798,7 @@ class asm15(lex_test):
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state()
-        lstate.set_input("a")
+        lstate.set_input("ac")
 
         r = code2.get_token(lstate)
         return
@@ -816,7 +816,7 @@ class asm16(lex_test):
         code2 = pylex.compile_to_vcode(code1)
         
         lstate = pylex.lexer_state();
-        lstate.set_input("a")
+        lstate.set_input("ac")
 
         r = code2.get_token(lstate)
         return
@@ -963,6 +963,9 @@ class asm_full_04(lex_test):
     pass
 
 class asm_full_05(lex_test):
+    def do_fill(self, lstate):
+        self.fill_called = True
+        return 0
     def runTest(self):
         lexer_obj = pylex.lexer()
         lexer_obj.add_pattern("a",  22)
@@ -980,8 +983,10 @@ class asm_full_05(lex_test):
             print "----------"
         code2   = lexer_obj.compile_to_machine_code()
 
+
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
+        lstate.set_fill_method(self.do_fill)
 
         tok = lexer_obj.get_token(lstate)
         self.assert_(tok == 22)
@@ -1107,6 +1112,39 @@ class manual_x86_05(lex_test):
         return
     pass
 
+class manual_x86_06(lex_test):
+    def do_fill(self, lstate):
+        self.fill_called = True
+        return 0
+
+    def runTest(self):
+        self.fill_called = False
+        lstate   = pylex.lexer_state()
+        lstate.set_input("a")
+        lstate.set_fill_method(self.do_fill)
+
+        lobj = pylex.lexer()
+
+        c = pylex.iform_code(lobj)
+        c.make_std_vars()
+
+        # arg 0 = code obj ; 
+        # arg 1 = lexer state
+        c.add_iform_gparm(c.data_var, 1)
+        c.add_iform_call(c.fill_status, c.fill_caller_addr, c.data_var)
+        c.add_iform_ret(c.fill_status)
+
+        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        if 0:
+            pylex.print_instructions(asm_list)
+            #escape.print_gdb_info()
+        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+
+        v = code_x86.get_token(lstate)
+        return
+
+    pass
+
 ####################
 class regtest01(lex_test):
     def runTest(self):
@@ -1139,9 +1177,13 @@ class looper(lex_test):
         for n, sym in sym_tab.iteritems():
             if type(sym) is not type or n in ("looper", "lex_test"):
                 continue
+            if 0:
+                print "starting on", n
             tc = sym()
             nrefs = sys.gettotalrefcount()
             for i in range(3):
+                if 0:
+                    print "testing num", i
                 tc.runTest()
                 nrefs2 = sys.gettotalrefcount()
                 self.assert_(nrefs2 - nrefs2 <= 3)

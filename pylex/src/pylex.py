@@ -329,6 +329,10 @@ class lexer(object):
     ACTION_NEED_FILL   = 0
     ACTION_FOUND_UNEXP = 1
 
+    FILL_RESULT_NO_NEW_DATA    = 0
+    FILL_RESULT_NEW_DATA_READY = 1
+    FILL_RESULT_ERROR          = 2
+
     def __init__(self):
         self.pats             = []
         self.actions          = [self.runtime_fill_buffer,
@@ -340,6 +344,9 @@ class lexer(object):
         self.dfa_obj          = None
         self.iform            = None
         self.code_obj         = None
+
+        self.end1             = None
+        self.end2             = None
 
         return
 
@@ -397,17 +404,17 @@ class lexer(object):
         assert dfa_obj.has_end_of_buf_edges == False, "Edges already present"
         dfa_obj.has_end_of_buf_edges = True
 
-        end1 = dfa_obj.get_new_state()
-        end2 = dfa_obj.get_new_state()
+        self.end1 = dfa_obj.get_new_state()
+        self.end2 = dfa_obj.get_new_state()
 
-        dfa_obj.add_edge(end1, '\x00', end2)
+        dfa_obj.add_edge(self.end1, '\x00', self.end2)
 
-        dfa_obj.set_accepting_state(end2)
-        end2.user_action = lexer.ACTION_NEED_FILL
+        dfa_obj.set_accepting_state(self.end2)
+        self.end2.user_action = lexer.ACTION_NEED_FILL
         
         for s in dfa_obj.states:
-            if s not in (end1, end2):
-                dfa_obj.add_edge(s, '\x00', end1)
+            if s not in (self.end1, self.end2):
+                dfa_obj.add_edge(s, '\x00', self.end1)
                 assert '\x00' not in s.out_chars
                 s.out_chars.append('\x00')
 
@@ -486,15 +493,18 @@ class lexer(object):
             s.label = "lab_%d" % i
 
         c.add_iform_com("main")
-        c.add_iform_gparm(c.tmp_var1, 1)
+        c.add_iform_gparm(c.lstate_ptr, 1)
         c.add_iform_com("get saved data ptr")
-        c.add_iform_add(c.tmp_var1, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.tmp_var1))
+        c.add_iform_add(c.lstate_ptr, c.char_ptr_offset)
+        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.lstate_ptr))
         c.add_iform_com("no valid data yet")
         c.add_iform_set(c.saved_valid, 0)
 
         for s in self.dfa_obj.states:
-            tmp = self.compile_one_node(c, s)
+            if s in (self.end1, self.end2):
+                tmp = self.compile_end_of_buf_node(c, s)
+            else:
+                tmp = self.compile_one_node(c, s)
             c.instructions.extend(tmp)
 
         return c
@@ -518,8 +528,9 @@ class lexer(object):
 
         if state.user_action:
             c.ladd_iform_com(lst, "save string pointer - before exit")
+            c.ladd_iform_com(lst, "undo pointer advance at start of state")
             c.ladd_iform_add(lst, c.str_ptr_var, -1)
-            c.ladd_iform_stw(lst, c.make_indirect_var(c.tmp_var1),
+            c.ladd_iform_stw(lst, c.make_indirect_var(c.lstate_ptr),
                              c.str_ptr_var)
             c.ladd_iform_set(lst, c.data_var, state.user_action)
             c.ladd_iform_ret(lst, c.data_var)
@@ -527,6 +538,13 @@ class lexer(object):
         c.ladd_iform_com(lst, "unmatched input")
         c.ladd_iform_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
         c.ladd_iform_ret(lst, c.data_var)
+        return lst
+
+    def compile_end_of_buf_node(self, c, state):
+        lst = []
+        c.ladd_iform_com(lst, "begin end of buf code")
+        c.ladd_iform_label(lst, state.label)
+        c.ladd_iform_call(lst, c.fill_status, c.fill_caller_addr, c.lstate_ptr)
         return lst
 
     #######################################
@@ -1164,12 +1182,13 @@ class iform_code(object):
         self.lexer              = lexer_obj
         self.all_vars           = []
         self.str_ptr_var        = None
-        self.tmp_var1           = None
+        self.lstate_ptr         = None
         self.data_var           = None
         self.next_avail_var_num = 1
         self.instructions       = []
         self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
         self.char_ptr_offset    = escape.get_char_ptr_offset()
+        self.fill_caller_addr   = escape.get_fill_caller_addr()
         self.lbuf               = None
 
         symtab = globals()
@@ -1202,7 +1221,8 @@ class iform_code(object):
         self.saved_valid  = self.make_new_var()
         self.saved_ptr    = self.make_new_var()
         self.saved_result = self.make_new_var()
-        self.tmp_var1     = self.make_new_var()
+        self.lstate_ptr   = self.make_new_var()
+        self.fill_status  = self.make_new_var()
         return
 
     def set_str_ptr_var(self, val):
