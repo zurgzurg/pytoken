@@ -15,9 +15,8 @@ import escape
 
 class lex_test(unittest.TestCase):
     def setUp(self):
-        if 1:
-            return
-        print "a test", self.__class__.__name__
+        if 0:
+            print "a test", self.__class__.__name__
         return
 
     def check_token(self, obj, txt, exp):
@@ -611,6 +610,9 @@ class asm03(lex_test):
 
         lstate = pylex.lexer_state()
         lstate.set_input("bb")
+
+        if 0:
+            pylex.print_instructions(code)
 
         v = pylex.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v]==2)

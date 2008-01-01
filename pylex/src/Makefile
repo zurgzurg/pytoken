@@ -8,5 +8,8 @@ build/lib.linux-i686-2.5/escape.so: build/temp.linux-i686-2.5/escapemodule.o
 build/temp.linux-i686-2.5/escapemodule.o: escapemodule.c
 	gcc -pthread -fno-strict-aliasing -g -Wall -Wstrict-prototypes -fPIC -g -I$(python_inc_dir) -c escapemodule.c -o build/temp.linux-i686-2.5/escapemodule.o
 
+tar:
+	tar zcf pylex.tar.gz escapemodule.c utest.py pylex.py Makefile
+
 clean:
 	rm -fr *~ *.[ao] *.so *.pyc build/lib.linux-i686-2.5/escape.so build/temp.linux-i686-2.5/escapemodule.o

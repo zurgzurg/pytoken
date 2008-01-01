@@ -24,6 +24,8 @@ static PyObject *lexer_state_set_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_get_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 static PyObject *lexer_state_set_fill_method(PyObject *, PyObject *);
+static PyObject *lexer_state_set_eob_found(PyObject *, PyObject *);
+static PyObject *lexer_state_get_eob_found(PyObject *, PyObject *);
 
 static PyObject *lexer_state_ldb(PyObject *, PyObject *);
 static PyObject *lexer_state_ldw(PyObject *, PyObject *);
@@ -47,10 +49,11 @@ static char *lexer_state_get_char_ptr(PyObject *);
 typedef struct {
   PyObject_HEAD
 
-  char      *next_char_ptr;
-  char      *buf;
-  int        size_of_buf;
-  PyObject  *fill_ptr;
+  char           *next_char_ptr;
+  char           *buf;
+  int             size_of_buf;
+  PyObject       *fill_ptr;
+  int             eob_found;
 } lexer_state_t;
 
 static int is_valid_ptr(lexer_state_t *, char *);
@@ -79,6 +82,10 @@ static PyMethodDef lexer_state_methods[] = {
      "Set source of chars to read."},
     {"set_fill_method",   lexer_state_set_fill_method,   METH_VARARGS,
      "Set source of chars to read."},
+    {"set_eob_found",     lexer_state_set_eob_found,     METH_VARARGS,
+     "Set the eob_found flag."},
+    {"get_eob_found",     lexer_state_get_eob_found,     METH_NOARGS,
+     "Get the eob_found flag."},
 
     {"ldb",               lexer_state_ldb,               METH_VARARGS,
      "simulator method - load byte"},
@@ -102,6 +109,7 @@ lexer_state_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
   self->next_char_ptr = 0;
   self->buf           = 0;
   self->size_of_buf   = 0;
+  self->eob_found     = 0;
   return 0;
 }
 
@@ -261,6 +269,40 @@ lexer_state_set_fill_method(PyObject *arg_self, PyObject *args)
 
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+static PyObject *
+lexer_state_set_eob_found(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  int val;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  if (!PyArg_ParseTuple(args, "i:set_eob_found", &val))
+    return 0;
+
+  if (val!=0 && val!=1) {
+    PyErr_Format(PyExc_RuntimeError, "Can only set to 0 or 1.");
+    return 0;
+  }
+
+  self->eob_found = val;
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+lexer_state_get_eob_found(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  assert(self->eob_found==0 || self->eob_found==1);
+  result = PyInt_FromLong(self->eob_found);
+  return result;
 }
 
 static PyObject *
@@ -899,6 +941,21 @@ escape_get_char_ptr_offset(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+escape_get_eob_found_offset(PyObject *self, PyObject *args)
+{
+  lexer_state_t lstate;
+  char *p1, *p2;
+  int offset;
+  PyObject *result;
+  
+  p1 = (char *)&lstate;
+  p2 = (char *)&lstate.eob_found;
+  offset = p2 - p1;
+  result = PyInt_FromLong(offset);
+  return result;
+}
+
+static PyObject *
 escape_get_fill_caller_addr(PyObject *self, PyObject *args)
 {
   long addr;
@@ -935,6 +992,9 @@ static PyMethodDef escape_methods[] = {
 
   {"get_char_ptr_offset", escape_get_char_ptr_offset, METH_NOARGS,
    PyDoc_STR("Return lex state offset for character pos ptr.")},
+
+  {"get_eob_found_offset", escape_get_eob_found_offset, METH_NOARGS,
+   PyDoc_STR("Return lex state offset for eob_found flag.")},
 
   {"get_fill_caller_addr", escape_get_fill_caller_addr, METH_NOARGS,
    PyDoc_STR("Get address of code_call_fill_ptr function.")},

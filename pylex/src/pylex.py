@@ -326,8 +326,10 @@ class fsa_state(object):
     pass
 
 class lexer(object):
-    ACTION_NEED_FILL   = 0
-    ACTION_FOUND_UNEXP = 1
+    ACTION_NEED_FILL      = 0
+    ACTION_FOUND_UNEXP    = 1
+    ACTION_FOUND_EOB      = 2
+    ACTION_INTERNAL_ERROR = 3
 
     FILL_RESULT_NO_NEW_DATA    = 0
     FILL_RESULT_NEW_DATA_READY = 1
@@ -336,7 +338,9 @@ class lexer(object):
     def __init__(self):
         self.pats             = []
         self.actions          = [self.runtime_fill_buffer,
-                                 self.runtime_unhandled_input]
+                                 self.runtime_unhandled_input,
+                                 "EOB",
+                                 self.runtime_internal_error]
 
         self.next_avail_state = 1
 
@@ -494,15 +498,32 @@ class lexer(object):
 
         c.add_iform_com("main")
         c.add_iform_gparm(c.lstate_ptr, 1)
-        c.add_iform_com("get saved data ptr")
-        c.add_iform_add(c.lstate_ptr, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.lstate_ptr))
+
+        c.add_iform_com("get eob_found ptr")
+        c.add_iform_set(c.eob_found_ptr, c.lstate_ptr)
+        c.add_iform_add(c.eob_found_ptr, c.eob_found_offset)
+
+        c.add_iform_com("if eob found - return ACTION_FOUND_EOB")
+        c.add_iform_ldw(c.tmp_var, c.make_indirect_var(c.eob_found_ptr))
+        c.add_iform_cmp(c.tmp_var, 1)
+        c.add_iform_bne("lab_not_eob")
+        c.add_iform_set(c.tmp_var, lexer.ACTION_FOUND_EOB)
+        c.add_iform_ret(c.tmp_var)
+
+        c.add_iform_label("lab_not_eob")
+        c.add_iform_com("get string ptr")
+        c.add_iform_set(c.tmp_var, c.lstate_ptr)
+        c.add_iform_add(c.tmp_var, c.char_ptr_offset)
+        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.tmp_var))
+
         c.add_iform_com("no valid data yet")
         c.add_iform_set(c.saved_valid, 0)
 
         for s in self.dfa_obj.states:
-            if s in (self.end1, self.end2):
-                tmp = self.compile_end_of_buf_node(c, s)
+            if s == self.end1:
+                tmp = self.compile_end1_of_buf_node(c, s)
+            elif s == self.end2:
+                tmp = self.compile_end2_of_buf_node(c, s)
             else:
                 tmp = self.compile_one_node(c, s)
             c.instructions.extend(tmp)
@@ -530,7 +551,9 @@ class lexer(object):
             c.ladd_iform_com(lst, "save string pointer - before exit")
             c.ladd_iform_com(lst, "undo pointer advance at start of state")
             c.ladd_iform_add(lst, c.str_ptr_var, -1)
-            c.ladd_iform_stw(lst, c.make_indirect_var(c.lstate_ptr),
+            c.ladd_iform_set(lst, c.tmp_var, c.lstate_ptr)
+            c.ladd_iform_add(lst, c.tmp_var, c.char_ptr_offset)
+            c.ladd_iform_stw(lst, c.make_indirect_var(c.tmp_var),
                              c.str_ptr_var)
             c.ladd_iform_set(lst, c.data_var, state.user_action)
             c.ladd_iform_ret(lst, c.data_var)
@@ -540,11 +563,41 @@ class lexer(object):
         c.ladd_iform_ret(lst, c.data_var)
         return lst
 
-    def compile_end_of_buf_node(self, c, state):
+    def compile_end1_of_buf_node(self, c, state):
+        lst = []
+
+        c.ladd_iform_com(lst, "begin " + str(state))
+        c.ladd_iform_label(lst, state.label)
+
+        ld_src = c.make_indirect_var(c.str_ptr_var)
+        c.ladd_iform_ldb(lst, c.data_var, ld_src)
+        c.ladd_iform_add(lst, c.str_ptr_var, 1)
+
+        for ch in state.out_chars:
+            k = (state, ch)
+            dst = self.dfa_obj.trans_tbl[k]
+            assert len(dst) == 1
+            dst = dst[0]
+            c.ladd_iform_cmp(lst, c.data_var, ord(ch))
+            c.ladd_iform_beq(lst, dst.label)
+
+        c.ladd_iform_com(lst, "unmatched input")
+        c.ladd_iform_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
+        c.ladd_iform_ret(lst, c.data_var)
+
+        return lst
+
+    def compile_end2_of_buf_node(self, c, state):
         lst = []
         c.ladd_iform_com(lst, "begin end of buf code")
         c.ladd_iform_label(lst, state.label)
         c.ladd_iform_call(lst, c.fill_status, c.fill_caller_addr, c.lstate_ptr)
+        c.ladd_iform_cmp(lst, c.fill_status, lexer.FILL_RESULT_NO_NEW_DATA)
+        c.ladd_iform_bne(lst, "lab_end_fill_got_data")
+        c.ladd_iform_set(lst, c.eob_found_ptr, 1)
+        c.ladd_iform_label(lst, "lab_end_fill_got_data")
+        c.ladd_iform_set(lst, c.tmp_var, lexer.ACTION_INTERNAL_ERROR)
+        c.ladd_iform_ret(lst, c.tmp_var)
         return lst
 
     #######################################
@@ -557,6 +610,9 @@ class lexer(object):
 
     def runtime_unhandled_input(self, lstate):
         raise RuntimeError, "no rule to match input"
+
+    def runtime_internal_error(self, lstate):
+        raise RuntimeError, "got error code from code object"
 
     #######################################
     ##
@@ -1166,14 +1222,15 @@ def print_instructions(arg):
         assert type(arg) is tuple
         tmp_list = [arg]
 
-    for tup in tmp_list:
+    idx = 0
+    for idx, tup in enumerate(tmp_list):
         op = tup[0]
         if op in instr2pfunc:
             func   = instr2pfunc[op]
             s = func(tup)
-            print s
+            print idx, s
         else:
-            print tup
+            print idx, tup
     return
 
 ####################################################
@@ -1189,6 +1246,7 @@ class iform_code(object):
         self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
         self.char_ptr_offset    = escape.get_char_ptr_offset()
         self.fill_caller_addr   = escape.get_fill_caller_addr()
+        self.eob_found_offset   = escape.get_eob_found_offset()
         self.lbuf               = None
 
         symtab = globals()
@@ -1216,13 +1274,16 @@ class iform_code(object):
         return '(' + v + ')'
 
     def make_std_vars(self):
-        self.str_ptr_var  = self.make_new_var()
-        self.data_var     = self.make_new_var()
-        self.saved_valid  = self.make_new_var()
-        self.saved_ptr    = self.make_new_var()
-        self.saved_result = self.make_new_var()
-        self.lstate_ptr   = self.make_new_var()
-        self.fill_status  = self.make_new_var()
+        self.tmp_var       = self.make_new_var()
+        self.tmp_var2      = self.make_new_var()
+        self.str_ptr_var   = self.make_new_var()
+        self.data_var      = self.make_new_var()
+        self.saved_valid   = self.make_new_var()
+        self.saved_ptr     = self.make_new_var()
+        self.saved_result  = self.make_new_var()
+        self.lstate_ptr    = self.make_new_var()
+        self.fill_status   = self.make_new_var()
+        self.eob_found_ptr = self.make_new_var()
         return
 
     def set_str_ptr_var(self, val):
@@ -1659,7 +1720,7 @@ def resolve_const(arg):
     return arg
 
 
-def run_vcode_simulation(code_obj, lstate, debug_flag=False):
+def run_vcode_simulation(code_obj, lstate, debug_flag=False, max_instrs=None):
     assert lstate.has_data() == True
 
     n_instr = len(code_obj)
@@ -1682,12 +1743,17 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False):
             label2idx[tup[1]] = idx
         pass
 
+    instr_num = 0
     iptr = 0
     while True:
         assert iptr >= 0 and iptr < n_instr
         tup = code_obj[iptr]
         if debug_flag:
             print "sim iptr=", iptr, "tup=", instr2txt[tup[0]], tup[1:]
+
+        instr_num += 1
+        if type(max_instrs) is int and instr_num >= max_instrs:
+            return None
 
         iptr += 1
         op = tup[0]
