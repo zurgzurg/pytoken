@@ -1142,7 +1142,9 @@ class manual_x86_06(lex_test):
             #escape.print_gdb_info()
         code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
 
+        self.assert_(self.fill_called == False)
         v = code_x86.get_token(lstate)
+        self.assert_(self.fill_called == True)
         return
 
     pass
