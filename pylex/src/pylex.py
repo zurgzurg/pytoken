@@ -1419,6 +1419,7 @@ def compile_to_x86_32(iform):
     if 1:
         l = iform_to_asm_list_x86_32(iform)
         r = asm_list_x86_32_to_code_obj(l)
+        escape.do_serialize()
     return r
 
 def asm_list_x86_32_to_code_obj(lines, print_asm_txt=False):

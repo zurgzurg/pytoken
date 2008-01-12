@@ -500,6 +500,7 @@ static PyObject *code_item(PyObject *, Py_ssize_t);
 static PyObject *code_get_token(PyObject *, PyObject *, PyObject *);
 static PyObject *code_set_type(PyObject *, PyObject *);
 static PyObject *code_append(PyObject *, PyObject *);
+static PyObject *code_set_bytes(PyObject *, PyObject *);
 static PyObject *code_get_start_addr(PyObject *, PyObject *);
 static PyObject *code_get_code(PyObject *, PyObject *);
 
@@ -576,12 +577,21 @@ code_dealloc(PyObject *arg_self)
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
+
   if (self->is_vcode) {
     for (i=0; i<self->num_in_buf; i++)
       Py_DECREF(self->u.obuf[i]);
     free(self->u.obuf);
     self->u.obuf = 0;
   }
+  else {
+    free(self->u.buf);
+  }
+
+  self->num_in_buf    = 0;
+  self->size_of_buf   = 0;
+  self->obj_size      = 0;
+  self->u.buf         = 0;
 
   arg_self->ob_type->tp_free(arg_self);
   return;
@@ -629,7 +639,7 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   static char *kwlist[] = {"lexer_state", "debug", 0};
 
   unsigned char *base;
-  int status;
+  int i, status;
 
   assert(arg_self->ob_type == &code_type);
   code_obj_ptr = (code_t *)arg_self;
@@ -660,7 +670,6 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
     return res;
   }
 
-  //__asm__ __volatile__ ( "mfence" : : : "memory" );
   base = (unsigned char *)((unsigned int)code_obj_ptr->u.buf & 0xFFFFF000);
   status = mprotect(base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
   if (status != 0) {
@@ -669,6 +678,8 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   }
 
   asm_func = (asm_func_t)(code_obj_ptr->u.buf);
+
+  __asm__ __volatile__ ( "mfence" : : : "memory" );
   v = (*asm_func)(code_obj_ptr, (lexer_state_t*)lbuf);
   res = PyInt_FromLong(v);
   return res;
@@ -743,6 +754,30 @@ code_append(PyObject *arg_self, PyObject *args)
     code_grow(self);
   self->u.buf[ self->num_in_buf ] = (char)(ival & 0xFF);
   self->num_in_buf++;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+code_set_bytes(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  PyObject *tup;
+  const char *sbuf;
+  int i, slen;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+  assert(self->is_vcode == 0);
+
+  if (!PyArg_ParseTuple(args, "s#:append", &sbuf, &slen))
+    return 0;
+  while (slen > self->size_of_buf)
+    code_grow(self);
+  for (i=0; i<slen; i++)
+    self->u.buf[i] = sbuf[i];
+  self->num_in_buf = slen;
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -966,6 +1001,17 @@ escape_get_fill_caller_addr(PyObject *self, PyObject *args)
   return r;
 }
 
+extern void serialize_helper(void);
+
+static PyObject *
+escape_do_serialize(PyObject *self, PyObject *args)
+{
+  serialize_helper();
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 static PyObject *
 escape_regtest01(PyObject *self, PyObject *args)
 {
@@ -998,6 +1044,9 @@ static PyMethodDef escape_methods[] = {
 
   {"get_fill_caller_addr", escape_get_fill_caller_addr, METH_NOARGS,
    PyDoc_STR("Get address of code_call_fill_ptr function.")},
+
+  {"do_serialize", escape_do_serialize, METH_NOARGS,
+   PyDoc_STR("Execute an x86 serializing instruction.")},
 
   {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
    
