@@ -1706,13 +1706,58 @@ class instr_x86_32:
         return
     pass
 
+def parse_x86_args(txt):
+    txt2 = txt.replace(" ", "")
+    f = txt2.split(",")
+    if len(f) == 2:
+        src, dst = f
+        return (src, dst)
+    return None
+
+def x86_arg_is_const(txt):
+    if txt[0]=="$":
+        return True
+    return False
+
+def x86_arg_is_reg(txt):
+    if txt in ("%eax", "%ebx", "%ecx"):
+        return True
+    return False
+
+def x86_arg_parse_const(txt):
+    assert x86_arg_is_const(txt)
+    txt2 = txt[1:]
+    assert txt2.isdigit()
+    val = int(txt2)
+    return val
+
 def asm_list_x86_32_to_code(asm_list):
     instr_list = []
     for label, opcode, args in asm_list:
         instr = instr_x86_32(label, opcode, args)
+        instr_list.append(instr)
         if opcode=="ret":
             instr.bytes.append(0xC3)
-            instr_list.append(instr)
+        elif opcode=="movl":
+            args2 = parse_x86_args(args)
+            src, dst = args2
+            if x86_arg_is_const(src):
+                assert x86_arg_is_reg(dst)
+                src_val = x86_arg_parse_const(src)
+                assert src_val >= 0
+                if dst == "%eax":
+                    op_byte = 0xB8
+                elif dst == "%ebx":
+                    op_byte = 0xBB
+                elif dst == "%ecx":
+                    op_byte = 0xB9
+                else:
+                    assert None, "movl to unsupported dest reg" + dst
+                immed = asm_x86_32_make_immed32(src_val)
+                instr.bytes.append(op_byte)
+                instr.bytes.extend(immed)
+            else:
+                assert None, "movl with non-const src operand" + src
         else:
             raise RuntimeError, "Unsupported x86 opcode " + opcode
 
@@ -1725,6 +1770,13 @@ def asm_list_x86_32_to_code(asm_list):
     code = escape.code()
     code.set_bytes(mcode)
     return code
+
+def asm_x86_32_make_immed32(val):
+    b1 = val & 0xFF
+    b2 = (val >>  8) & 0xFF
+    b3 = (val >> 16) & 0xFF
+    b4 = (val >> 24) & 0xFF
+    return [b1, b2, b3, b4]
 
 ##################################################################
 ##

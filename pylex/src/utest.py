@@ -1164,6 +1164,21 @@ class assember01(lex_test):
         return
     pass
 
+class assember02(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "$42, %eax"),
+            (None, "ret", None)
+            ]
+
+        lstate   = pylex.lexer_state()
+        lstate.set_input("a")
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code.get_token(lstate)
+        return
+    pass
+
 ####################
 class regtest01(lex_test):
     def runTest(self):
