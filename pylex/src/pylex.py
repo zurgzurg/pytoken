@@ -1470,8 +1470,7 @@ def asm_list_x86_32_to_code_obj(lines, print_asm_txt=False):
 
     code_obj = escape.code()
     b = escape.get_bytes(addr1, n_bytes)
-    for ch in b:
-        code_obj.append(ord(ch))
+    code_obj.set_bytes(b)
     return code_obj
 
 def iform_to_asm_list_x86_32(iform):
@@ -1684,6 +1683,48 @@ def iform_to_asm_list_x86_32(iform):
     asm_list.append(("func2", None, None))
     asm_list.append((None, "nop", None))
     return asm_list
+
+##################################################################
+##
+## x86 32bit assembler
+##
+## <instr prefix><opcode><ModR/M><SIB><displacement><immediate>
+##
+## opcode         is 1, 2 or 3 bytes
+## ModR/M         1 byte if required --> <2-Mod><3-Reg/Opcode><3-R/M>
+## SIB            1 byte if required --> <2-scale><3-index><3-base>
+## displacement   0, 1,2 or 4 bytes
+## immediate      0, 1,2,or 4 bytes
+##
+##################################################################
+class instr_x86_32:
+    def __init__(self, label, opcode, args):
+        self.bytes     = []
+        self.asm_label = label
+        self.asm_op    = opcode
+        self.asm_args  = args
+        return
+    pass
+
+def asm_list_x86_32_to_code(asm_list):
+    instr_list = []
+    for label, opcode, args in asm_list:
+        instr = instr_x86_32(label, opcode, args)
+        if opcode=="ret":
+            instr.bytes.append(0xC3)
+            instr_list.append(instr)
+        else:
+            raise RuntimeError, "Unsupported x86 opcode " + opcode
+
+    byte_list = []
+    for instr in instr_list:
+        byte_list.extend(instr.bytes)
+    byte_list2 = [chr(b) for b in byte_list]
+    mcode = "".join(byte_list2)
+
+    code = escape.code()
+    code.set_bytes(mcode)
+    return code
 
 ##################################################################
 ##
