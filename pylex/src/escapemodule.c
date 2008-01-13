@@ -538,6 +538,9 @@ static PyMethodDef code_methods[] = {
     {"append",    code_append,    METH_VARARGS,
      "Append a single chunk of data."},
 
+    {"set_bytes", code_set_bytes, METH_VARARGS,
+     "Append a single chunk of data."},
+
     {"get_start_addr", code_get_start_addr, METH_NOARGS,
      "Return start address of code buffer."},
 
@@ -639,7 +642,7 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   static char *kwlist[] = {"lexer_state", "debug", 0};
 
   unsigned char *base;
-  int i, status;
+  int status;
 
   assert(arg_self->ob_type == &code_type);
   code_obj_ptr = (code_t *)arg_self;
@@ -763,7 +766,6 @@ static PyObject *
 code_set_bytes(PyObject *arg_self, PyObject *args)
 {
   code_t *self;
-  PyObject *tup;
   const char *sbuf;
   int i, slen;
 
