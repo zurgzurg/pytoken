@@ -1857,18 +1857,23 @@ def parse_x86_32_args(txt):
 ## addr modes
 ############
 def x86_32_arg_is_reg_indirect(txt):
-    pat = re.compile("([-0-9]+)\\((.*)\\)")
+    pat = re.compile("([-x0-9]+)\\((.*)\\)")
     m = pat.match(txt)
     if m:
         return True
     return False
 
 def x86_32_arg_parse_indirect(txt):
-    pat = re.compile("([-0-9]+)\\((.*)\\)")
+    pat = re.compile("([-x0-9]+)\\((.*)\\)")
     m = pat.match(txt)
     assert m
     assert x86_32_arg_is_plain_reg(m.group(2))
-    return (int(m.group(1)), m.group(2))
+    offset_txt = m.group(1)
+    if offset_txt.startswith("0x"):
+        off = int(offset_txt, 16)
+    else:
+        off = int(offset_txt)
+    return (off, m.group(2))
 
 ############
 ## arg types
