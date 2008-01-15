@@ -1150,7 +1150,7 @@ class manual_x86_06(lex_test):
     pass
 
 ##############################################################
-class assember01(lex_test):
+class assembler01(lex_test):
     def runTest(self):
         asm_list = [
             (None, "ret", None)
@@ -1164,7 +1164,7 @@ class assember01(lex_test):
         return
     pass
 
-class assember02(lex_test):
+class assembler02(lex_test):
     def runTest(self):
         asm_list = [
             (None, "movl", "$42, %eax"),
@@ -1176,6 +1176,21 @@ class assember02(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         code.get_token(lstate)
+        return
+    pass
+
+class assembler03(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "%eax, 10(%eax)"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x89)
+        self.assert_(ord(asm_bytes[1]) == 0x40)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
         return
     pass
 

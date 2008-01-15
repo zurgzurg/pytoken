@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path
+import re
 import dl
 import pdb
 
@@ -1706,31 +1707,6 @@ class instr_x86_32:
         return
     pass
 
-def parse_x86_args(txt):
-    txt2 = txt.replace(" ", "")
-    f = txt2.split(",")
-    if len(f) == 2:
-        src, dst = f
-        return (src, dst)
-    return None
-
-def x86_arg_is_const(txt):
-    if txt[0]=="$":
-        return True
-    return False
-
-def x86_arg_is_reg(txt):
-    if txt in ("%eax", "%ebx", "%ecx"):
-        return True
-    return False
-
-def x86_arg_parse_const(txt):
-    assert x86_arg_is_const(txt)
-    txt2 = txt[1:]
-    assert txt2.isdigit()
-    val = int(txt2)
-    return val
-
 def asm_list_x86_32_to_code(asm_list):
     instr_list = []
     for label, opcode, args in asm_list:
@@ -1739,11 +1715,11 @@ def asm_list_x86_32_to_code(asm_list):
         if opcode=="ret":
             instr.bytes.append(0xC3)
         elif opcode=="movl":
-            args2 = parse_x86_args(args)
+            args2 = parse_x86_32_args(args)
             src, dst = args2
-            if x86_arg_is_const(src):
-                assert x86_arg_is_reg(dst)
-                src_val = x86_arg_parse_const(src)
+            if x86_32_arg_is_const(src):
+                assert x86_32_arg_is_plain_reg(dst)
+                src_val = x86_32_arg_parse_const(src)
                 assert src_val >= 0
                 if dst == "%eax":
                     op_byte = 0xB8
@@ -1756,8 +1732,31 @@ def asm_list_x86_32_to_code(asm_list):
                 immed = asm_x86_32_make_immed32(src_val)
                 instr.bytes.append(op_byte)
                 instr.bytes.extend(immed)
+            elif x86_32_arg_is_plain_reg(src):
+                if x86_32_arg_is_reg_indirect(dst):
+                    asm_x86_32_movl_reg_to_indir_reg(instr, src, dst)
+                else:
+                    assert None, "movl with unrecog dst=" + dst
             else:
                 assert None, "movl with non-const src operand" + src
+        elif opcode=="pushl":
+            assert x86_32_arg_is_plain_reg(args)
+            if args == "%eax":
+                op_byte = 0x50
+            elif args == "%ebx":
+                op_byte = 0x53
+            elif args == "%ecx":
+                op_byte = 0x51
+            instr.bytes.append(op_byte)
+        elif opcode=="popl":
+            assert x86_32_arg_is_plain_reg(args)
+            if args == "%eax":
+                op_byte = 0x58
+            elif args == "%ebx":
+                op_byte = 0x5B
+            elif args == "%ecx":
+                op_byte = 0x59
+            instr.bytes.append(op_byte)
         else:
             raise RuntimeError, "Unsupported x86 opcode " + opcode
 
@@ -1770,6 +1769,129 @@ def asm_list_x86_32_to_code(asm_list):
     code = escape.code()
     code.set_bytes(mcode)
     return code
+
+def asm_x86_32_movl_reg_to_indir_reg(instr, src, dst):
+    # store: src --> indir(dst)
+    dst_offset, dst_reg = x86_32_arg_parse_indirect(dst)
+    op_byte = 0x89
+    if dst_offset <= 255:
+        if dst_reg=="%eax":
+            if src=="%eax":
+                modrm = 0x40
+            elif src=="%ebx":
+                modrm = 0x58
+            elif src=="%ecx":
+                modrm = 0x48
+            else:
+                assert None, "Unsupported movl src reg="+src
+        elif dst_reg=="%ebx":
+            if src=="%eax":
+                modrm = 0x43
+            elif src=="%ebx":
+                modrm = 0x5B
+            elif src=="%ecx":
+                modrm = 0x4B
+            else:
+                assert None, "Unsupported movl src reg="+src
+        elif dst_reg=="%ecx":
+            if src=="%eax":
+                modrm = 0x41
+            elif src=="%ebx":
+                modrm = 0x59
+            elif src=="%ecx":
+                modrm = 0x49
+            else:
+                assert None, "Unsupported movl src reg="+src
+        else:
+            assert None, "Unsupp movl indir reg=" + dst_reg
+        instr.bytes.append(op_byte)
+        instr.bytes.append(modrm)
+        instr.bytes.append(dst_offset)
+        return
+
+    if dst_reg=="%eax":
+        if src=="%eax":
+            modrm = 0x80
+        elif src=="%ebx":
+            modrm = 0x98
+        elif src=="%ecx":
+            modrm = 0x88
+        else:
+            assert None, "Unsupported movl src reg="+src
+    elif dst_reg=="%ebx":
+        if src=="%eax":
+            modrm = 0x83
+        elif src=="%ebx":
+            modrm = 0x9B
+        elif src=="%ecx":
+            modrm = 0x8B
+        else:
+            assert None, "Unsupported movl src reg="+src
+    elif dst_reg=="%ecx":
+        if src=="%eax":
+            modrm = 0x81
+        elif src=="%ebx":
+            modrm = 0x99
+        elif src=="%ecx":
+            modrm = 0x89
+        else:
+            assert None, "Unsupported movl src reg="+src
+    else:
+        assert None, "Unsupp movl indir reg=" + dst_reg
+    instr.bytes.append(op_byte)
+    instr.bytes.append(modrm)
+    tmp = asm_x86_32_make_immed32(dst_offset)
+    instr.bytes.extend(tmp)
+    return
+    
+
+def parse_x86_32_args(txt):
+    txt2 = txt.replace(" ", "")
+    f = txt2.split(",")
+    if len(f) == 2:
+        src, dst = f
+        return (src, dst)
+    return None
+
+############
+## addr modes
+############
+def x86_32_arg_is_reg_indirect(txt):
+    pat = re.compile("([-0-9]+)\\((.*)\\)")
+    m = pat.match(txt)
+    if m:
+        return True
+    return False
+
+def x86_32_arg_parse_indirect(txt):
+    pat = re.compile("([-0-9]+)\\((.*)\\)")
+    m = pat.match(txt)
+    assert m
+    assert x86_32_arg_is_plain_reg(m.group(2))
+    return (int(m.group(1)), m.group(2))
+
+############
+## arg types
+############
+def x86_32_arg_is_const(txt):
+    if txt[0]=="$":
+        return True
+    return False
+
+def x86_32_arg_is_plain_reg(txt):
+    if txt in ("%eax", "%ebx", "%ecx"):
+        return True
+    return False
+
+############
+## consts
+############
+def x86_32_arg_parse_const(txt):
+    assert x86_32_arg_is_const(txt)
+    txt2 = txt[1:]
+    assert txt2.isdigit()
+    val = int(txt2)
+    return val
 
 def asm_x86_32_make_immed32(val):
     b1 = val & 0xFF
