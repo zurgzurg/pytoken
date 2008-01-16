@@ -1476,6 +1476,141 @@ class assembler20(lex_test):
         return
     pass
 
+class assembler21(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%eax), %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x40)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler22(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ebx), %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x43)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler23(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ecx), %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x41)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler24(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%eax), %ebx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x58)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler25(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ebx), %ebx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x5B)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler26(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ecx), %ebx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x59)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler27(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%eax), %ecx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x48)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler28(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ebx), %ecx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x4B)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler29(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "10(%ecx), %ecx"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x49)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
 ####################
 class regtest01(lex_test):
     def runTest(self):

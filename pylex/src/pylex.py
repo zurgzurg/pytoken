@@ -1734,9 +1734,18 @@ def asm_list_x86_32_to_code(asm_list):
                 instr.bytes.extend(immed)
             elif x86_32_arg_is_plain_reg(src):
                 if x86_32_arg_is_reg_indirect(dst):
-                    asm_x86_32_movl_reg_to_indir_reg(instr, src, dst)
+                    tmp = asm_86_32_encode_modrm_reg_indir_reg(src, dst)
+                    instr.bytes.append(0x89)
+                    instr.bytes.extend(tmp)
                 else:
                     assert None, "movl with unrecog dst=" + dst
+            elif x86_32_arg_is_reg_indirect(src):
+                if x86_32_arg_is_plain_reg(dst):
+                    tmp = asm_86_32_encode_modrm_reg_indir_reg(dst, src)
+                    instr.bytes.append(0x8B)
+                    instr.bytes.extend(tmp)                    
+                else:
+                    assert None, "movl"
             else:
                 assert None, "movl with non-const src operand" + src
         elif opcode=="pushl":
@@ -1770,79 +1779,73 @@ def asm_list_x86_32_to_code(asm_list):
     code.set_bytes(mcode)
     return code
 
-def asm_x86_32_movl_reg_to_indir_reg(instr, src, dst):
-    # store: src --> indir(dst)
-    dst_offset, dst_reg = x86_32_arg_parse_indirect(dst)
-    op_byte = 0x89
-    if dst_offset <= 255:
-        if dst_reg=="%eax":
-            if src=="%eax":
+def asm_86_32_encode_modrm_reg_indir_reg(reg, indir):
+    indir_offset, indir_reg = x86_32_arg_parse_indirect(indir)
+    if indir_offset <= 255:
+        if indir_reg=="%eax":
+            if reg=="%eax":
                 modrm = 0x40
-            elif src=="%ebx":
+            elif reg=="%ebx":
                 modrm = 0x58
-            elif src=="%ecx":
+            elif reg=="%ecx":
                 modrm = 0x48
             else:
-                assert None, "Unsupported movl src reg="+src
-        elif dst_reg=="%ebx":
-            if src=="%eax":
+                assert None, "Unsupported movl reg reg="+reg
+        elif indir_reg=="%ebx":
+            if reg=="%eax":
                 modrm = 0x43
-            elif src=="%ebx":
+            elif reg=="%ebx":
                 modrm = 0x5B
-            elif src=="%ecx":
+            elif reg=="%ecx":
                 modrm = 0x4B
             else:
-                assert None, "Unsupported movl src reg="+src
-        elif dst_reg=="%ecx":
-            if src=="%eax":
+                assert None, "Unsupported movl reg reg="+reg
+        elif indir_reg=="%ecx":
+            if reg=="%eax":
                 modrm = 0x41
-            elif src=="%ebx":
+            elif reg=="%ebx":
                 modrm = 0x59
-            elif src=="%ecx":
+            elif reg=="%ecx":
                 modrm = 0x49
             else:
-                assert None, "Unsupported movl src reg="+src
+                assert None, "Unsupported movl reg reg="+reg
         else:
-            assert None, "Unsupp movl indir reg=" + dst_reg
-        instr.bytes.append(op_byte)
-        instr.bytes.append(modrm)
-        instr.bytes.append(dst_offset)
-        return
+            assert None, "Unsupp movl indir reg=" + indir_reg
+        return [modrm, indir_offset]
 
-    if dst_reg=="%eax":
-        if src=="%eax":
+    if indir_reg=="%eax":
+        if reg=="%eax":
             modrm = 0x80
-        elif src=="%ebx":
+        elif reg=="%ebx":
             modrm = 0x98
-        elif src=="%ecx":
+        elif reg=="%ecx":
             modrm = 0x88
         else:
-            assert None, "Unsupported movl src reg="+src
-    elif dst_reg=="%ebx":
-        if src=="%eax":
+            assert None, "Unsupported movl reg reg="+reg
+    elif indir_reg=="%ebx":
+        if reg=="%eax":
             modrm = 0x83
-        elif src=="%ebx":
+        elif reg=="%ebx":
             modrm = 0x9B
-        elif src=="%ecx":
+        elif reg=="%ecx":
             modrm = 0x8B
         else:
-            assert None, "Unsupported movl src reg="+src
-    elif dst_reg=="%ecx":
-        if src=="%eax":
+            assert None, "Unsupported movl reg reg="+reg
+    elif indir_reg=="%ecx":
+        if reg=="%eax":
             modrm = 0x81
-        elif src=="%ebx":
+        elif reg=="%ebx":
             modrm = 0x99
-        elif src=="%ecx":
+        elif reg=="%ecx":
             modrm = 0x89
         else:
-            assert None, "Unsupported movl src reg="+src
+            assert None, "Unsupported movl reg reg="+reg
     else:
-        assert None, "Unsupp movl indir reg=" + dst_reg
-    instr.bytes.append(op_byte)
-    instr.bytes.append(modrm)
-    tmp = asm_x86_32_make_immed32(dst_offset)
-    instr.bytes.extend(tmp)
-    return
+        assert None, "Unsupp movl indir reg=" + indir_reg
+    result = [modrm]
+    tmp = asm_x86_32_make_immed32(indir_offset)
+    result.extend(tmp)
+    return result
     
 
 def parse_x86_32_args(txt):
