@@ -1748,6 +1748,18 @@ def asm_list_x86_32_to_code(asm_list):
                     assert None, "movl"
             else:
                 assert None, "movl with non-const src operand" + src
+        elif opcode=="movb":
+            args2 = parse_x86_32_args(args)
+            src, dst = args2
+            if x86_32_arg_is_reg_indirect(src):
+                if x86_32_arg_is_plain_reg(dst):
+                    tmp = asm_86_32_encode_modrm_reg_indir_reg(dst, src)
+                    instr.bytes.append(0x8A)
+                    instr.bytes.extend(tmp)                    
+                else:
+                    assert None, "movl"
+            else:
+                assert None, "movl with non-const src operand" + src
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1779,74 +1791,55 @@ def asm_list_x86_32_to_code(asm_list):
     code.set_bytes(mcode)
     return code
 
+
+modrm_tbl1 = {
+    "%eax"   : 0,
+    "%ecx"   : 1,
+    "%edx"   : 2,
+    "%ebx"   : 3}
+
+modrm_tbl2 = {
+    "%al"      : 0,
+    "%ax"      : 0,
+    "%eax"     : 0,
+
+    "%cl"      : 1,
+    "%cx"      : 1,
+    "%ecx"     : 1,
+
+    "%dl"      : 2,
+    "%dx"      : 2,
+    "%edx"     : 2,
+
+    "%bl"      : 3,
+    "%bx"      : 3,
+    "%ebx"     : 3,
+
+    "%ah"      : 4,
+    "%ch"      : 5,
+    "%dh"      : 6,
+    "%bh"      : 7}
+
 def asm_86_32_encode_modrm_reg_indir_reg(reg, indir):
     indir_offset, indir_reg = x86_32_arg_parse_indirect(indir)
-    if indir_offset <= 255:
-        if indir_reg=="%eax":
-            if reg=="%eax":
-                modrm = 0x40
-            elif reg=="%ebx":
-                modrm = 0x58
-            elif reg=="%ecx":
-                modrm = 0x48
-            else:
-                assert None, "Unsupported movl reg reg="+reg
-        elif indir_reg=="%ebx":
-            if reg=="%eax":
-                modrm = 0x43
-            elif reg=="%ebx":
-                modrm = 0x5B
-            elif reg=="%ecx":
-                modrm = 0x4B
-            else:
-                assert None, "Unsupported movl reg reg="+reg
-        elif indir_reg=="%ecx":
-            if reg=="%eax":
-                modrm = 0x41
-            elif reg=="%ebx":
-                modrm = 0x59
-            elif reg=="%ecx":
-                modrm = 0x49
-            else:
-                assert None, "Unsupported movl reg reg="+reg
-        else:
-            assert None, "Unsupp movl indir reg=" + indir_reg
-        return [modrm, indir_offset]
-
-    if indir_reg=="%eax":
-        if reg=="%eax":
-            modrm = 0x80
-        elif reg=="%ebx":
-            modrm = 0x98
-        elif reg=="%ecx":
-            modrm = 0x88
-        else:
-            assert None, "Unsupported movl reg reg="+reg
-    elif indir_reg=="%ebx":
-        if reg=="%eax":
-            modrm = 0x83
-        elif reg=="%ebx":
-            modrm = 0x9B
-        elif reg=="%ecx":
-            modrm = 0x8B
-        else:
-            assert None, "Unsupported movl reg reg="+reg
-    elif indir_reg=="%ecx":
-        if reg=="%eax":
-            modrm = 0x81
-        elif reg=="%ebx":
-            modrm = 0x99
-        elif reg=="%ecx":
-            modrm = 0x89
-        else:
-            assert None, "Unsupported movl reg reg="+reg
+    if indir_offset == 0:
+        mod = 0
+        disp = None
+    elif indir_offset <= 255:
+        mod = 1
+        disp = [indir_offset]
     else:
-        assert None, "Unsupp movl indir reg=" + indir_reg
+        mod = 2
+        disp = asm_x86_32_make_immed32(indir_offset)
+
+    rm = modrm_tbl1[indir_reg]
+    r  = modrm_tbl2[reg]
+    modrm = (mod << 6) | (r << 3) | rm
     result = [modrm]
-    tmp = asm_x86_32_make_immed32(indir_offset)
-    result.extend(tmp)
+
+    if disp:
+       result.extend(disp)
     return result
-    
 
 def parse_x86_32_args(txt):
     txt2 = txt.replace(" ", "")
@@ -1887,7 +1880,8 @@ def x86_32_arg_is_const(txt):
     return False
 
 def x86_32_arg_is_plain_reg(txt):
-    if txt in ("%eax", "%ebx", "%ecx"):
+    if txt in ("%eax", "%ebx", "%ecx",
+               "%al", "%ah", "%bl", "%bh", "%cl", "%ch"):
         return True
     return False
 

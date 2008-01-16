@@ -1611,6 +1611,51 @@ class assembler29(lex_test):
         return
     pass
 
+class assembler30(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movb", "10(%eax), %al"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8A)
+        self.assert_(ord(asm_bytes[1]) == 0x40)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler31(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movb", "10(%eax), %bl"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8A)
+        self.assert_(ord(asm_bytes[1]) == 0x58)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler32(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movb", "10(%eax), %cl"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8A)
+        self.assert_(ord(asm_bytes[1]) == 0x48)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
 ####################
 class regtest01(lex_test):
     def runTest(self):
