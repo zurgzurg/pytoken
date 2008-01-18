@@ -1766,6 +1766,22 @@ def asm_list_x86_32_to_code(asm_list):
             tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
             instr.bytes.append(0x03)
             instr.bytes.extend(tmp)
+        elif opcode=="cmpl":
+            a1, a2 = parse_x86_32_args(args)
+            assert x86_32_arg_is_plain_reg(a2)
+            if x86_32_arg_is_const(a1):
+                a1 = x86_32_arg_parse_const(a1)
+                if x86_32_const_is_imm8(a1):
+                    instr.bytes.append(0x83)
+                    reg_sel = modrm_tbl1[a2]
+                    modrm = asm86_32_make_modrm(3, 7, reg_sel)
+                    imm = asm_x86_32_make_s_immed8(a1)
+                    instr.bytes.append(modrm)
+                    instr.bytes.append(imm)
+                else:
+                    assert None
+            elif x86_32_arg_is_reg_indirect(a2):
+                assert None
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1853,7 +1869,7 @@ def asm_86_32_encode_modrm_reg_indirreg(reg, indir):
 
     rm = modrm_tbl1[indir_reg]
     r  = modrm_tbl2[reg]
-    modrm = (mod << 6) | (r << 3) | rm
+    modrm = asm86_32_make_modrm(mod, r, rm)
     result = [modrm]
 
     if disp:
@@ -1904,15 +1920,33 @@ def x86_32_arg_is_plain_reg(txt):
         return True
     return False
 
+def x86_32_const_is_imm8(val):
+    if val >= -127 and val < 128:
+        return True
+    return False
+
 ############
 ## consts
 ############
 def x86_32_arg_parse_const(txt):
     assert x86_32_arg_is_const(txt)
     txt2 = txt[1:]
-    assert txt2.isdigit()
-    val = int(txt2)
+    if txt2.startswith("0x"):
+        val = int(txt2, 16)
+    else:
+        assert txt2.isdigit()
+        val = int(txt2)
     return val
+
+############
+## make various things
+############
+def asm86_32_make_modrm(mod, reg, rm):
+    assert mod >= 0 and mod <= 3
+    assert reg >= 0 and reg <= 7
+    assert rm  >= 0 and rm  <= 7
+    modrm = (mod << 6) | (reg << 3) | rm
+    return modrm
 
 def asm_x86_32_make_immed32(val):
     b1 = val & 0xFF
@@ -1920,6 +1954,12 @@ def asm_x86_32_make_immed32(val):
     b3 = (val >> 16) & 0xFF
     b4 = (val >> 24) & 0xFF
     return [b1, b2, b3, b4]
+
+def asm_x86_32_make_s_immed8(val):
+    assert val >= -127 and val <= 128
+    if val > 0:
+        return val
+    return 128 - abs(val)
 
 ##################################################################
 ##

@@ -1686,11 +1686,24 @@ class assembler34(lex_test):
         return
     pass
 
+class assembler35(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "cmpl", "$0x10, %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x83)
+        self.assert_(ord(asm_bytes[1]) == 0xF8)
+        self.assert_(ord(asm_bytes[2]) == 0x10)
+        return
+    pass
+
 ## remaining asm ==> je, jne, cmpl, call, .asciiz
 ##
 ##    need load / store with %ebp
-##    addl -> const + reg --> reg
-##    addl -> [reg]disp + reg --> reg
 ##    cmpl -> const vs reg
 ##    cmpl -> [reg]disp + reg
 
