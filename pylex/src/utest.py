@@ -1656,6 +1656,44 @@ class assembler32(lex_test):
         return
     pass
 
+class assembler33(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "-4(%ebp), %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x8B)
+        self.assert_(ord(asm_bytes[1]) == 0x45)
+        self.assert_(ord(asm_bytes[2]) == 0xFC)
+        return
+    pass
+
+class assembler34(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "addl", "-4(%ebp), %eax"),
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x03)
+        self.assert_(ord(asm_bytes[1]) == 0x45)
+        self.assert_(ord(asm_bytes[2]) == 0xFC)
+        return
+    pass
+
+## remaining asm ==> je, jne, cmpl, call, .asciiz
+##
+##    need load / store with %ebp
+##    addl -> const + reg --> reg
+##    addl -> [reg]disp + reg --> reg
+##    cmpl -> const vs reg
+##    cmpl -> [reg]disp + reg
+
 ####################
 class regtest01(lex_test):
     def runTest(self):

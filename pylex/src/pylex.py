@@ -1734,14 +1734,14 @@ def asm_list_x86_32_to_code(asm_list):
                 instr.bytes.extend(immed)
             elif x86_32_arg_is_plain_reg(src):
                 if x86_32_arg_is_reg_indirect(dst):
-                    tmp = asm_86_32_encode_modrm_reg_indir_reg(src, dst)
+                    tmp = asm_86_32_encode_modrm_reg_indirreg(src, dst)
                     instr.bytes.append(0x89)
                     instr.bytes.extend(tmp)
                 else:
                     assert None, "movl with unrecog dst=" + dst
             elif x86_32_arg_is_reg_indirect(src):
                 if x86_32_arg_is_plain_reg(dst):
-                    tmp = asm_86_32_encode_modrm_reg_indir_reg(dst, src)
+                    tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
                     instr.bytes.append(0x8B)
                     instr.bytes.extend(tmp)                    
                 else:
@@ -1753,13 +1753,19 @@ def asm_list_x86_32_to_code(asm_list):
             src, dst = args2
             if x86_32_arg_is_reg_indirect(src):
                 if x86_32_arg_is_plain_reg(dst):
-                    tmp = asm_86_32_encode_modrm_reg_indir_reg(dst, src)
+                    tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
                     instr.bytes.append(0x8A)
                     instr.bytes.extend(tmp)                    
                 else:
                     assert None, "movl"
             else:
                 assert None, "movl with non-const src operand" + src
+        elif opcode=="addl":
+            src, dst = parse_x86_32_args(args)
+            assert x86_32_arg_is_reg_indirect(src)
+            tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
+            instr.bytes.append(0x03)
+            instr.bytes.extend(tmp)
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1792,12 +1798,16 @@ def asm_list_x86_32_to_code(asm_list):
     return code
 
 
+# indexed by indirect register -- effective address
 modrm_tbl1 = {
     "%eax"   : 0,
     "%ecx"   : 1,
     "%edx"   : 2,
-    "%ebx"   : 3}
+    "%ebx"   : 3,
+    "%ebp"   : 5
+    }
 
+# indexed by associated register
 modrm_tbl2 = {
     "%al"      : 0,
     "%ax"      : 0,
@@ -1816,18 +1826,27 @@ modrm_tbl2 = {
     "%ebx"     : 3,
 
     "%ah"      : 4,
+    "%sp"      : 4,
+    "%esp"     : 4,
+
     "%ch"      : 5,
+    "%bp"      : 5,
+    "%ebp"     : 5,
+
     "%dh"      : 6,
     "%bh"      : 7}
 
-def asm_86_32_encode_modrm_reg_indir_reg(reg, indir):
+def asm_86_32_encode_modrm_reg_indirreg(reg, indir):
     indir_offset, indir_reg = x86_32_arg_parse_indirect(indir)
     if indir_offset == 0:
         mod = 0
         disp = None
-    elif indir_offset <= 255:
+    elif indir_offset >= -127 and indir_offset <= 128:
         mod = 1
-        disp = [indir_offset]
+        if indir_offset < 0:
+            disp = [ 256 - abs(indir_offset) ]
+        else:
+            disp = [indir_offset]
     else:
         mod = 2
         disp = asm_x86_32_make_immed32(indir_offset)
@@ -1880,7 +1899,7 @@ def x86_32_arg_is_const(txt):
     return False
 
 def x86_32_arg_is_plain_reg(txt):
-    if txt in ("%eax", "%ebx", "%ecx",
+    if txt in ("%eax", "%ebx", "%ecx", "%ebp",
                "%al", "%ah", "%bl", "%bh", "%cl", "%ch"):
         return True
     return False
