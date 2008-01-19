@@ -1771,17 +1771,18 @@ def asm_list_x86_32_to_code(asm_list):
             assert x86_32_arg_is_plain_reg(a2)
             if x86_32_arg_is_const(a1):
                 a1 = x86_32_arg_parse_const(a1)
-                if x86_32_const_is_imm8(a1):
-                    instr.bytes.append(0x83)
-                    reg_sel = modrm_tbl1[a2]
-                    modrm = asm86_32_make_modrm(3, 7, reg_sel)
-                    imm = asm_x86_32_make_s_immed8(a1)
-                    instr.bytes.append(modrm)
-                    instr.bytes.append(imm)
-                else:
-                    assert None
-            elif x86_32_arg_is_reg_indirect(a2):
-                assert None
+                assert x86_32_const_is_imm8(a1)
+                instr.bytes.append(0x83)
+                reg_sel = modrm_tbl1[a2]
+                modrm = asm86_32_make_modrm(3, 7, reg_sel)
+                imm = asm_x86_32_make_s_immed8(a1)
+                instr.bytes.append(modrm)
+                instr.bytes.append(imm)
+            else:
+                assert x86_32_arg_is_reg_indirect(a1)
+                instr.bytes.append(0x3B)
+                tmp = asm_86_32_encode_modrm_reg_indirreg(a2, a1)
+                instr.bytes.extend(tmp)
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
