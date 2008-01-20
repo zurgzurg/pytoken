@@ -1700,14 +1700,24 @@ def iform_to_asm_list_x86_32(iform):
 ##################################################################
 class instr_x86_32:
     def __init__(self, label, opcode, args):
-        self.bytes     = []
-        self.asm_label = label
-        self.asm_op    = opcode
-        self.asm_args  = args
+        self.bytes            = []
+        self.asm_label        = label
+        self.asm_op           = opcode
+        self.asm_args         = args
+        self.jump_target      = None
+        self.jump_rel_size    = None
+        self.first_byte_idx   = None
         return
     pass
 
 def asm_list_x86_32_to_code(asm_list):
+    lab2idx = {}
+    idx = 0
+    for label, opcode, args in asm_list:
+        if label:
+            lab2idx[label] = idx
+        idx += 1
+
     instr_list = []
     for label, opcode, args in asm_list:
         instr = instr_x86_32(label, opcode, args)
@@ -1729,7 +1739,7 @@ def asm_list_x86_32_to_code(asm_list):
                     op_byte = 0xB9
                 else:
                     assert None, "movl to unsupported dest reg" + dst
-                immed = asm_x86_32_make_immed32(src_val)
+                immed = asm_x86_32_make_pos_immed32(src_val)
                 instr.bytes.append(op_byte)
                 instr.bytes.extend(immed)
             elif x86_32_arg_is_plain_reg(src):
@@ -1783,6 +1793,31 @@ def asm_list_x86_32_to_code(asm_list):
                 instr.bytes.append(0x3B)
                 tmp = asm_86_32_encode_modrm_reg_indirreg(a2, a1)
                 instr.bytes.extend(tmp)
+        elif opcode in ("jne", "je"):
+            # jumpcc with rel8
+            assert type(args) is str
+            jump_op = jumpcc_type_tbl2[opcode]
+            instr.bytes.append(jump_op)
+            instr.bytes.append(None)
+            instr.jump_rel_size = 8
+            instr.jump_target = args
+        elif opcode in ("xxxjne", "xxxje"):
+            # jumpcc with rel32
+            instr.jump_rel_size = 32
+            instr.bytes.append(0x0F)
+            jump_type = opcode[1:]
+            jump_op   = jumpcc_type_tbl[jump_type]
+            instr.bytes.append(jump_op)
+            assert type(args) is str
+            instr.jump_target = args
+            instr.bytes.append(None)
+            instr.bytes.append(None)
+            instr.bytes.append(None)
+            instr.bytes.append(None)
+        elif opcode=="nop":
+            instr.bytes.append(0x90)
+        elif opcode=="call":
+            assert None
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1804,6 +1839,33 @@ def asm_list_x86_32_to_code(asm_list):
         else:
             raise RuntimeError, "Unsupported x86 opcode " + opcode
 
+    byte_idx = 0
+    for instr in instr_list:
+        instr.first_byte_idx = byte_idx
+        byte_idx += len(instr.bytes)
+
+    for instr in instr_list:
+        if not instr.jump_target:
+            continue
+        target_idx = lab2idx[ instr.jump_target ]
+        target_byte_idx = instr_list[ target_idx ].first_byte_idx
+        cur_byte_idx = instr.first_byte_idx + len(instr.bytes)
+        disp = target_byte_idx - cur_byte_idx 
+        assert instr.jump_rel_size in (8,32)
+        if instr.jump_rel_size == 8:
+            assert disp >= -127 and disp <= 128
+            tmp = asm_x86_32_make_s_immed8(disp)
+            assert len(instr.bytes) == 2 and instr.bytes[1]==None
+            instr.bytes[1] = tmp
+        else:
+            assert None
+            tmp = asm_x86_32_make_immed32(disp)
+            assert len(tmp)==4 and len(instr.bytes) > 4
+            n_bytes = len(tmp)
+            assert instr.bytes[-n_bytes:].count(None) == n_bytes
+            instr.bytes[-n_bytes:] = tmp
+        pass
+
     byte_list = []
     for instr in instr_list:
         byte_list.extend(instr.bytes)
@@ -1814,6 +1876,16 @@ def asm_list_x86_32_to_code(asm_list):
     code.set_bytes(mcode)
     return code
 
+# jump types -> opcode
+jumpcc_type_tbl = {
+    "ne"    : 0x85,
+    "e"     : 0x84
+    }
+
+jumpcc_type_tbl2 = {
+    "jne"   : 0x75,
+    "je"    : 0x74
+    }
 
 # indexed by indirect register -- effective address
 modrm_tbl1 = {
@@ -1866,7 +1938,7 @@ def asm_86_32_encode_modrm_reg_indirreg(reg, indir):
             disp = [indir_offset]
     else:
         mod = 2
-        disp = asm_x86_32_make_immed32(indir_offset)
+        disp = asm_x86_32_make_pos_immed32(indir_offset)
 
     rm = modrm_tbl1[indir_reg]
     r  = modrm_tbl2[reg]
@@ -1950,17 +2022,28 @@ def asm86_32_make_modrm(mod, reg, rm):
     return modrm
 
 def asm_x86_32_make_immed32(val):
+    if val >= 0:
+        return asm_x86_32_make_pos_immed32(val)
+    return asm_x86_32_make_neg_immed32(val)
+
+def asm_x86_32_make_neg_immed32(val):
+    assert val < 0
+    tmp = 0xFFFFFFFF - abs(val) + 1
+    return asm_x86_32_make_pos_immed32(tmp)
+
+def asm_x86_32_make_pos_immed32(val):
+    assert val >= 0
     b1 = val & 0xFF
     b2 = (val >>  8) & 0xFF
     b3 = (val >> 16) & 0xFF
     b4 = (val >> 24) & 0xFF
-    return [b1, b2, b3, b4]
+    return [int(b1), int(b2), int(b3), int(b4)]
 
 def asm_x86_32_make_s_immed8(val):
     assert val >= -127 and val <= 128
     if val > 0:
         return val
-    return 128 - abs(val)
+    return 256 - abs(val)
 
 ##################################################################
 ##
@@ -2057,8 +2140,6 @@ def run_vcode_simulation(code_obj, lstate, debug_flag=False, max_instrs=None):
             assert_is_var(dst)
             src = resolve_addr_or_indirect_var(var_tbl, tup[2])
             val = lstate.ldb(src)
-            #if not is_byte(val):
-            #    pdb.set_trace()
             assert_is_byte(val)
             set_var(var_tbl, dst, val)
             if val == 0:

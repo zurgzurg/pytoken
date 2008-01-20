@@ -1716,9 +1716,25 @@ class assembler36(lex_test):
         return
     pass
 
+class assembler37(lex_test):
+    def runTest(self):
+        asm_list = [
+            ("l1", "nop", None),
+            (None, "jne", "l1")
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x90)
+        self.assert_(ord(asm_bytes[1]) == 0x75)
+        self.assert_(ord(asm_bytes[2]) == 0xFD)
+        return
+    pass
+
 ## remaining asm ==> je, jne, call
-##
-##    cmpl -> [reg]disp vs reg
+
+
 
 ####################
 class regtest01(lex_test):
