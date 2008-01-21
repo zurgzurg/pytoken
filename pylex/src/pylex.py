@@ -1700,13 +1700,14 @@ def iform_to_asm_list_x86_32(iform):
 ##################################################################
 class instr_x86_32:
     def __init__(self, label, opcode, args):
+        self.asm_label        = label
+
         self.bytes            = []
 
         self.is_var_len       = False
         self.bytes_rel8       = []
         self.bytes_rel16      = []
         self.bytes_rel32      = []
-        self.asm_label        = label
         self.jump_target      = None
 
         self.asm_op           = opcode
@@ -1815,7 +1816,17 @@ def asm_list_x86_32_to_code(asm_list):
         elif opcode=="nop":
             instr.bytes.append(0x90)
         elif opcode=="call":
-            assert None
+            assert type(args) is str
+            if args == "*%eax":
+                pass
+            else:
+                assert args in lab2idx
+                instr.is_var_len = True
+
+                instr.jump_target = args
+                instr.bytes_rel16.append(0xE8)
+                instr.bytes_rel16.append(None)
+                instr.bytes_rel16.append(None)
         elif opcode=="pushl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1842,7 +1853,7 @@ def asm_list_x86_32_to_code(asm_list):
     for instr in instr_list:
         if instr.is_var_len:
             assert len(instr.bytes) == 0
-            assert len(instr.bytes_rel8) > 0 and len(instr.bytes_rel16) > 0
+            assert len(instr.bytes_rel16) > 0
             instr.bytes = instr.bytes_rel16
         instr.first_byte_idx = byte_idx
         byte_idx += len(instr.bytes)

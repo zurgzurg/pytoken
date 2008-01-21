@@ -1774,6 +1774,23 @@ class assembler39(lex_test):
         return
     pass
 
+class assembler40(lex_test):
+    def runTest(self):
+        asm_list = [
+            ("l1", "nop", None),
+            (None, "call", "l1")
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 4)
+        self.assert_(ord(asm_bytes[0]) == 0x90)
+        self.assert_(ord(asm_bytes[1]) == 0xE8)
+        self.assert_(ord(asm_bytes[2]) == 0xFC)
+        self.assert_(ord(asm_bytes[3]) == 0xFF)
+        return
+    pass
+
 
 ####################
 class regtest01(lex_test):
