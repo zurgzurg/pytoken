@@ -1725,10 +1725,12 @@ class assembler37(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 3)
+        self.assert_(len(asm_bytes) == 5)
         self.assert_(ord(asm_bytes[0]) == 0x90)
-        self.assert_(ord(asm_bytes[1]) == 0x75)
-        self.assert_(ord(asm_bytes[2]) == 0xFD)
+        self.assert_(ord(asm_bytes[1]) == 0x0F)
+        self.assert_(ord(asm_bytes[2]) == 0x85)
+        self.assert_(ord(asm_bytes[3]) == 0xFB)
+        self.assert_(ord(asm_bytes[4]) == 0xFF)
         return
     pass
 
@@ -1742,16 +1744,35 @@ class assembler38(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 4)
+        self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0x90)
-        self.assert_(ord(asm_bytes[2]) == 0x74)
-        self.assert_(ord(asm_bytes[3]) == 0xFC)
+        self.assert_(ord(asm_bytes[2]) == 0x0F)
+        self.assert_(ord(asm_bytes[3]) == 0x84)
+        self.assert_(ord(asm_bytes[4]) == 0xFA)
+        self.assert_(ord(asm_bytes[5]) == 0xFF)
         return
     pass
 
-## remaining asm ==> je, call
+class assembler39(lex_test):
+    def runTest(self):
+        asm_list = [
+            ("l1", "nop", None),
+            (None, "nop", None),
+            (None, "jne", "l1")
+            ]
 
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 6)
+        self.assert_(ord(asm_bytes[0]) == 0x90)
+        self.assert_(ord(asm_bytes[1]) == 0x90)
+        self.assert_(ord(asm_bytes[2]) == 0x0F)
+        self.assert_(ord(asm_bytes[3]) == 0x85)
+        self.assert_(ord(asm_bytes[4]) == 0xFA)
+        self.assert_(ord(asm_bytes[5]) == 0xFF)
+        return
+    pass
 
 
 ####################
