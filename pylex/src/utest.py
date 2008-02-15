@@ -869,8 +869,6 @@ class asm18(lex_test):
 ##############################################################
 class asm_full_01(lex_test):
     def runTest(self):
-        print "disabled"
-        return
         lexer_obj = pylex.lexer()
         lexer_obj.add_pattern("a", 1)
 
