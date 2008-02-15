@@ -15,7 +15,7 @@ import escape
 
 class lex_test(unittest.TestCase):
     def setUp(self):
-        if 0:
+        if 1:
             print "a test", self.__class__.__name__
         return
 
@@ -869,6 +869,8 @@ class asm18(lex_test):
 ##############################################################
 class asm_full_01(lex_test):
     def runTest(self):
+        print "disabled"
+        return
         lexer_obj = pylex.lexer()
         lexer_obj.add_pattern("a", 1)
 
@@ -881,7 +883,7 @@ class asm_full_01(lex_test):
             print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
@@ -905,7 +907,7 @@ class asm_full_02(lex_test):
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         #pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("bb")
@@ -929,7 +931,7 @@ class asm_full_03(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("abc")
@@ -953,7 +955,7 @@ class asm_full_04(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("abc")
@@ -996,6 +998,37 @@ class asm_full_05(lex_test):
         return
     pass
 
+##############################################################
+class asm_full2_01(lex_test):
+    def runTest(self):
+        print "test disabled"
+        return
+        lexer_obj = pylex.lexer()
+        lexer_obj.add_pattern("a", 1)
+
+        nfa_obj = lexer_obj.build_nfa()
+        dfa_obj = lexer_obj.build_dfa()
+        code1   = lexer_obj.compile_to_intermediate_form()
+        if 0:
+            print "---------------"
+            pylex.print_instructions(code1)
+            print "---------------"
+
+        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        if 1:
+            pylex.print_instructions(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="comp")
+        
+        lstate = pylex.lexer_state();
+        lstate.set_input("aa")
+
+        tok = code_x86.get_token(lstate)
+        self.assert_(lexer_obj.actions[tok] == 1)
+        offset = lstate.get_cur_offset()
+        self.assert_(offset == 1)
+
+        return
+    pass
 
 ##############################################################
 class manual_x86_01(lex_test):
@@ -1007,7 +1040,7 @@ class manual_x86_01(lex_test):
         code_iform.add_iform_ret(code_iform.data_var)
 
         l = pylex.iform_to_asm_list_x86_32(code_iform)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(l)
+        code_x86 = pylex.asm_list_x86_32_to_code(l)
 
         lstate   = pylex.lexer_state()
         v = code_x86.get_token(lstate)
@@ -1045,7 +1078,7 @@ class manual_x86_03(lex_test):
         c.add_iform_ret(c.data_var)
 
         asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list, print_asm_txt=False)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -1073,7 +1106,7 @@ class manual_x86_04(lex_test):
         c.add_iform_ret(c.str_ptr_var)
 
         asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list, print_asm_txt=False)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -1101,7 +1134,7 @@ class manual_x86_05(lex_test):
         c.add_iform_ret(c.data_var)
 
         asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -1140,7 +1173,7 @@ class manual_x86_06(lex_test):
         if 0:
             pylex.print_instructions(asm_list)
             #escape.print_gdb_info()
-        code_x86 = pylex.asm_list_x86_32_to_code_obj(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
 
         self.assert_(self.fill_called == False)
         v = code_x86.get_token(lstate)
@@ -1791,8 +1824,72 @@ class assembler40(lex_test):
         return
     pass
 
+class assembler41(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "add", "$0, %esp")
+            ]
 
-####################
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x83)
+        self.assert_(ord(asm_bytes[1]) == 0xC4)
+        self.assert_(ord(asm_bytes[2]) == 0x00)
+        return
+    pass
+
+class assembler42(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "call", "*%eax")
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 2)
+        self.assert_(ord(asm_bytes[0]) == 0xFF)
+        self.assert_(ord(asm_bytes[1]) == 0xD0)
+        return
+    pass
+
+class assembler43(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "addl", "$10, %eax")
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x83)
+        self.assert_(ord(asm_bytes[1]) == 0xC0)
+        self.assert_(ord(asm_bytes[2]) == 0x0A)
+        return
+    pass
+
+class assembler44(lex_test):
+    def runTest(self):
+        asm_list = [
+            (None, "movl", "$10, 4(%ebp)")
+            ]
+
+        code = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 7)
+        self.assert_(ord(asm_bytes[0]) == 0xC7)
+
+        self.assert_(ord(asm_bytes[1]) == 0x45)
+        self.assert_(ord(asm_bytes[2]) == 0x04)
+
+        self.assert_(ord(asm_bytes[3]) == 0x0A)
+        self.assert_(ord(asm_bytes[4]) == 0x00)
+        self.assert_(ord(asm_bytes[5]) == 0x00)
+        self.assert_(ord(asm_bytes[6]) == 0x00)
+        return
+    pass
+
+##############################################################
 class regtest01(lex_test):
     def runTest(self):
         lbuf = escape.lexer_state()

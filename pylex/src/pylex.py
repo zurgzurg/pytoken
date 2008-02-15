@@ -1224,14 +1224,17 @@ def print_instructions(arg):
         tmp_list = [arg]
 
     idx = 0
-    for idx, tup in enumerate(tmp_list):
-        op = tup[0]
-        if op in instr2pfunc:
-            func   = instr2pfunc[op]
-            s = func(tup)
-            print idx, s
+    for idx, obj in enumerate(tmp_list):
+        if type(obj) is tuple or type(obj) is list:
+            op = obj[0]
+            if op in instr2pfunc:
+                func   = instr2pfunc[op]
+                s = func(obj)
+                print idx, s
+            else:
+                print idx, obj
         else:
-            print idx, tup
+            print idx, obj
     return
 
 ####################################################
@@ -1419,11 +1422,37 @@ def compile_to_vcode(iform):
 def compile_to_x86_32(iform):
     if 1:
         l = iform_to_asm_list_x86_32(iform)
-        r = asm_list_x86_32_to_code_obj(l)
+        r = asm_list_x86_32_to_code(l)
         escape.do_serialize()
     return r
 
-def asm_list_x86_32_to_code_obj(lines, print_asm_txt=False):
+def asm_list_x86_32_to_code(lines, print_asm_txt=False, asm_mode="py"):
+    if asm_mode == "py":
+        c = asm_list_x86_32_to_code_py(lines)
+        return c
+    elif asm_mode == "as":
+        c = asm_list_x86_32_to_code_as(lines, print_asm_txt)
+        return c
+    elif asm_mode == "comp":
+        c1 = asm_list_x86_32_to_code_as(lines)
+        c2 = asm_list_x86_32_to_code_py(lines, print_asm_txt=True)
+        c1_code = c1.get_code()
+        c2_code = c2.get_code()
+        if c1_code != c2_code:
+            l = min(len(c1_code), len(c2_code))
+            for i in range(l):
+                if c1_code[i] != c2_code[i]:
+                    print "First byte diff at", i
+            print "code is different"
+            pdb.set_trace()
+            raise RuntimeError, "Code compare error"
+        else:
+            print "code is same"
+        return c1
+    else:
+        raise RuntimeError, "Unknown asm mode=" + str(asm_mode)
+
+def asm_list_x86_32_to_code_as(lines, print_asm_txt=False):
     fp = open("/tmp/foobar.s", "w")
     for tup in lines:
         assert len(tup)==3
@@ -1519,9 +1548,9 @@ def iform_to_asm_list_x86_32(iform):
                 offset = var2offset[dst_var]
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % offset))
             elif is_data_label(src):
-                assert None, "ldw data src label not yet handled"
+                raise RuntimeError, "ldw data src label not yet handled"
             else:
-                assert None, "Unknown ldw src operand type"
+                raise RuntimeError, "Unknown ldw src operand type"
         elif op==IFORM_LDB:
             asm_list.append(("#", "ldb", None))
             dst_var = tup[1]
@@ -1698,7 +1727,7 @@ def iform_to_asm_list_x86_32(iform):
 ## immediate      0, 1,2,or 4 bytes
 ##
 ##################################################################
-class instr_x86_32:
+class instr_x86_32(object):
     def __init__(self, label, opcode, args):
         self.asm_label        = label
 
@@ -1714,18 +1743,44 @@ class instr_x86_32:
         self.asm_args         = args
         self.first_byte_idx   = None
         return
+
+    def __str__(self):
+        if not self.first_byte_idx:
+            idx = -1
+        else:
+            idx = self.first_byte_idx
+
+        if self.asm_label:
+            return "%4d: %s: %s %s b=%s" % (idx, self.asm_label, self.asm_op,
+                                            self.asm_args, str(self.bytes))
+        else:
+            return "%4d -----: %s %s b=%s" % (idx, self.asm_op,
+                                              self.asm_args, str(self.bytes))
     pass
 
-def asm_list_x86_32_to_code(asm_list):
-    lab2idx = {}
-    idx = 0
+def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
+    all_labels = {}
     for label, opcode, args in asm_list:
-        if label:
-            lab2idx[label] = idx
-        idx += 1
+        if label and type(label) is str and label[0] != '#':
+            all_labels[label] = True
 
+    saved_label = None
     instr_list = []
     for label, opcode, args in asm_list:
+        if type(label) is str and label[0] != '#':
+            saved_label = label
+        if opcode in (".text", ".globl", None):
+            continue
+        if type(label) is str and label[0]=='#':
+            continue
+
+
+        if label:
+            saved_label = None
+        elif saved_label:
+            label = saved_label
+            saved_label = None
+
         instr = instr_x86_32(label, opcode, args)
         instr_list.append(instr)
         if opcode=="ret":
@@ -1734,27 +1789,39 @@ def asm_list_x86_32_to_code(asm_list):
             args2 = parse_x86_32_args(args)
             src, dst = args2
             if x86_32_arg_is_const(src):
-                assert x86_32_arg_is_plain_reg(dst)
-                src_val = x86_32_arg_parse_const(src)
-                assert src_val >= 0
-                if dst == "%eax":
-                    op_byte = 0xB8
-                elif dst == "%ebx":
-                    op_byte = 0xBB
-                elif dst == "%ecx":
-                    op_byte = 0xB9
+                if x86_32_arg_is_plain_reg(dst):
+                    src_val = x86_32_arg_parse_const(src)
+                    assert src_val >= 0
+                    if dst == "%eax":
+                        op_byte = 0xB8
+                    elif dst == "%ebx":
+                        op_byte = 0xBB
+                    elif dst == "%ecx":
+                        op_byte = 0xB9
+                    else:
+                        raise RuntimeError, "movl to known dest=" + str(dst)
+                    immed = asm_x86_32_make_pos_immed32(src_val)
+                    instr.bytes.append(op_byte)
+                    instr.bytes.extend(immed)
                 else:
-                    assert None, "movl to unsupported dest reg" + dst
-                immed = asm_x86_32_make_pos_immed32(src_val)
-                instr.bytes.append(op_byte)
-                instr.bytes.extend(immed)
+                    assert x86_32_arg_is_reg_indirect(dst)
+                    instr.bytes.append(0xC7)
+                    tmp = asm_x86_32_encode_modrm_const_indirreg(src, dst)
+                    instr.bytes.extend(tmp)
             elif x86_32_arg_is_plain_reg(src):
                 if x86_32_arg_is_reg_indirect(dst):
                     tmp = asm_86_32_encode_modrm_reg_indirreg(src, dst)
                     instr.bytes.append(0x89)
                     instr.bytes.extend(tmp)
+                elif x86_32_arg_is_plain_reg(dst):
+                    instr.bytes.append(0x89)
+                    r   = modrm_tbl1[src]
+                    rm  = modrm_tbl2[dst]
+                    mod = 3
+                    tmp = asm86_32_make_modrm(mod, r, rm)
+                    instr.bytes.append(tmp)
                 else:
-                    assert None, "movl with unrecog dst=" + dst
+                    assert None, "movl with unrecog dst=" + str(dst)
             elif x86_32_arg_is_reg_indirect(src):
                 if x86_32_arg_is_plain_reg(dst):
                     tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
@@ -1763,7 +1830,7 @@ def asm_list_x86_32_to_code(asm_list):
                 else:
                     assert None, "movl"
             else:
-                assert None, "movl with non-const src operand" + src
+                assert None, "movl with unsupported src operand " + str(src)
         elif opcode=="movb":
             args2 = parse_x86_32_args(args)
             src, dst = args2
@@ -1775,13 +1842,61 @@ def asm_list_x86_32_to_code(asm_list):
                 else:
                     assert None, "movl"
             else:
-                assert None, "movl with non-const src operand" + src
+                assert None, "movl with non-const src operand " + str(src)
         elif opcode=="addl":
             src, dst = parse_x86_32_args(args)
-            assert x86_32_arg_is_reg_indirect(src)
-            tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
-            instr.bytes.append(0x03)
-            instr.bytes.extend(tmp)
+            if x86_32_arg_is_reg_indirect(src):
+                tmp = asm_86_32_encode_modrm_reg_indirreg(dst, src)
+                instr.bytes.append(0x03)
+                instr.bytes.extend(tmp)
+            elif x86_32_arg_is_const(src):
+                assert x86_32_arg_is_plain_reg(dst)
+                src_val = x86_32_arg_parse_const(src)
+                if x86_32_const_is_imm8(src_val):
+                    instr.bytes.append(0x83)
+                    mod = 3
+                    r   = 0
+                    rm  = modrm_tbl1[dst]
+                    tmp = asm86_32_make_modrm(mod, r, rm)
+                    instr.bytes.append(tmp)
+                    imm = asm_x86_32_make_s_immed8(src_val)
+                    instr.bytes.append(imm)
+                else:
+                    instr.bytes.append(0x81)
+                    mod = 3
+                    r   = 0
+                    rm  = modrm_tbl1[dst]
+                    tmp = asm86_32_make_modrm(mod, r, rm)
+                    instr.bytes.append(tmp)
+                    imm = asm_x86_32_make_immed32(src_val)
+                    instr.bytes.extend(imm)
+            else:
+                raise RuntimeError, "Unsupported src for addl=" + str(src)
+        elif opcode=="add":
+            src, dst = parse_x86_32_args(args)
+            if x86_32_arg_is_const(src) and x86_32_arg_is_plain_reg(dst):
+                src_val = x86_32_arg_parse_const(src)
+                if x86_32_const_is_imm8(src_val):
+                    instr.bytes.append(0x83)
+                    mod = 3
+                    r   = 0
+                    rm  = modrm_tbl1[dst]
+                    tmp = asm86_32_make_modrm(mod, r, rm)
+                    instr.bytes.append(tmp)
+                    imm = asm_x86_32_make_s_immed8(src_val)
+                    instr.bytes.append(imm)
+                else:
+                    instr.bytes.append(0x81)
+                    mod = 3
+                    r   = 0
+                    rm  = modrm_tbl1[dst]
+                    tmp = asm86_32_make_modrm(mod, r, rm)
+                    instr.bytes.append(tmp)
+                    imm = asm_x86_32_make_immed32(src_val)
+                    instr.bytes.extend(imm)
+            else:
+                raise RuntimeError, \
+                      "Unsupported arg types for add opcode=" + str(args)
         elif opcode=="cmpl":
             a1, a2 = parse_x86_32_args(args)
             assert x86_32_arg_is_plain_reg(a2)
@@ -1818,9 +1933,15 @@ def asm_list_x86_32_to_code(asm_list):
         elif opcode=="call":
             assert type(args) is str
             if args == "*%eax":
-                pass
+                instr.bytes.append(0xFF)
+                
+                mod = 3
+                r   = 2
+                rm  = modrm_tbl1["%eax"]
+                tmp = asm86_32_make_modrm(mod, r, rm)
+                instr.bytes.append(tmp)
             else:
-                assert args in lab2idx
+                assert args in all_labels
                 instr.is_var_len = True
 
                 instr.jump_target = args
@@ -1835,6 +1956,10 @@ def asm_list_x86_32_to_code(asm_list):
                 op_byte = 0x53
             elif args == "%ecx":
                 op_byte = 0x51
+            elif args == "%ebp":
+                op_byte = 0x55
+            else:
+                raise RuntimeError, "Unsupported arg to pushl" + str(args)
             instr.bytes.append(op_byte)
         elif opcode=="popl":
             assert x86_32_arg_is_plain_reg(args)
@@ -1846,8 +1971,13 @@ def asm_list_x86_32_to_code(asm_list):
                 op_byte = 0x59
             instr.bytes.append(op_byte)
         else:
-            raise RuntimeError, "Unsupported x86 opcode " + opcode
+            raise RuntimeError, "Unsupported x86 opcode " + str(opcode)
         pass
+
+    lab2instridx = {}
+    for idx, instr in enumerate(instr_list):
+        if instr.asm_label:
+            lab2instridx[instr.asm_label] = idx
 
     byte_idx = 0
     for instr in instr_list:
@@ -1862,7 +1992,7 @@ def asm_list_x86_32_to_code(asm_list):
     for instr in instr_list:
         if not instr.jump_target:
             continue
-        target_idx = lab2idx[ instr.jump_target ]
+        target_idx = lab2instridx[ instr.jump_target ]
         target_byte_idx = instr_list[ target_idx ].first_byte_idx
         cur_byte_idx = instr.first_byte_idx + len(instr.bytes)
         disp = target_byte_idx - cur_byte_idx 
@@ -1873,6 +2003,15 @@ def asm_list_x86_32_to_code(asm_list):
         instr.bytes[-2] = tmp[0]
         instr.bytes[-1] = tmp[1]
         pass
+
+    if print_asm_txt:
+        print "Assembly result"
+        addr = 0
+        for instr in instr_list:
+            print instr.first_byte_idx, instr.asm_label, instr.asm_op, instr.asm_args, ":",
+            for b in instr.bytes:
+                print " %0X" % b ,
+            print ""
 
     byte_list = []
     for instr in instr_list:
@@ -1901,6 +2040,7 @@ modrm_tbl1 = {
     "%ecx"   : 1,
     "%edx"   : 2,
     "%ebx"   : 3,
+    "%esp"   : 4,
     "%ebp"   : 5
     }
 
@@ -1932,6 +2072,36 @@ modrm_tbl2 = {
 
     "%dh"      : 6,
     "%bh"      : 7}
+
+def asm_x86_32_encode_modrm_const_indirreg(const, indir):
+    indir_offset, indir_reg = x86_32_arg_parse_indirect(indir)
+    if indir_offset == 0:
+        mod = 0
+        disp = None
+    elif indir_offset >= -127 and indir_offset <= 128:
+        mod = 1
+        if indir_offset < 0:
+            disp = [ 256 - abs(indir_offset) ]
+        else:
+            disp = [indir_offset]
+    else:
+        mod = 2
+        disp = asm_x86_32_make_pos_immed32(indir_offset)
+
+    rm = modrm_tbl1[indir_reg]
+    r  = 0
+    modrm = asm86_32_make_modrm(mod, r, rm)
+    result = [modrm]
+
+    if disp:
+       result.extend(disp)
+
+    const_val = x86_32_arg_parse_const(const)
+    tmp = asm_x86_32_make_immed32(const_val)
+    result.extend(tmp)
+
+    return result
+    
 
 def asm_86_32_encode_modrm_reg_indirreg(reg, indir):
     indir_offset, indir_reg = x86_32_arg_parse_indirect(indir)
@@ -1969,22 +2139,24 @@ def parse_x86_32_args(txt):
 ## addr modes
 ############
 def x86_32_arg_is_reg_indirect(txt):
-    pat = re.compile("([-x0-9]+)\\((.*)\\)")
+    pat = re.compile("([-x0-9]*)\\((.*)\\)")
     m = pat.match(txt)
     if m:
         return True
     return False
 
 def x86_32_arg_parse_indirect(txt):
-    pat = re.compile("([-x0-9]+)\\((.*)\\)")
+    pat = re.compile("([-x0-9]*)\\((.*)\\)")
     m = pat.match(txt)
     assert m
     assert x86_32_arg_is_plain_reg(m.group(2))
     offset_txt = m.group(1)
     if offset_txt.startswith("0x"):
         off = int(offset_txt, 16)
-    else:
+    elif len(offset_txt) > 0:
         off = int(offset_txt)
+    else:
+        off = 0
     return (off, m.group(2))
 
 ############
@@ -1996,7 +2168,7 @@ def x86_32_arg_is_const(txt):
     return False
 
 def x86_32_arg_is_plain_reg(txt):
-    if txt in ("%eax", "%ebx", "%ecx", "%ebp",
+    if txt in ("%eax", "%ebx", "%ecx", "%ebp", "%esp",
                "%al", "%ah", "%bl", "%bh", "%cl", "%ch"):
         return True
     return False
@@ -2015,7 +2187,7 @@ def x86_32_arg_parse_const(txt):
     if txt2.startswith("0x"):
         val = int(txt2, 16)
     else:
-        assert txt2.isdigit()
+        assert txt2.isdigit() or (txt2[0]=="-" and txt2[1:].isdigit())
         val = int(txt2)
     return val
 
@@ -2060,7 +2232,7 @@ def asm_x86_32_make_s_immed16(val):
 
 def asm_x86_32_make_s_immed8(val):
     assert val >= -127 and val <= 128
-    if val > 0:
+    if val >= 0:
         return val
     return 256 - abs(val)
 
