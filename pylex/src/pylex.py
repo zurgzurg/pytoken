@@ -1737,6 +1737,7 @@ class instr_x86_32(object):
         self.bytes_rel8       = []
         self.bytes_rel16      = []
         self.bytes_rel32      = []
+        self.which_variant    = None
         self.jump_target      = None
 
         self.asm_op           = opcode
@@ -1745,7 +1746,7 @@ class instr_x86_32(object):
         return
 
     def __str__(self):
-        if not self.first_byte_idx:
+        if self.first_byte_idx is None:
             idx = -1
         else:
             idx = self.first_byte_idx
@@ -1947,22 +1948,30 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
                 instr.is_var_len = True
 
                 instr.jump_target = args
-                instr.bytes_rel16.append(0xE8)
-                instr.bytes_rel16.append(None)
-                instr.bytes_rel16.append(None)
+                instr.bytes_rel32.append(0xE8)
+                instr.bytes_rel32.append(None)
+                instr.bytes_rel32.append(None)
+                instr.bytes_rel32.append(None)
+                instr.bytes_rel32.append(None)
         elif opcode=="pushl":
-            assert x86_32_arg_is_plain_reg(args)
-            if args == "%eax":
-                op_byte = 0x50
-            elif args == "%ebx":
-                op_byte = 0x53
-            elif args == "%ecx":
-                op_byte = 0x51
-            elif args == "%ebp":
-                op_byte = 0x55
+            if x86_32_arg_is_plain_reg(args):
+                if args == "%eax":
+                    op_byte = 0x50
+                elif args == "%ebx":
+                    op_byte = 0x53
+                elif args == "%ecx":
+                    op_byte = 0x51
+                elif args == "%ebp":
+                    op_byte = 0x55
+                else:
+                    raise RuntimeError, "Unsupported reg to pushl" + str(args)
+                instr.bytes.append(op_byte)
             else:
-                raise RuntimeError, "Unsupported arg to pushl" + str(args)
-            instr.bytes.append(op_byte)
+                assert x86_32_arg_is_const(args)
+                const_val = x86_32_arg_parse_const(args)
+                instr.bytes.append(0x68)
+                tmp = asm_x86_32_make_immed32(const_val)
+                instr.bytes.extend(tmp)
         elif opcode=="popl":
             assert x86_32_arg_is_plain_reg(args)
             if args == "%eax":
@@ -1976,6 +1985,11 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             else:
                 raise RuntimeError, "Unknown pop reg " + str(args)
             instr.bytes.append(op_byte)
+        elif opcode==".asciz":
+            for ch in args:
+                as_int = ord(ch)
+                instr.bytes.append(as_int)
+            instr.bytes.append(0)
         else:
             raise RuntimeError, "Unsupported x86 opcode " + str(opcode)
         pass
@@ -1989,8 +2003,13 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
     for instr in instr_list:
         if instr.is_var_len:
             assert len(instr.bytes) == 0
-            assert len(instr.bytes_rel32) > 0
-            instr.bytes = instr.bytes_rel32
+            assert len(instr.bytes_rel32) > 0 or len(instr.bytes_rel16) > 0
+            if instr.bytes_rel32 > 0:
+                instr.bytes = instr.bytes_rel32
+                instr.which_variant = "rel32"
+            else:
+                instr.bytes = instr.bytes_rel16
+                instr.which_variant = "rel16"
         instr.first_byte_idx = byte_idx
         byte_idx += len(instr.bytes)
         pass

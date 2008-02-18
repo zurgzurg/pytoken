@@ -15,7 +15,7 @@ import escape
 
 class lex_test(unittest.TestCase):
     def setUp(self):
-        if 1:
+        if 0:
             print "a test", self.__class__.__name__
         return
 
@@ -1759,12 +1759,14 @@ class assembler37(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 5)
+        self.assert_(len(asm_bytes) == 7)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0x0F)
         self.assert_(ord(asm_bytes[2]) == 0x85)
-        self.assert_(ord(asm_bytes[3]) == 0xFB)
+        self.assert_(ord(asm_bytes[3]) == 0xF9)
         self.assert_(ord(asm_bytes[4]) == 0xFF)
+        self.assert_(ord(asm_bytes[5]) == 0xFF)
+        self.assert_(ord(asm_bytes[6]) == 0xFF)
         return
     pass
 
@@ -1778,13 +1780,15 @@ class assembler38(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 6)
+        self.assert_(len(asm_bytes) == 8)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0x90)
         self.assert_(ord(asm_bytes[2]) == 0x0F)
         self.assert_(ord(asm_bytes[3]) == 0x84)
-        self.assert_(ord(asm_bytes[4]) == 0xFA)
+        self.assert_(ord(asm_bytes[4]) == 0xF8)
         self.assert_(ord(asm_bytes[5]) == 0xFF)
+        self.assert_(ord(asm_bytes[6]) == 0xFF)
+        self.assert_(ord(asm_bytes[7]) == 0xFF)
         return
     pass
 
@@ -1798,13 +1802,15 @@ class assembler39(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 6)
+        self.assert_(len(asm_bytes) == 8)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0x90)
         self.assert_(ord(asm_bytes[2]) == 0x0F)
         self.assert_(ord(asm_bytes[3]) == 0x85)
-        self.assert_(ord(asm_bytes[4]) == 0xFA)
+        self.assert_(ord(asm_bytes[4]) == 0xF8)
         self.assert_(ord(asm_bytes[5]) == 0xFF)
+        self.assert_(ord(asm_bytes[6]) == 0xFF)
+        self.assert_(ord(asm_bytes[7]) == 0xFF)
         return
     pass
 
@@ -1817,11 +1823,13 @@ class assembler40(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 4)
+        self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0xE8)
-        self.assert_(ord(asm_bytes[2]) == 0xFC)
+        self.assert_(ord(asm_bytes[2]) == 0xFA)
         self.assert_(ord(asm_bytes[3]) == 0xFF)
+        self.assert_(ord(asm_bytes[4]) == 0xFF)
+        self.assert_(ord(asm_bytes[5]) == 0xFF)
         return
     pass
 
