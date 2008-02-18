@@ -1923,11 +1923,13 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             instr.bytes_rel8.append(rel8_op)
             instr.bytes_rel8.append(None)
 
-            rel16_op = jumpcc_rel16_tbl[opcode]
-            instr.bytes_rel16.append(0x0F)
-            instr.bytes_rel16.append(rel16_op)
-            instr.bytes_rel16.append(None)
-            instr.bytes_rel16.append(None)
+            rel16or32_op = jumpcc_rel16or32_tbl[opcode]
+            instr.bytes_rel32.append(0x0F)
+            instr.bytes_rel32.append(rel16or32_op)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
         elif opcode=="nop":
             instr.bytes.append(0x90)
         elif opcode=="call":
@@ -1969,6 +1971,10 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
                 op_byte = 0x5B
             elif args == "%ecx":
                 op_byte = 0x59
+            elif args == "%ebp":
+                op_byte = 0x5D
+            else:
+                raise RuntimeError, "Unknown pop reg " + str(args)
             instr.bytes.append(op_byte)
         else:
             raise RuntimeError, "Unsupported x86 opcode " + str(opcode)
@@ -1983,8 +1989,8 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
     for instr in instr_list:
         if instr.is_var_len:
             assert len(instr.bytes) == 0
-            assert len(instr.bytes_rel16) > 0
-            instr.bytes = instr.bytes_rel16
+            assert len(instr.bytes_rel32) > 0
+            instr.bytes = instr.bytes_rel32
         instr.first_byte_idx = byte_idx
         byte_idx += len(instr.bytes)
         pass
@@ -1996,19 +2002,23 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
         target_byte_idx = instr_list[ target_idx ].first_byte_idx
         cur_byte_idx = instr.first_byte_idx + len(instr.bytes)
         disp = target_byte_idx - cur_byte_idx 
-        assert disp > -65535 and disp < 65536
-        tmp = asm_x86_32_make_s_immed16(disp)
-        assert instr.bytes[-1] == None and instr.bytes[-2]==None
+        #assert disp > -65535 and disp < 65536
+        tmp = asm_x86_32_make_immed32(disp)
+        assert instr.bytes[-1]==None and instr.bytes[-2]==None
+        assert instr.bytes[-3]==None and instr.bytes[-4]==None
         assert instr.bytes.count(None) == len(tmp)
-        instr.bytes[-2] = tmp[0]
-        instr.bytes[-1] = tmp[1]
+        instr.bytes[-4] = tmp[0]
+        instr.bytes[-3] = tmp[1]
+        instr.bytes[-2] = tmp[2]
+        instr.bytes[-1] = tmp[3]
         pass
 
-    if print_asm_txt:
+    if print_asm_txt or 0:
         print "Assembly result"
         addr = 0
         for instr in instr_list:
-            print instr.first_byte_idx, instr.asm_label, instr.asm_op, instr.asm_args, ":",
+            print instr.first_byte_idx, instr.asm_label, instr.asm_op, \
+                  instr.asm_args, ":",
             for b in instr.bytes:
                 print " %0X" % b ,
             print ""
@@ -2021,6 +2031,13 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
 
     code = escape.code()
     code.set_bytes(mcode)
+    if 0:
+        addr = code.get_start_addr()
+        print "Code start addr is 0x%x" % addr
+        for instr in instr_list:
+            addr2 = addr + instr.first_byte_idx
+            print "0x%x %s" % (addr2, str(instr))
+
     return code
 
 # jump type tables
@@ -2029,7 +2046,7 @@ jumpcc_rel8_tbl = {
     "je"    : 0x74
     }
 
-jumpcc_rel16_tbl = {
+jumpcc_rel16or32_tbl = {
     "jne"    : 0x85,
     "je"     : 0x84
     }

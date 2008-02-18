@@ -999,8 +999,6 @@ class asm_full_05(lex_test):
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
-        print "test disabled"
-        return
         lexer_obj = pylex.lexer()
         lexer_obj.add_pattern("a", 1)
 
@@ -1013,12 +1011,17 @@ class asm_full2_01(lex_test):
             print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        if 1:
+        if 0:
             pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="comp")
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py")
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
+
+        if 0:
+            tup = lstate.get_all_state()
+            print "lstate=0x%x buf=0x%x size=%d next_char=0x%x eob=%d" % tup
+            #escape.print_gdb_info()
 
         tok = code_x86.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 1)

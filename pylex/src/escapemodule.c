@@ -26,6 +26,7 @@ static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 static PyObject *lexer_state_set_fill_method(PyObject *, PyObject *);
 static PyObject *lexer_state_set_eob_found(PyObject *, PyObject *);
 static PyObject *lexer_state_get_eob_found(PyObject *, PyObject *);
+static PyObject *lexer_state_get_all_state(PyObject *, PyObject *);
 
 static PyObject *lexer_state_ldb(PyObject *, PyObject *);
 static PyObject *lexer_state_ldw(PyObject *, PyObject *);
@@ -86,6 +87,9 @@ static PyMethodDef lexer_state_methods[] = {
      "Set the eob_found flag."},
     {"get_eob_found",     lexer_state_get_eob_found,     METH_NOARGS,
      "Get the eob_found flag."},
+
+    {"get_all_state",     lexer_state_get_all_state,     METH_NOARGS,
+     "Return base ptr, buf size, next char ptr, eob flag as tuple."},
 
     {"ldb",               lexer_state_ldb,               METH_VARARGS,
      "simulator method - load byte"},
@@ -302,6 +306,20 @@ lexer_state_get_eob_found(PyObject *arg_self, PyObject *args)
   self = (lexer_state_t *)arg_self;
   assert(self->eob_found==0 || self->eob_found==1);
   result = PyInt_FromLong(self->eob_found);
+  return result;
+}
+
+static PyObject *
+lexer_state_get_all_state(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+  result = Py_BuildValue("(iiiii)", (int)self, (int)self->buf,
+			 self->size_of_buf,
+			 (int)self->next_char_ptr, self->eob_found);
   return result;
 }
 
