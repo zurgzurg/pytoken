@@ -15,7 +15,7 @@ import escape
 
 class lex_test(unittest.TestCase):
     def setUp(self):
-        if 0:
+        if 1:
             print "a test", self.__class__.__name__
         return
 
@@ -1013,7 +1013,7 @@ class asm_full2_01(lex_test):
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
         if 0:
             pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py")
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
@@ -1079,7 +1079,9 @@ class manual_x86_03(lex_test):
         c.add_iform_ret(c.data_var)
 
         asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
+        if 0:
+            pylex.print_instructions(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
@@ -1930,12 +1932,12 @@ class looper(lex_test):
         for n, sym in sym_tab.iteritems():
             if type(sym) is not type or n in ("looper", "lex_test"):
                 continue
-            if 0:
+            if 1:
                 print "starting on", n
             tc = sym()
             nrefs = sys.gettotalrefcount()
             for i in range(3):
-                if 0:
+                if 1:
                     print "testing num", i
                 tc.runTest()
                 nrefs2 = sys.gettotalrefcount()

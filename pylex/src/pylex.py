@@ -1680,7 +1680,7 @@ def iform_to_asm_list_x86_32(iform):
                         clab = "code_lab_%d" % code_lab_num
                         code_lab_num += 1
                         asm_list.append((None, "call", clab))
-                        asm_list.append((None, ".asciz", "\"%s\"" % a))
+                        asm_list.append((None, ".asciz", a))
                         asm_list.append((clab, None, None))
                         asm_list.append((None, "nop", None))
                     else:
