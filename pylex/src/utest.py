@@ -15,7 +15,8 @@ import escape
 
 class lex_test(unittest.TestCase):
     def setUp(self):
-        if 1:
+        global verbose_mode
+        if verbose_mode:
             print "a test", self.__class__.__name__
         return
 
@@ -881,7 +882,7 @@ class asm_full_01(lex_test):
             print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="comp")
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py")
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
@@ -1946,7 +1947,19 @@ class looper(lex_test):
     pass
 
 ##############################################################
-
+##############################################################
+##
+## usage
+##
+##
+##  utest.py [-v] [test] ... [test]
+##  utest.py [-v] -loop <num> <test>
+##
+##  -v : verbose_mode
+##
+##
+##############################################################
+##############################################################
 test_groups = ["tokens", "postfix", "nfa", "dfa", "iform",
                "asm", "asm_full_", "asm_full2_", "manual_x86_",
                "assembler", 
@@ -1973,10 +1986,12 @@ for g in test_groups:
     tests_tbl[g] = get_all_objs_by_name_prefix(g)
 
 if __name__=="__main__":
+    verbose_mode = False
+    if len(sys.argv) > 1 and sys.argv[1] == "-v":
+        verbose_mode = True
+        sys.argv.pop(1)
+
     if len(sys.argv) > 1 and sys.argv[1] == "-loop":
-        #
-        # utest.py -loop <num> <suite>
-        #
         suite = unittest.TestSuite()
         ntests = int(sys.argv[2])
         tname = sys.argv[3]

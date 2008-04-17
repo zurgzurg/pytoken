@@ -1744,6 +1744,10 @@ class instr_x86_32(object):
         self.asm_op           = opcode
         self.asm_args         = args
         self.first_byte_idx   = None
+
+        self.instr_list_idx   = None
+        self.distance_to_targ = None
+
         return
 
     def __str__(self):
@@ -1995,22 +1999,36 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             raise RuntimeError, "Unsupported x86 opcode " + str(opcode)
         pass
 
+    for idx, instr in enumerate(instr_list):
+        instr.instr_list_idx = idx
+
     lab2instridx = {}
     for idx, instr in enumerate(instr_list):
         if instr.asm_label:
             lab2instridx[instr.asm_label] = idx
 
+    var_len_instrs = [i for i in instr_list if i.is_var_len]
+    for i in var_len_instrs:
+        assert i.jump_target is not None
+        targ_idx = lab2instridx[i.jump_target]
+        i.distance_to_targ = abs(i.instr_list_idx - targ_idx)
+
+    def instr_sorter(i1, i2):
+        return cmp(i1.distance_to_targ, i2.distance_to_targ)
+    var_len_instrs.sort(instr_sorter)
+
+    for i in var_len_instrs:
+        assert len(i.bytes) == 0
+        assert len(i.bytes_rel8) > 0
+        if i.distance_to_targ < 15:
+            i.bytes = i.bytes_rel8
+            i.which_variant = "rel8"
+        else:
+            i.bytes = i.bytes_rel32
+            i.which_variant = "rel32"
+
     byte_idx = 0
     for instr in instr_list:
-        if instr.is_var_len:
-            assert len(instr.bytes) == 0
-            assert len(instr.bytes_rel32) > 0 or len(instr.bytes_rel16) > 0
-            if instr.bytes_rel32 > 0:
-                instr.bytes = instr.bytes_rel32
-                instr.which_variant = "rel32"
-            else:
-                instr.bytes = instr.bytes_rel16
-                instr.which_variant = "rel16"
         instr.first_byte_idx = byte_idx
         byte_idx += len(instr.bytes)
         pass
@@ -2022,15 +2040,21 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
         target_byte_idx = instr_list[ target_idx ].first_byte_idx
         cur_byte_idx = instr.first_byte_idx + len(instr.bytes)
         disp = target_byte_idx - cur_byte_idx 
-        #assert disp > -65535 and disp < 65536
-        tmp = asm_x86_32_make_immed32(disp)
-        assert instr.bytes[-1]==None and instr.bytes[-2]==None
-        assert instr.bytes[-3]==None and instr.bytes[-4]==None
-        assert instr.bytes.count(None) == len(tmp)
-        instr.bytes[-4] = tmp[0]
-        instr.bytes[-3] = tmp[1]
-        instr.bytes[-2] = tmp[2]
-        instr.bytes[-1] = tmp[3]
+
+        assert instr.which_variant == "rel8" or instr.which_variant == "rel32"
+        if instr.which_variant == "rel8":
+            tmp = asm_x86_32_make_s_immed8(disp)
+            assert instr.bytes[-1] == None
+            instr.bytes[-1] = tmp
+        else:
+            tmp = asm_x86_32_make_immed32(disp)
+            assert instr.bytes[-1]==None and instr.bytes[-2]==None
+            assert instr.bytes[-3]==None and instr.bytes[-4]==None
+            assert instr.bytes.count(None) == len(tmp)
+            instr.bytes[-4] = tmp[0]
+            instr.bytes[-3] = tmp[1]
+            instr.bytes[-2] = tmp[2]
+            instr.bytes[-1] = tmp[3]
         pass
 
     if print_asm_txt or 0:
