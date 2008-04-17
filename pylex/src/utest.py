@@ -1762,14 +1762,10 @@ class assembler37(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 7)
+        self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x90)
-        self.assert_(ord(asm_bytes[1]) == 0x0F)
-        self.assert_(ord(asm_bytes[2]) == 0x85)
-        self.assert_(ord(asm_bytes[3]) == 0xF9)
-        self.assert_(ord(asm_bytes[4]) == 0xFF)
-        self.assert_(ord(asm_bytes[5]) == 0xFF)
-        self.assert_(ord(asm_bytes[6]) == 0xFF)
+        self.assert_(ord(asm_bytes[1]) == 0x75)
+        self.assert_(ord(asm_bytes[2]) == 0xFD)
         return
     pass
 
@@ -1783,15 +1779,11 @@ class assembler38(lex_test):
 
         code = pylex.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
-        self.assert_(len(asm_bytes) == 8)
+        self.assert_(len(asm_bytes) == 4)
         self.assert_(ord(asm_bytes[0]) == 0x90)
         self.assert_(ord(asm_bytes[1]) == 0x90)
-        self.assert_(ord(asm_bytes[2]) == 0x0F)
-        self.assert_(ord(asm_bytes[3]) == 0x84)
-        self.assert_(ord(asm_bytes[4]) == 0xF8)
-        self.assert_(ord(asm_bytes[5]) == 0xFF)
-        self.assert_(ord(asm_bytes[6]) == 0xFF)
-        self.assert_(ord(asm_bytes[7]) == 0xFF)
+        self.assert_(ord(asm_bytes[2]) == 0x74)
+        self.assert_(ord(asm_bytes[3]) == 0xFC)
         return
     pass
 
@@ -1986,6 +1978,7 @@ for g in test_groups:
     tests_tbl[g] = get_all_objs_by_name_prefix(g)
 
 if __name__=="__main__":
+    print "args=", sys.argv
     verbose_mode = False
     if len(sys.argv) > 1 and sys.argv[1] == "-v":
         verbose_mode = True
