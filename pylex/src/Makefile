@@ -1,5 +1,7 @@
-python_inc_dir=/custom/python-2.5.1-memdebug/include/python2.5
+#python_inc_dir=/custom/python-2.5.1-memdebug/include/python2.5
 #python_inc_dir=/custom/python-2.5.1/include/python2.5
+#python_inc_dir=/home/ramb/src/pylex/python-2.5.1-stock/include/python2.5
+python_inc_dir=/home/ramb/src/pylex/python-2.5.1-memdebug/include/python2.5
 
 build/lib.linux-i686-2.5/escape.so: build/temp.linux-i686-2.5/escapemodule.o asm_helper.o
 	gcc -pthread -shared -g build/temp.linux-i686-2.5/escapemodule.o asm_helper.o -o build/lib.linux-i686-2.5/escape.so
