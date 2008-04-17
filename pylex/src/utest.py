@@ -881,7 +881,7 @@ class asm_full_01(lex_test):
             print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="comp")
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
@@ -953,7 +953,7 @@ class asm_full_04(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=True)
         
         lstate = pylex.lexer_state();
         lstate.set_input("abc")
@@ -1936,7 +1936,7 @@ class looper(lex_test):
                 print "starting on", n
             tc = sym()
             nrefs = sys.gettotalrefcount()
-            for i in range(3):
+            for i in range(10):
                 if 1:
                     print "testing num", i
                 tc.runTest()
@@ -1947,5 +1947,48 @@ class looper(lex_test):
 
 ##############################################################
 
+test_groups = ["tokens", "postfix", "nfa", "dfa", "iform",
+               "asm", "asm_full_", "asm_full2_", "manual_x86_",
+               "assembler", 
+               "errtest", "regtest"]
+tests_tbl = {}
+
+def get_all_objs_by_name_prefix(p):
+    symtab = globals()
+    plen = len(p)
+    all_names = symtab.keys()
+    matching_names = []
+    for n in all_names:
+        if len(n) <= plen or not n.startswith(p):
+            continue
+        tail = n[plen:]
+        if not tail.isdigit():
+            continue
+        matching_names.append(n)
+    matching_names.sort()
+    result = [symtab[n] for n in matching_names]
+    return result
+
+for g in test_groups:
+    tests_tbl[g] = get_all_objs_by_name_prefix(g)
+
 if __name__=="__main__":
-    unittest.main()
+    if len(sys.argv) > 1 and sys.argv[1] == "-loop":
+        #
+        # utest.py -loop <num> <suite>
+        #
+        suite = unittest.TestSuite()
+        ntests = int(sys.argv[2])
+        tname = sys.argv[3]
+        d = globals()
+        cls_obj = d[tname]
+        t_obj = cls_obj()
+        suite.addTest(t_obj)
+        
+        for c in xrange(ntests):
+            runner = unittest.TextTestRunner()
+            runner.run(suite)
+
+        print "Done"
+    else:
+        unittest.main()
