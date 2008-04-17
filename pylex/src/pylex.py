@@ -1428,7 +1428,7 @@ def compile_to_x86_32(iform):
 
 def asm_list_x86_32_to_code(lines, print_asm_txt=False, asm_mode="py"):
     if asm_mode == "py":
-        c = asm_list_x86_32_to_code_py(lines)
+        c = asm_list_x86_32_to_code_py(lines, print_asm_txt)
         return c
     elif asm_mode == "as":
         c = asm_list_x86_32_to_code_as(lines, print_asm_txt)
@@ -1443,6 +1443,7 @@ def asm_list_x86_32_to_code(lines, print_asm_txt=False, asm_mode="py"):
             for i in range(l):
                 if c1_code[i] != c2_code[i]:
                     print "First byte diff at", i
+                    break
             print "code is different"
             pdb.set_trace()
             raise RuntimeError, "Code compare error"
