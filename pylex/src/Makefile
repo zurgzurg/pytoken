@@ -13,7 +13,7 @@ asm_helper.o: asm_helper.s
 	as -o $@ $<
 
 tar:
-	tar zcf pylex.tar.gz escapemodule.c utest.py pylex.py Makefile
+	tar zcf pytoken.tar.gz escapemodule.c utest.py pytoken.py Makefile
 
 clean:
 	rm -fr *~ *.[ao] *.so *.pyc build/lib.linux-i686-2.5/escape.so build/temp.linux-i686-2.5/escapemodule.o
