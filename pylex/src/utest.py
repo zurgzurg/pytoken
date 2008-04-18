@@ -4,10 +4,10 @@ import sys
 import unittest
 import pdb
 
-import pylex
+import pytoken
 
-from pylex import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
-from pylex import IFORM_LABEL, IFORM_LDW, IFORM_LDB, IFORM_STW, IFORM_STB, \
+from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
+from pytoken import IFORM_LABEL, IFORM_LDW, IFORM_LDB, IFORM_STW, IFORM_STB, \
      IFORM_CMP, IFORM_BEQ, IFORM_BNE, IFORM_NOP, IFORM_ADD, IFORM_RET
 
 sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
@@ -26,10 +26,10 @@ class lex_test(unittest.TestCase):
         return
 
     def check_structure(self, act, exp):
-        if pylex.struct_equal(act, exp):
+        if pytoken.struct_equal(act, exp):
             return
-        act_str = pylex.make_string_from_token_list(act)
-        exp_str = pylex.make_string_from_token_list(exp)
+        act_str = pytoken.make_string_from_token_list(act)
+        exp_str = pytoken.make_string_from_token_list(exp)
         self.assert_(False, act_str + " != " + exp_str)
         return
 
@@ -89,7 +89,7 @@ class lex_test(unittest.TestCase):
 ################################################################
 class tokens01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a")
         exp = ("a")
         self.check_structure(act, exp)
@@ -98,7 +98,7 @@ class tokens01(lex_test):
 
 class tokens02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("ab")
         exp = ("a", CCAT, "b")
         self.check_structure(act, exp)
@@ -107,7 +107,7 @@ class tokens02(lex_test):
 
 class tokens03(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("abc")
         exp = ("a", CCAT, "b", CCAT, "c")
         self.check_structure(act, exp)
@@ -116,7 +116,7 @@ class tokens03(lex_test):
 
 class tokens04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("abc")
         exp = ("a", CCAT, "b", CCAT, "c")
         self.check_structure(act, exp)
@@ -125,7 +125,7 @@ class tokens04(lex_test):
 
 class tokens04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a|b")
         exp = ("a", PIPE, "b")
         self.check_structure(act, exp)
@@ -134,7 +134,7 @@ class tokens04(lex_test):
 
 class tokens05(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a|bc")
         exp = ("a", PIPE, "b", CCAT, "c")
         self.check_structure(act, exp)
@@ -143,7 +143,7 @@ class tokens05(lex_test):
 
 class tokens06(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("[ab]")
         exp = (LPAREN, "a", PIPE, "b", RPAREN)
         self.check_structure(act, exp)
@@ -152,7 +152,7 @@ class tokens06(lex_test):
 
 class tokens07(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("[a]")
         exp = (LPAREN, "a", RPAREN)
         self.check_structure(act, exp)
@@ -161,7 +161,7 @@ class tokens07(lex_test):
 
 class tokens08(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a(b|c)")
         exp = ("a", CCAT, LPAREN, "b", PIPE, "c", RPAREN)
         self.check_structure(act, exp)
@@ -170,7 +170,7 @@ class tokens08(lex_test):
 
 class tokens09(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a(bd|c)")
         exp = ("a", CCAT, LPAREN, "b", CCAT, "d", PIPE, "c", RPAREN)
         self.check_structure(act, exp)
@@ -179,7 +179,7 @@ class tokens09(lex_test):
 
 class tokens10(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("abd|c")
         exp = ("a", CCAT, "b", CCAT, "d", PIPE, "c")
         self.check_structure(act, exp)
@@ -188,7 +188,7 @@ class tokens10(lex_test):
 
 class tokens11(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a[bc]")
         exp = ("a", CCAT, LPAREN, "b", PIPE, "c", RPAREN)
         self.check_structure(act, exp)
@@ -197,7 +197,7 @@ class tokens11(lex_test):
 
 class tokens12(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a[c]b")
         exp = ("a", CCAT, LPAREN, "c", RPAREN, CCAT, "b")
         self.check_structure(act, exp)
@@ -206,7 +206,7 @@ class tokens12(lex_test):
 
 class tokens13(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("a(c)b")
         exp = ("a", CCAT, LPAREN, "c", RPAREN, CCAT, "b")
         self.check_structure(act, exp)
@@ -215,7 +215,7 @@ class tokens13(lex_test):
 
 class tokens14(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("ab*")
         exp = ("a", CCAT, "b", STAR)
         self.check_structure(act, exp)
@@ -224,7 +224,7 @@ class tokens14(lex_test):
 
 class tokens15(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.tokenize_pattern("acb*")
         exp = ("a", CCAT, 'c', CCAT, "b", STAR)
         self.check_structure(act, exp)
@@ -234,7 +234,7 @@ class tokens15(lex_test):
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a")
         exp = ("a")
         self.check_structure(act, exp)
@@ -243,7 +243,7 @@ class postfix01(lex_test):
 
 class postfix02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("ab")
         exp = ("a", "b", CCAT)
         self.check_structure(act, exp)
@@ -252,7 +252,7 @@ class postfix02(lex_test):
 
 class postfix03(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("abc")
         exp = ("a", "b", CCAT, "c", CCAT)
         self.check_structure(act, exp)
@@ -261,7 +261,7 @@ class postfix03(lex_test):
 
 class postfix04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("abc")
         exp = ("a", "b", CCAT, "c", CCAT)
         self.check_structure(act, exp)
@@ -270,7 +270,7 @@ class postfix04(lex_test):
 
 class postfix05(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("abcd")
         exp = ("a", "b", CCAT, "c", CCAT, "d", CCAT)
         self.check_structure(act, exp)
@@ -279,7 +279,7 @@ class postfix05(lex_test):
 
 class postfix06(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a|b")
         exp = ("a", "b", PIPE)
         self.check_structure(act, exp)
@@ -288,7 +288,7 @@ class postfix06(lex_test):
 
 class postfix07(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a|bc")
         exp = ("a", "b", PIPE, "c", CCAT)
         self.check_structure(act, exp)
@@ -297,7 +297,7 @@ class postfix07(lex_test):
 
 class postfix08(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a|bc")
         exp = ("a", "b", PIPE, "c", CCAT)
         self.check_structure(act, exp)
@@ -306,7 +306,7 @@ class postfix08(lex_test):
 
 class postfix09(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("(abc)")
         exp = ("a", "b", CCAT, "c", CCAT)
         self.check_structure(act, exp)
@@ -315,7 +315,7 @@ class postfix09(lex_test):
 
 class postfix10(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("(abc)|d")
         exp = ("a", "b", CCAT, "c", CCAT, "d", PIPE)
         self.check_structure(act, exp)
@@ -324,7 +324,7 @@ class postfix10(lex_test):
 
 class postfix11(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("(ab)|(cd)")
         exp = ("a", "b", CCAT, "c", "d", CCAT, PIPE)
         self.check_structure(act, exp)
@@ -333,7 +333,7 @@ class postfix11(lex_test):
 
 class postfix12(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("((ab))")
         exp = ("a", "b", CCAT)
         self.check_structure(act, exp)
@@ -342,7 +342,7 @@ class postfix12(lex_test):
 
 class postfix13(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a*")
         exp = ("a", STAR)
         self.check_structure(act, exp)
@@ -351,7 +351,7 @@ class postfix13(lex_test):
 
 class postfix14(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("ab*")
         exp = ("a", "b", STAR, CCAT)
         self.check_structure(act, exp)
@@ -360,7 +360,7 @@ class postfix14(lex_test):
 
 class postfix15(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("abc*")
         exp = ("a", "b", CCAT, "c", STAR, CCAT)
         self.check_structure(act, exp)
@@ -369,7 +369,7 @@ class postfix15(lex_test):
 
 class postfix16(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         act = obj.parse_as_postfix("a(b|c)*")
         exp = ("a", "b", "c", PIPE, STAR, CCAT)
         self.check_structure(act, exp)
@@ -379,7 +379,7 @@ class postfix16(lex_test):
 ##############################################################
 class nfa01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a",)
         nfa_obj = obj.postfix_to_nfa(postfix)
         f = self.follow_single_nfa_path(nfa_obj, "a")
@@ -389,7 +389,7 @@ class nfa01(lex_test):
 
 class nfa02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
         f = self.follow_single_nfa_path(nfa_obj, ["a", "b"])
@@ -399,7 +399,7 @@ class nfa02(lex_test):
 
 class nfa03(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a","b",PIPE)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "a"))
@@ -410,7 +410,7 @@ class nfa03(lex_test):
 
 class nfa04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "ab"))
@@ -419,7 +419,7 @@ class nfa04(lex_test):
 
 class nfa05(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a",STAR)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "a"))
@@ -428,7 +428,7 @@ class nfa05(lex_test):
 
 class nfa06(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a",STAR)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, "aa"))
@@ -437,7 +437,7 @@ class nfa06(lex_test):
 
 class nfa07(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a",STAR)
         nfa_obj = obj.postfix_to_nfa(postfix)
         self.assert_(self.path_exists(nfa_obj, ""))
@@ -447,17 +447,17 @@ class nfa07(lex_test):
 ##############################################################
 class dfa01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a",)
         nfa_obj = obj.postfix_to_nfa(postfix)
         dfa_obj = nfa_obj.convert_to_dfa()
-        self.assert_(isinstance(dfa_obj, pylex.dfa))
+        self.assert_(isinstance(dfa_obj, pytoken.dfa))
         return
     pass
 
 class dfa02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         postfix = ("a","b",CCAT)
         nfa_obj = obj.postfix_to_nfa(postfix)
         dfa_obj = nfa_obj.convert_to_dfa()
@@ -467,7 +467,7 @@ class dfa02(lex_test):
 
 class dfa03(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         p = obj.parse_as_postfix("abc")
         nfa_obj = obj.postfix_to_nfa(p)
         dfa_obj = nfa_obj.convert_to_dfa()
@@ -477,7 +477,7 @@ class dfa03(lex_test):
 
 class dfa04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         p = obj.parse_as_postfix("a|b")
         nfa_obj = obj.postfix_to_nfa(p)
         dfa_obj = nfa_obj.convert_to_dfa()
@@ -488,7 +488,7 @@ class dfa04(lex_test):
 
 class dfa05(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         p = obj.parse_as_postfix("a*")
         nfa_obj = obj.postfix_to_nfa(p)
         dfa_obj = nfa_obj.convert_to_dfa()
@@ -499,43 +499,43 @@ class dfa05(lex_test):
 ##############################################################
 class iform01(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code = pytoken.iform_code(lobj)
         code.make_std_vars()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_var, 0)
         code.add_iform_ret(code.data_var)
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("a")
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(v == 0)
         return
     pass
 
 class iform02(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code = pytoken.iform_code(lobj)
         code.make_std_vars()
         code.add_iform_label("lab_main1")
         code.add_iform_set(code.data_var, 2)
         code.add_iform_add(code.data_var, 12)
         code.add_iform_ret(code.data_var)
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("a")
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(v == 14)
         return
     pass
 
 class iform03(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code = pytoken.iform_code(lobj)
         code.make_std_vars()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_var()
@@ -543,20 +543,20 @@ class iform03(lex_test):
         code.add_iform_set(r2, code.data_var)
         code.add_iform_ret(r2)
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("a")
 
-        #sim = pylex.simulator(mem_size=2)
+        #sim = pytoken.simulator(mem_size=2)
         #v = sim.do_sim(code)
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(v == 0xFF)
         return
     pass
 
 class iform04(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code = pytoken.iform_code(lobj)
         code.make_std_vars()
         code.add_iform_label("lab_main1")
         r2 = code.make_new_var()
@@ -564,10 +564,10 @@ class iform04(lex_test):
         code.add_iform_set(r2, code.data_var)
         code.add_iform_ret(r2)
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("a")
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(v == 0xFFEEDDCC)
         return
     pass
@@ -575,7 +575,7 @@ class iform04(lex_test):
 ##############################################################
 class asm01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a|b", None)
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
@@ -585,75 +585,75 @@ class asm01(lex_test):
 
 class asm02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code    = obj.compile_to_intermediate_form()
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("aa")
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 1)
         return
     pass
 
 class asm03(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code    = obj.compile_to_intermediate_form()
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("bb")
 
         if 0:
-            pylex.print_instructions(code)
+            pytoken.print_instructions(code)
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v]==2)
         return
     pass
 
 class asm04(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("ab", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code    = obj.compile_to_intermediate_form()
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("abab")
 
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
         return
     pass
 
 class asm05(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a|b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code    = obj.compile_to_intermediate_form()
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
 
         lstate.set_input("aa")
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
         lstate.set_input("bb")
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
         return
@@ -661,21 +661,21 @@ class asm05(lex_test):
 
 class asm06(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a*", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code    = obj.compile_to_intermediate_form()
 
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
 
         lstate.set_input("ab")
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
         lstate.set_input("aab")
-        v = pylex.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate)
         self.assert_(obj.actions[v] == 2)
 
         return
@@ -683,7 +683,7 @@ class asm06(lex_test):
 
 class asm07(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
@@ -695,67 +695,67 @@ class asm07(lex_test):
 
 class asm08(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_x86_32(code1)
+        code2 = pytoken.compile_to_x86_32(code1)
         return
     pass
 
 class asm09(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_x86_32(code1)
+        code2 = pytoken.compile_to_x86_32(code1)
         return
     pass
 
 class asm10(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         return
     pass
 
 class asm11(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
-        self.assert_(isinstance(code2, pylex.code))
+        code2 = pytoken.compile_to_vcode(code1)
+        self.assert_(isinstance(code2, pytoken.code))
         return
     pass
 
 class asm12(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         func = code2.get_token
         self.assert_(callable(func))
         return
@@ -763,44 +763,44 @@ class asm12(lex_test):
 
 class asm13(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         self.assert_(len(code2) >= 0)
         return
     pass
 
 class asm14(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         self.assert_(len(code2) == len(code1.instructions))
         return
     pass
 
 class asm15(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         
-        lstate = pylex.lexer_state()
+        lstate = pytoken.lexer_state()
         lstate.set_input("ac")
 
         r = code2.get_token(lstate)
@@ -809,16 +809,16 @@ class asm15(lex_test):
 
 class asm16(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         obj.add_pattern("a", 1)
         obj.add_pattern("b", 2)
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("ac")
 
         r = code2.get_token(lstate)
@@ -827,16 +827,16 @@ class asm16(lex_test):
 
 class asm17(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a", 1)
         lexer_obj.add_pattern("b", 2)
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("ab")
 
         tok = code2.get_token(lstate)
@@ -846,16 +846,16 @@ class asm17(lex_test):
 
 class asm18(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a", 1)
         lexer_obj.add_pattern("b", 2)
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
-        code2 = pylex.compile_to_vcode(code1)
+        code2 = pytoken.compile_to_vcode(code1)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("abc")
 
         tok = code2.get_token(lstate)
@@ -870,7 +870,7 @@ class asm18(lex_test):
 ##############################################################
 class asm_full_01(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a", 1)
 
         nfa_obj = lexer_obj.build_nfa()
@@ -878,14 +878,14 @@ class asm_full_01(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
         if 0:
             print "---------------"
-            pylex.print_instructions(code1)
+            pytoken.print_instructions(code1)
             print "---------------"
 
-        asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py",
+        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list, asm_mode="py",
                                                  print_asm_txt=False)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("aa")
 
         tok = code_x86.get_token(lstate)
@@ -898,18 +898,18 @@ class asm_full_01(lex_test):
 
 class asm_full_02(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("b", 22)
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
 
-        asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        #pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        #pytoken.print_instructions(asm_list)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("bb")
 
         tok = code_x86.get_token(lstate)
@@ -922,7 +922,7 @@ class asm_full_02(lex_test):
 
 class asm_full_03(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("b", 22)
         lexer_obj.add_pattern("a", 44)
 
@@ -930,10 +930,10 @@ class asm_full_03(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
 
-        asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("abc")
 
         tok = code_x86.get_token(lstate)
@@ -946,7 +946,7 @@ class asm_full_03(lex_test):
 
 class asm_full_04(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a",  22)
         lexer_obj.add_pattern("ab", 44)
 
@@ -954,10 +954,10 @@ class asm_full_04(lex_test):
         dfa_obj = lexer_obj.build_dfa()
         code1   = lexer_obj.compile_to_intermediate_form()
 
-        asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("abc")
 
         tok = code_x86.get_token(lstate)
@@ -971,7 +971,7 @@ class asm_full_05(lex_test):
         self.fill_called = True
         return 0
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a",  22)
 
         nfa_obj = lexer_obj.build_nfa()
@@ -983,12 +983,12 @@ class asm_full_05(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
         if 0:
             print "----------"
-            pylex.print_instructions(code1)
+            pytoken.print_instructions(code1)
             print "----------"
         code2   = lexer_obj.compile_to_machine_code()
 
 
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("aa")
         lstate.set_fill_method(self.do_fill)
 
@@ -1001,7 +1001,7 @@ class asm_full_05(lex_test):
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
-        lexer_obj = pylex.lexer()
+        lexer_obj = pytoken.lexer()
         lexer_obj.add_pattern("a", 1)
 
         nfa_obj = lexer_obj.build_nfa()
@@ -1009,15 +1009,15 @@ class asm_full2_01(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
         if 0:
             print "---------------"
-            pylex.print_instructions(code1)
+            pytoken.print_instructions(code1)
             print "---------------"
 
-        asm_list = pylex.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
         if 0:
-            pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+            pytoken.print_instructions(asm_list)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
-        lstate = pylex.lexer_state();
+        lstate = pytoken.lexer_state();
         lstate.set_input("aa")
 
         if 0:
@@ -1036,16 +1036,16 @@ class asm_full2_01(lex_test):
 ##############################################################
 class manual_x86_01(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code_iform = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code_iform = pytoken.iform_code(lobj)
         code_iform.make_std_vars()
         code_iform.add_iform_set(code_iform.data_var, 0)
         code_iform.add_iform_ret(code_iform.data_var)
 
-        l = pylex.iform_to_asm_list_x86_32(code_iform)
-        code_x86 = pylex.asm_list_x86_32_to_code(l)
+        l = pytoken.iform_to_asm_list_x86_32(code_iform)
+        code_x86 = pytoken.asm_list_x86_32_to_code(l)
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         v = code_x86.get_token(lstate)
         self.assert_(v == 0)
         return
@@ -1053,15 +1053,15 @@ class manual_x86_01(lex_test):
 
 class manual_x86_02(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
-        code_iform = pylex.iform_code(lobj)
+        lobj = pytoken.lexer()
+        code_iform = pytoken.iform_code(lobj)
         code_iform.make_std_vars()
 
         code_iform.add_iform_set(code_iform.data_var, 2)
         code_iform.add_iform_ret(code_iform.data_var)
 
-        code_x86 = pylex.compile_to_x86_32(code_iform)
-        lstate   = pylex.lexer_state()
+        code_x86 = pytoken.compile_to_x86_32(code_iform)
+        lstate   = pytoken.lexer_state()
 
         v = code_x86.get_token(lstate)
         self.assert_(v == 2)
@@ -1070,9 +1070,9 @@ class manual_x86_02(lex_test):
 
 class manual_x86_03(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
+        lobj = pytoken.lexer()
 
-        c = pylex.iform_code(lobj)
+        c = pytoken.iform_code(lobj)
         c.make_std_vars()
 
         c.add_iform_gparm(c.data_var, 1)
@@ -1080,15 +1080,15 @@ class manual_x86_03(lex_test):
                          "get_cur_addr", None)
         c.add_iform_ret(c.data_var)
 
-        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.iform_to_asm_list_x86_32(c)
         if 0:
-            pylex.print_instructions(asm_list)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+            pytoken.print_instructions(asm_list)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
 
 
@@ -1099,9 +1099,9 @@ class manual_x86_03(lex_test):
 
 class manual_x86_04(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
+        lobj = pytoken.lexer()
 
-        c = pylex.iform_code(lobj)
+        c = pytoken.iform_code(lobj)
         c.make_std_vars()
 
         c.add_iform_gparm(c.data_var, 1)
@@ -1110,13 +1110,13 @@ class manual_x86_04(lex_test):
         c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.str_ptr_var)
 
-        asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
+        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
 
         v = code_x86.get_token(lstate)
@@ -1126,9 +1126,9 @@ class manual_x86_04(lex_test):
 
 class manual_x86_05(lex_test):
     def runTest(self):
-        lobj = pylex.lexer()
+        lobj = pytoken.lexer()
 
-        c = pylex.iform_code(lobj)
+        c = pytoken.iform_code(lobj)
         c.make_std_vars()
 
         c.add_iform_gparm(c.data_var, 1)
@@ -1138,13 +1138,13 @@ class manual_x86_05(lex_test):
         c.add_iform_ldb(c.data_var, c.make_indirect_var(c.str_ptr_var))
         c.add_iform_ret(c.data_var)
 
-        asm_list = pylex.iform_to_asm_list_x86_32(c)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
 
         base = code_x86.get_start_addr()
         code_bytes = code_x86.get_code()
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
 
         v = code_x86.get_token(lstate)
@@ -1159,13 +1159,13 @@ class manual_x86_06(lex_test):
 
     def runTest(self):
         self.fill_called = False
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
         lstate.set_fill_method(self.do_fill)
 
-        lobj = pylex.lexer()
+        lobj = pytoken.lexer()
 
-        c = pylex.iform_code(lobj)
+        c = pytoken.iform_code(lobj)
         c.make_std_vars()
 
         # arg 0 = code obj ; 
@@ -1174,11 +1174,11 @@ class manual_x86_06(lex_test):
         c.add_iform_call(c.fill_status, c.fill_caller_addr, c.data_var)
         c.add_iform_ret(c.fill_status)
 
-        asm_list = pylex.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.iform_to_asm_list_x86_32(c)
         if 0:
-            pylex.print_instructions(asm_list)
+            pytoken.print_instructions(asm_list)
             #escape.print_gdb_info()
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
+        code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
 
         self.assert_(self.fill_called == False)
         v = code_x86.get_token(lstate)
@@ -1194,10 +1194,10 @@ class assembler01(lex_test):
             (None, "ret", None)
             ]
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         code.get_token(lstate)
         return
     pass
@@ -1209,10 +1209,10 @@ class assembler02(lex_test):
             (None, "ret", None)
             ]
 
-        lstate   = pylex.lexer_state()
+        lstate   = pytoken.lexer_state()
         lstate.set_input("a")
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         code.get_token(lstate)
         return
     pass
@@ -1223,7 +1223,7 @@ class assembler03(lex_test):
             (None, "movl", "%eax, 10(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1238,7 +1238,7 @@ class assembler04(lex_test):
             (None, "movl", "%eax, 10(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1253,7 +1253,7 @@ class assembler05(lex_test):
             (None, "movl", "%eax, 10(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1268,7 +1268,7 @@ class assembler06(lex_test):
             (None, "movl", "%ebx, 10(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1283,7 +1283,7 @@ class assembler07(lex_test):
             (None, "movl", "%ebx, 10(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1298,7 +1298,7 @@ class assembler08(lex_test):
             (None, "movl", "%ebx, 10(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1313,7 +1313,7 @@ class assembler09(lex_test):
             (None, "movl", "%ecx, 10(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1328,7 +1328,7 @@ class assembler10(lex_test):
             (None, "movl", "%ecx, 10(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1343,7 +1343,7 @@ class assembler11(lex_test):
             (None, "movl", "%ecx, 10(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1358,7 +1358,7 @@ class assembler12(lex_test):
             (None, "movl", "%eax, 0x12345678(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1376,7 +1376,7 @@ class assembler13(lex_test):
             (None, "movl", "%eax, 0x12345678(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1394,7 +1394,7 @@ class assembler14(lex_test):
             (None, "movl", "%eax, 0x12345678(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1412,7 +1412,7 @@ class assembler15(lex_test):
             (None, "movl", "%ebx, 0x12345678(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1430,7 +1430,7 @@ class assembler16(lex_test):
             (None, "movl", "%ebx, 0x12345678(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1448,7 +1448,7 @@ class assembler17(lex_test):
             (None, "movl", "%ebx, 0x12345678(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1466,7 +1466,7 @@ class assembler18(lex_test):
             (None, "movl", "%ecx, 0x12345678(%eax)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1484,7 +1484,7 @@ class assembler19(lex_test):
             (None, "movl", "%ecx, 0x12345678(%ebx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1502,7 +1502,7 @@ class assembler20(lex_test):
             (None, "movl", "%ecx, 0x12345678(%ecx)"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x89)
@@ -1520,7 +1520,7 @@ class assembler21(lex_test):
             (None, "movl", "10(%eax), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1535,7 +1535,7 @@ class assembler22(lex_test):
             (None, "movl", "10(%ebx), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1550,7 +1550,7 @@ class assembler23(lex_test):
             (None, "movl", "10(%ecx), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1565,7 +1565,7 @@ class assembler24(lex_test):
             (None, "movl", "10(%eax), %ebx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1580,7 +1580,7 @@ class assembler25(lex_test):
             (None, "movl", "10(%ebx), %ebx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1595,7 +1595,7 @@ class assembler26(lex_test):
             (None, "movl", "10(%ecx), %ebx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1610,7 +1610,7 @@ class assembler27(lex_test):
             (None, "movl", "10(%eax), %ecx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1625,7 +1625,7 @@ class assembler28(lex_test):
             (None, "movl", "10(%ebx), %ecx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1640,7 +1640,7 @@ class assembler29(lex_test):
             (None, "movl", "10(%ecx), %ecx"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1655,7 +1655,7 @@ class assembler30(lex_test):
             (None, "movb", "10(%eax), %al"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8A)
@@ -1670,7 +1670,7 @@ class assembler31(lex_test):
             (None, "movb", "10(%eax), %bl"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8A)
@@ -1685,7 +1685,7 @@ class assembler32(lex_test):
             (None, "movb", "10(%eax), %cl"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8A)
@@ -1700,7 +1700,7 @@ class assembler33(lex_test):
             (None, "movl", "-4(%ebp), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x8B)
@@ -1715,7 +1715,7 @@ class assembler34(lex_test):
             (None, "addl", "-4(%ebp), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x03)
@@ -1730,7 +1730,7 @@ class assembler35(lex_test):
             (None, "cmpl", "$0x10, %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x83)
@@ -1745,7 +1745,7 @@ class assembler36(lex_test):
             (None, "cmpl", "4(%ebp), %eax"),
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x3B)
@@ -1761,7 +1761,7 @@ class assembler37(lex_test):
             (None, "jne", "l1")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x90)
@@ -1778,7 +1778,7 @@ class assembler38(lex_test):
             (None, "je", "l1")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 4)
         self.assert_(ord(asm_bytes[0]) == 0x90)
@@ -1796,7 +1796,7 @@ class assembler39(lex_test):
             (None, "jne", "l1")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 4)
         self.assert_(ord(asm_bytes[0]) == 0x90)
@@ -1813,7 +1813,7 @@ class assembler40(lex_test):
             (None, "call", "l1")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 6)
         self.assert_(ord(asm_bytes[0]) == 0x90)
@@ -1831,7 +1831,7 @@ class assembler41(lex_test):
             (None, "add", "$0, %esp")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x83)
@@ -1846,7 +1846,7 @@ class assembler42(lex_test):
             (None, "call", "*%eax")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 2)
         self.assert_(ord(asm_bytes[0]) == 0xFF)
@@ -1860,7 +1860,7 @@ class assembler43(lex_test):
             (None, "addl", "$10, %eax")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 3)
         self.assert_(ord(asm_bytes[0]) == 0x83)
@@ -1875,7 +1875,7 @@ class assembler44(lex_test):
             (None, "movl", "$10, 4(%ebp)")
             ]
 
-        code = pylex.asm_list_x86_32_to_code(asm_list)
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
         asm_bytes = code.get_code()
         self.assert_(len(asm_bytes) == 7)
         self.assert_(ord(asm_bytes[0]) == 0xC7)
@@ -1903,14 +1903,14 @@ class regtest01(lex_test):
 ##############################################################
 class errtest01(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         self.assertRaises( RuntimeError, obj.tokenize_pattern, "[")
         return
     pass
 
 class errtest02(lex_test):
     def runTest(self):
-        obj = pylex.lexer()
+        obj = pytoken.lexer()
         self.assertRaises( RuntimeError, obj.tokenize_pattern, "(")
         return
     pass

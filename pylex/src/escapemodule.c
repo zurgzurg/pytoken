@@ -6,7 +6,7 @@
 #include <limits.h>
 
 static int  escape_stop_here_counter = 0;
-static void escape_stop_here(void);
+void escape_stop_here(void);
 
 /***************************************************************/
 /***************************************************************/
@@ -508,7 +508,7 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
 /***                                                         ***/
 /*** the actual code objects - supports vcode - or actual    ***/
 /*** machine code. vcode is designed to be interpreted by    ***/
-/*** the python simulator function in pylex.py               ***/
+/*** the python simulator function in pytoken.py             ***/
 /***                                                         ***/
 /***************************************************************/
 /***************************************************************/
@@ -673,7 +673,7 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   if (code_obj_ptr->is_vcode) {
     bool_db_flag = PyBool_FromLong(debug_flag);
 
-    m = PyImport_ImportModule("pylex");
+    m = PyImport_ImportModule("pytoken");
     if (m==0)
       return 0;
     d = PyModule_GetDict(m);
@@ -795,15 +795,6 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   page_base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
   while (page_base < (unsigned char *)(self->u.buf + slen)) {
     i++;
-#if 0
-    if (i > 1) {
-      pid_t pid;
-      pid = getpid();
-      printf("pid= %d\n", pid);
-      sleep(10);
-      escape_stop_here();
-    }
-#endif
     status = mprotect(page_base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
     if (status != 0) {
       perror("mprotect failed:");
@@ -961,7 +952,7 @@ escape_get_bytes(PyObject *self, PyObject *args)
   return result;
 }
 
-static void
+void
 escape_stop_here()
 {
   escape_stop_here_counter++;
