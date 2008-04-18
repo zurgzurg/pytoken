@@ -2019,11 +2019,12 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
 
     for i in var_len_instrs:
         assert len(i.bytes) == 0
-        assert len(i.bytes_rel8) > 0
-        if i.distance_to_targ < 15:
+        if i.distance_to_targ < 15 and i.asm_op != "call":
+            assert len(i.bytes_rel8) > 0
             i.bytes = i.bytes_rel8
             i.which_variant = "rel8"
         else:
+            assert len(i.bytes_rel32) > 0
             i.bytes = i.bytes_rel32
             i.which_variant = "rel32"
 

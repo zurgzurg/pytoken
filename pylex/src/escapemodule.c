@@ -5,6 +5,9 @@
 #include <sys/mman.h>
 #include <limits.h>
 
+static int  escape_stop_here_counter = 0;
+static void escape_stop_here(void);
+
 /***************************************************************/
 /***************************************************************/
 /***                                                         ***/
@@ -659,9 +662,6 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   int debug_flag, v;
   static char *kwlist[] = {"lexer_state", "debug", 0};
 
-  unsigned char *base;
-  int status;
-
   assert(arg_self->ob_type == &code_type);
   code_obj_ptr = (code_t *)arg_self;
   
@@ -691,16 +691,7 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
     return res;
   }
 
-  base = (unsigned char *)((unsigned int)code_obj_ptr->u.buf & 0xFFFFF000);
-  status = mprotect(base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
-  if (status != 0) {
-    perror("mprotect failed.\n");
-    exit(1);
-  }
-
   asm_func = (asm_func_t)(code_obj_ptr->u.buf);
-
-  __asm__ __volatile__ ( "mfence" : : : "memory" );
   v = (*asm_func)(code_obj_ptr, (lexer_state_t*)lbuf);
   res = PyInt_FromLong(v);
   return res;
@@ -785,7 +776,8 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
 {
   code_t *self;
   const char *sbuf;
-  int i, slen;
+  int i, slen, status;
+  unsigned char *page_base;
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
@@ -798,6 +790,27 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   for (i=0; i<slen; i++)
     self->u.buf[i] = sbuf[i];
   self->num_in_buf = slen;
+
+  i = 0;
+  page_base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
+  while (page_base < (unsigned char *)(self->u.buf + slen)) {
+    i++;
+#if 0
+    if (i > 1) {
+      pid_t pid;
+      pid = getpid();
+      printf("pid= %d\n", pid);
+      sleep(10);
+      escape_stop_here();
+    }
+#endif
+    status = mprotect(page_base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
+    if (status != 0) {
+      perror("mprotect failed:");
+      exit(1);
+    }
+    page_base = page_base + 4096;
+  }
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -946,6 +959,13 @@ escape_get_bytes(PyObject *self, PyObject *args)
     return 0;
   result = PyString_FromStringAndSize(ptr, n_bytes);
   return result;
+}
+
+static void
+escape_stop_here()
+{
+  escape_stop_here_counter++;
+  return;
 }
 
 static PyObject *

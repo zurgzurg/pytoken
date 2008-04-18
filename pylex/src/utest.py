@@ -882,7 +882,8 @@ class asm_full_01(lex_test):
             print "---------------"
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py")
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, asm_mode="py",
+                                                 print_asm_txt=False)
         
         lstate = pylex.lexer_state();
         lstate.set_input("aa")
@@ -954,7 +955,7 @@ class asm_full_04(lex_test):
         code1   = lexer_obj.compile_to_intermediate_form()
 
         asm_list = pylex.iform_to_asm_list_x86_32(code1)
-        code_x86 = pylex.asm_list_x86_32_to_code(asm_list, print_asm_txt=True)
+        code_x86 = pylex.asm_list_x86_32_to_code(asm_list)
         
         lstate = pylex.lexer_state();
         lstate.set_input("abc")
@@ -1917,16 +1918,17 @@ class errtest02(lex_test):
 ##############################################################
 class looper(lex_test):
     def runTest(self):
+        global verbose_mode
         sym_tab = globals()
         for n, sym in sym_tab.iteritems():
             if type(sym) is not type or n in ("looper", "lex_test"):
                 continue
-            if 1:
+            if verbose_mode:
                 print "starting on", n
             tc = sym()
             nrefs = sys.gettotalrefcount()
             for i in range(10):
-                if 1:
+                if verbose_mode:
                     print "testing num", i
                 tc.runTest()
                 nrefs2 = sys.gettotalrefcount()
@@ -1955,6 +1957,7 @@ test_groups = ["tokens", "postfix", "nfa", "dfa", "iform",
 tests_tbl = {}
 
 def get_all_objs_by_name_prefix(p):
+    "Return the class objs that have names that match the prefix p."
     symtab = globals()
     plen = len(p)
     all_names = symtab.keys()
@@ -1970,8 +1973,47 @@ def get_all_objs_by_name_prefix(p):
     result = [symtab[n] for n in matching_names]
     return result
 
-for g in test_groups:
-    tests_tbl[g] = get_all_objs_by_name_prefix(g)
+def get_all_tests():
+    "Return a list of all test case class objects"
+    symtab = globals()
+
+    all_tests = []
+    for g in test_groups:
+        tests_tbl[g] = get_all_objs_by_name_prefix(g)
+        all_tests.extend(tests_tbl[g])
+    all_tests.append(symtab['looper'])
+
+    for sym, obj in symtab.items():
+        match = False
+        if type(obj) is not type:
+            continue
+        for gname in test_groups:
+            if sym.startswith(gname):
+                match = True
+        if sym == "looper" or sym=="lex_test":
+            match = True
+        assert match
+
+    return all_tests
+
+def make_suite(tlist):
+    symtab = globals()
+    suite = unittest.TestSuite()
+    for tname in tlist:
+        if tname in test_groups:
+            tmp = get_all_objs_by_name_prefix(tname)
+            for cls_obj in tmp:
+                t_obj = cls_obj()
+                suite.addTest(t_obj)
+        elif type(tname) is str:
+            cls_obj = symtab[tname]
+            t_obj = cls_obj()
+            suite.addTest(t_obj)
+        else:
+            cls_obj = tname
+            t_obj = cls_obj()
+            suite.addTest(t_obj)
+    return suite
 
 if __name__=="__main__":
     print "args=", sys.argv
@@ -1981,18 +2023,23 @@ if __name__=="__main__":
         sys.argv.pop(1)
 
     if len(sys.argv) > 1 and sys.argv[1] == "-loop":
-        suite = unittest.TestSuite()
+        symtab = globals()
+        suite = make_suite([sys.argv[3]])
         ntests = int(sys.argv[2])
-        tname = sys.argv[3]
-        d = globals()
-        cls_obj = d[tname]
-        t_obj = cls_obj()
-        suite.addTest(t_obj)
-        
         for c in xrange(ntests):
+            print "on iter", c
+            print "fill_addr = 0x%x" % escape.get_fill_caller_addr()
+            if c == 5:
+                escape.print_gdb_info()
             runner = unittest.TextTestRunner()
             runner.run(suite)
 
         print "Done"
     else:
-        unittest.main()
+        if len(sys.argv) > 1:
+            suite = make_suite(sys.argv[1:])
+        else:
+            tmp = get_all_tests()
+            suite = make_suite(tmp)
+        runner = unittest.TextTestRunner()
+        runner.run(suite)
