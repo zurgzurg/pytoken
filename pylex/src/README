@@ -49,17 +49,29 @@ How is it different from these packages:
 http://pypi.python.org/pypi/pyggy/0.3
 pyggy 0.3
 
+pyggy includes a lexer and parser generator. The lexer is
+table driven. The generated scanner is written in python. Takes
+an input specification file reminiscant of flex.
+
 
 -----
 http://pypi.python.org/pypi/PyLexer/0.3
 PyLexer 0.3
 
+Takes an input file in the general style of flex and generates
+a python based scanner. Appears to be similar to pyggy.
 
 -----
 http://pypi.python.org/pypi/SilverCity/0.9.5
 
+Python bindings for the SilverCity package. There is some
+kind of relationship to Scintilla but its not clear to me.
+
+
 -----
 http://pypi.python.org/pypi/reflex/0.1
+
+?
 
 -----
 http://pypi.python.org/pypi/Pyrr/0.2
