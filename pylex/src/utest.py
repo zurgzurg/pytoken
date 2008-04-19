@@ -65,8 +65,8 @@ import pdb
 import pytoken
 
 from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
-from pytoken import IFORM_LABEL, IFORM_LDW, IFORM_LDB, IFORM_STW, IFORM_STB, \
-     IFORM_CMP, IFORM_BEQ, IFORM_BNE, IFORM_NOP, IFORM_ADD, IFORM_RET
+from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
+     IR_CMP, IR_BEQ, IR_BNE, IR_NOP, IR_ADD, IR_RET
 
 sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
 import escape
@@ -555,14 +555,14 @@ class dfa05(lex_test):
         return
     pass
 ##############################################################
-class iform01(lex_test):
+class ir01(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code = pytoken.iform_code(lobj)
+        code = pytoken.ir_code(lobj)
         code.make_std_vars()
-        code.add_iform_label("lab_main1")
-        code.add_iform_set(code.data_var, 0)
-        code.add_iform_ret(code.data_var)
+        code.add_ir_label("lab_main1")
+        code.add_ir_set(code.data_var, 0)
+        code.add_ir_ret(code.data_var)
 
         lstate = pytoken.lexer_state()
         lstate.set_input("a")
@@ -572,15 +572,15 @@ class iform01(lex_test):
         return
     pass
 
-class iform02(lex_test):
+class ir02(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code = pytoken.iform_code(lobj)
+        code = pytoken.ir_code(lobj)
         code.make_std_vars()
-        code.add_iform_label("lab_main1")
-        code.add_iform_set(code.data_var, 2)
-        code.add_iform_add(code.data_var, 12)
-        code.add_iform_ret(code.data_var)
+        code.add_ir_label("lab_main1")
+        code.add_ir_set(code.data_var, 2)
+        code.add_ir_add(code.data_var, 12)
+        code.add_ir_ret(code.data_var)
 
         lstate = pytoken.lexer_state()
         lstate.set_input("a")
@@ -590,16 +590,16 @@ class iform02(lex_test):
         return
     pass
 
-class iform03(lex_test):
+class ir03(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code = pytoken.iform_code(lobj)
+        code = pytoken.ir_code(lobj)
         code.make_std_vars()
-        code.add_iform_label("lab_main1")
+        code.add_ir_label("lab_main1")
         r2 = code.make_new_var()
-        code.add_iform_set(code.data_var, 0xFF)
-        code.add_iform_set(r2, code.data_var)
-        code.add_iform_ret(r2)
+        code.add_ir_set(code.data_var, 0xFF)
+        code.add_ir_set(r2, code.data_var)
+        code.add_ir_ret(r2)
 
         lstate = pytoken.lexer_state()
         lstate.set_input("a")
@@ -611,16 +611,16 @@ class iform03(lex_test):
         return
     pass
 
-class iform04(lex_test):
+class ir04(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code = pytoken.iform_code(lobj)
+        code = pytoken.ir_code(lobj)
         code.make_std_vars()
-        code.add_iform_label("lab_main1")
+        code.add_ir_label("lab_main1")
         r2 = code.make_new_var()
-        code.add_iform_set(code.data_var, 0xFFEEDDCC)
-        code.add_iform_set(r2, code.data_var)
-        code.add_iform_ret(r2)
+        code.add_ir_set(code.data_var, 0xFFEEDDCC)
+        code.add_ir_set(r2, code.data_var)
+        code.add_ir_ret(r2)
 
         lstate = pytoken.lexer_state()
         lstate.set_input("a")
@@ -637,7 +637,7 @@ class asm01(lex_test):
         obj.add_pattern("a|b", None)
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        iform   = obj.compile_to_intermediate_form()
+        ir   = obj.compile_to_ir()
         return
     pass
 
@@ -648,7 +648,7 @@ class asm02(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
 
         lstate = pytoken.lexer_state()
         lstate.set_input("aa")
@@ -665,7 +665,7 @@ class asm03(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
 
         lstate = pytoken.lexer_state()
         lstate.set_input("bb")
@@ -685,7 +685,7 @@ class asm04(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
 
         lstate = pytoken.lexer_state()
         lstate.set_input("abab")
@@ -702,7 +702,7 @@ class asm05(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
 
         lstate = pytoken.lexer_state()
 
@@ -724,7 +724,7 @@ class asm06(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
 
         lstate = pytoken.lexer_state()
 
@@ -747,7 +747,7 @@ class asm07(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code    = obj.compile_to_intermediate_form()
+        code    = obj.compile_to_ir()
         return
     pass
 
@@ -759,7 +759,7 @@ class asm08(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_x86_32(code1)
         return
     pass
@@ -772,7 +772,7 @@ class asm09(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_x86_32(code1)
         return
     pass
@@ -785,7 +785,7 @@ class asm10(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         return
     pass
@@ -798,7 +798,7 @@ class asm11(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         self.assert_(isinstance(code2, pytoken.code))
         return
@@ -812,7 +812,7 @@ class asm12(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         func = code2.get_token
         self.assert_(callable(func))
@@ -827,7 +827,7 @@ class asm13(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         self.assert_(len(code2) >= 0)
         return
@@ -841,7 +841,7 @@ class asm14(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         self.assert_(len(code2) == len(code1.instructions))
         return
@@ -855,7 +855,7 @@ class asm15(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         
         lstate = pytoken.lexer_state()
@@ -873,7 +873,7 @@ class asm16(lex_test):
 
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
-        code1   = obj.compile_to_intermediate_form()
+        code1   = obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         
         lstate = pytoken.lexer_state();
@@ -891,7 +891,7 @@ class asm17(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         
         lstate = pytoken.lexer_state();
@@ -910,7 +910,7 @@ class asm18(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         
         lstate = pytoken.lexer_state();
@@ -933,13 +933,13 @@ class asm_full_01(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
         if 0:
             print "---------------"
             pytoken.print_instructions(code1)
             print "---------------"
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.ir_to_asm_list_x86_32(code1)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list, asm_mode="py",
                                                  print_asm_txt=False)
         
@@ -961,9 +961,9 @@ class asm_full_02(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.ir_to_asm_list_x86_32(code1)
         #pytoken.print_instructions(asm_list)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
@@ -986,9 +986,9 @@ class asm_full_03(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.ir_to_asm_list_x86_32(code1)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
         lstate = pytoken.lexer_state();
@@ -1010,9 +1010,9 @@ class asm_full_04(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.ir_to_asm_list_x86_32(code1)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
         
         lstate = pytoken.lexer_state();
@@ -1038,7 +1038,7 @@ class asm_full_05(lex_test):
             print "----------"
             print "dfa:"
             print dfa_obj
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
         if 0:
             print "----------"
             pytoken.print_instructions(code1)
@@ -1064,13 +1064,13 @@ class asm_full2_01(lex_test):
 
         nfa_obj = lexer_obj.build_nfa()
         dfa_obj = lexer_obj.build_dfa()
-        code1   = lexer_obj.compile_to_intermediate_form()
+        code1   = lexer_obj.compile_to_ir()
         if 0:
             print "---------------"
             pytoken.print_instructions(code1)
             print "---------------"
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(code1)
+        asm_list = pytoken.ir_to_asm_list_x86_32(code1)
         if 0:
             pytoken.print_instructions(asm_list)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
@@ -1095,12 +1095,12 @@ class asm_full2_01(lex_test):
 class manual_x86_01(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code_iform = pytoken.iform_code(lobj)
-        code_iform.make_std_vars()
-        code_iform.add_iform_set(code_iform.data_var, 0)
-        code_iform.add_iform_ret(code_iform.data_var)
+        code_ir = pytoken.ir_code(lobj)
+        code_ir.make_std_vars()
+        code_ir.add_ir_set(code_ir.data_var, 0)
+        code_ir.add_ir_ret(code_ir.data_var)
 
-        l = pytoken.iform_to_asm_list_x86_32(code_iform)
+        l = pytoken.ir_to_asm_list_x86_32(code_ir)
         code_x86 = pytoken.asm_list_x86_32_to_code(l)
 
         lstate   = pytoken.lexer_state()
@@ -1112,13 +1112,13 @@ class manual_x86_01(lex_test):
 class manual_x86_02(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
-        code_iform = pytoken.iform_code(lobj)
-        code_iform.make_std_vars()
+        code_ir = pytoken.ir_code(lobj)
+        code_ir.make_std_vars()
 
-        code_iform.add_iform_set(code_iform.data_var, 2)
-        code_iform.add_iform_ret(code_iform.data_var)
+        code_ir.add_ir_set(code_ir.data_var, 2)
+        code_ir.add_ir_ret(code_ir.data_var)
 
-        code_x86 = pytoken.compile_to_x86_32(code_iform)
+        code_x86 = pytoken.compile_to_x86_32(code_ir)
         lstate   = pytoken.lexer_state()
 
         v = code_x86.get_token(lstate)
@@ -1130,15 +1130,15 @@ class manual_x86_03(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
 
-        c = pytoken.iform_code(lobj)
+        c = pytoken.ir_code(lobj)
         c.make_std_vars()
 
-        c.add_iform_gparm(c.data_var, 1)
-        c.add_iform_call(c.data_var, c.call_method_addr, c.data_var,
+        c.add_ir_gparm(c.data_var, 1)
+        c.add_ir_call(c.data_var, c.call_method_addr, c.data_var,
                          "get_cur_addr", None)
-        c.add_iform_ret(c.data_var)
+        c.add_ir_ret(c.data_var)
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.ir_to_asm_list_x86_32(c)
         if 0:
             pytoken.print_instructions(asm_list)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
@@ -1159,16 +1159,16 @@ class manual_x86_04(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
 
-        c = pytoken.iform_code(lobj)
+        c = pytoken.ir_code(lobj)
         c.make_std_vars()
 
-        c.add_iform_gparm(c.data_var, 1)
-        c.add_iform_set(c.str_ptr_var, c.data_var)
-        c.add_iform_add(c.str_ptr_var, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
-        c.add_iform_ret(c.str_ptr_var)
+        c.add_ir_gparm(c.data_var, 1)
+        c.add_ir_set(c.str_ptr_var, c.data_var)
+        c.add_ir_add(c.str_ptr_var, c.char_ptr_offset)
+        c.add_ir_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
+        c.add_ir_ret(c.str_ptr_var)
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.ir_to_asm_list_x86_32(c)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list, print_asm_txt=False)
 
         base = code_x86.get_start_addr()
@@ -1186,17 +1186,17 @@ class manual_x86_05(lex_test):
     def runTest(self):
         lobj = pytoken.lexer()
 
-        c = pytoken.iform_code(lobj)
+        c = pytoken.ir_code(lobj)
         c.make_std_vars()
 
-        c.add_iform_gparm(c.data_var, 1)
-        c.add_iform_set(c.str_ptr_var, c.data_var)
-        c.add_iform_add(c.str_ptr_var, c.char_ptr_offset)
-        c.add_iform_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
-        c.add_iform_ldb(c.data_var, c.make_indirect_var(c.str_ptr_var))
-        c.add_iform_ret(c.data_var)
+        c.add_ir_gparm(c.data_var, 1)
+        c.add_ir_set(c.str_ptr_var, c.data_var)
+        c.add_ir_add(c.str_ptr_var, c.char_ptr_offset)
+        c.add_ir_ldw(c.str_ptr_var, c.make_indirect_var(c.str_ptr_var))
+        c.add_ir_ldb(c.data_var, c.make_indirect_var(c.str_ptr_var))
+        c.add_ir_ret(c.data_var)
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.ir_to_asm_list_x86_32(c)
         code_x86 = pytoken.asm_list_x86_32_to_code(asm_list)
 
         base = code_x86.get_start_addr()
@@ -1223,16 +1223,16 @@ class manual_x86_06(lex_test):
 
         lobj = pytoken.lexer()
 
-        c = pytoken.iform_code(lobj)
+        c = pytoken.ir_code(lobj)
         c.make_std_vars()
 
         # arg 0 = code obj ; 
         # arg 1 = lexer state
-        c.add_iform_gparm(c.data_var, 1)
-        c.add_iform_call(c.fill_status, c.fill_caller_addr, c.data_var)
-        c.add_iform_ret(c.fill_status)
+        c.add_ir_gparm(c.data_var, 1)
+        c.add_ir_call(c.fill_status, c.fill_caller_addr, c.data_var)
+        c.add_ir_ret(c.fill_status)
 
-        asm_list = pytoken.iform_to_asm_list_x86_32(c)
+        asm_list = pytoken.ir_to_asm_list_x86_32(c)
         if 0:
             pytoken.print_instructions(asm_list)
             #escape.print_gdb_info()
@@ -2008,7 +2008,7 @@ class looper(lex_test):
 ##
 ##############################################################
 ##############################################################
-test_groups = ["tokens", "postfix", "nfa", "dfa", "iform",
+test_groups = ["tokens", "postfix", "nfa", "dfa", "ir",
                "asm", "asm_full_", "asm_full2_", "manual_x86_",
                "assembler", 
                "errtest", "regtest"]
