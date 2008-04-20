@@ -92,6 +92,9 @@ static PyObject *lexer_state_stw(PyObject *, PyObject *);
 static int  *lexer_state_get_word_ptr(PyObject *);
 static char *lexer_state_get_char_ptr(PyObject *);
 
+static PyObject *lexer_state_repr(PyObject *);
+static PyObject *lexer_state_str(PyObject *);
+
 /*******************************************/
 /*                                         */
 /* next_char_ptr points to the next char   */
@@ -554,6 +557,36 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
   if (ptr2 >= start && ptr2 <= end)
     return 1;
   return 0;
+}
+
+static PyObject *
+lexer_state_repr(PyObject *self)
+{
+  lexer_state_t *ptr;
+  PyObject *result;
+
+  ptr = (lexer_state_t *)self;
+  result = PyString_FromFormat("<lbuf buf=0x%x next_char=0x%x size=%d eob=%d>",
+			       (unsigned int)ptr->buf,
+			       (unsigned int)ptr->next_char_ptr,
+			       ptr->size_of_buf,
+			       ptr->eob_found);
+  return result;
+}
+
+static PyObject *
+lexer_state_str(PyObject *self)
+{
+  lexer_state_t *ptr;
+  PyObject *result;
+
+  ptr = (lexer_state_t *)self;
+  result = PyString_FromFormat("<lbuf buf=0x%x next_char=0x%x size=%d eob=%d>",
+			       (unsigned int)ptr->buf,
+			       (unsigned int)ptr->next_char_ptr,
+			       ptr->size_of_buf,
+			       ptr->eob_found);
+  return result;
 }
 
 /***************************************************************/
@@ -1164,6 +1197,9 @@ initescape(void)
   lexer_state_type.tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   lexer_state_type.tp_doc         = "Full state for lexer code objs.";
   lexer_state_type.tp_init        = lexer_state_init;
+
+  lexer_state_type.tp_repr        = lexer_state_repr;
+  lexer_state_type.tp_str         = lexer_state_str;
 
   code = PyType_Ready(&lexer_state_type);
   if (code < 0)
