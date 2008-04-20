@@ -13,7 +13,7 @@ Here is a simple example:
   lexer_obj = pytoken.lexer()
   lexer_obj.add_pattern("a", 1)
   lexer_obj.add_pattern("b", 2)
-  lexer_obj.compile()
+  lexer_obj.compile_to_machine_code()
 
   buf = pytoken.lexer_state()
   buf.set_input("ab")
