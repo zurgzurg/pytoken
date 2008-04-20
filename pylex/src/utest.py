@@ -1056,6 +1056,25 @@ class asm_full_05(lex_test):
         return
     pass
 
+class asm_full_06(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("a", 1)
+        lexer_obj.add_pattern("b", 2)
+        lexer_obj.compile_to_machine_code()
+
+        buf = pytoken.lexer_state()
+        buf.set_input("ab")
+
+        tok = lexer_obj.get_token(buf)
+        assert tok == 1
+        pdb.set_trace()
+        tok = lexer_obj.get_token(buf)
+        assert tok == 2
+        return
+    pass
+        
+
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
