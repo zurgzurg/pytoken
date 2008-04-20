@@ -590,18 +590,20 @@ class lexer(object):
         lst = []
         c.ladd_ir_com(lst, "begin " + str(state))
         c.ladd_ir_label(lst, state.label)
-        if len(state.out_chars) > 0:
-            ld_src = c.make_indirect_var(c.str_ptr_var)
-            c.ladd_ir_ldb(lst, c.data_var, ld_src)
-            c.ladd_ir_add(lst, c.str_ptr_var, 1)
 
-            for ch in state.out_chars:
-                k = (state, ch)
-                dst = self.dfa_obj.trans_tbl[k]
-                assert len(dst) == 1
-                dst = dst[0]
-                c.ladd_ir_cmp(lst, c.data_var, ord(ch))
-                c.ladd_ir_beq(lst, dst.label)
+        assert len(state.out_chars) > 0
+
+        ld_src = c.make_indirect_var(c.str_ptr_var)
+        c.ladd_ir_ldb(lst, c.data_var, ld_src)
+        c.ladd_ir_add(lst, c.str_ptr_var, 1)
+
+        for ch in state.out_chars:
+            k = (state, ch)
+            dst = self.dfa_obj.trans_tbl[k]
+            assert len(dst) == 1
+            dst = dst[0]
+            c.ladd_ir_cmp(lst, c.data_var, ord(ch))
+            c.ladd_ir_beq(lst, dst.label)
 
         if state.user_action:
             c.ladd_ir_com(lst, "save string pointer - before exit")
