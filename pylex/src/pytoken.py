@@ -469,12 +469,6 @@ class lexer(object):
         dfa_obj.set_accepting_state(self.end2)
         self.end2.user_action = lexer.ACTION_NEED_FILL
         
-        for s in dfa_obj.states:
-            if s not in (self.end1, self.end2):
-                dfa_obj.add_edge(s, '\x00', self.end1)
-                assert '\x00' not in s.out_chars
-                s.out_chars.append('\x00')
-
         if 0:
             print "-----------------"
             print "At end of add_end_of_buf_edges"
@@ -591,19 +585,21 @@ class lexer(object):
         c.ladd_ir_com(lst, "begin " + str(state))
         c.ladd_ir_label(lst, state.label)
 
-        assert len(state.out_chars) > 0
-
         ld_src = c.make_indirect_var(c.str_ptr_var)
         c.ladd_ir_ldb(lst, c.data_var, ld_src)
         c.ladd_ir_add(lst, c.str_ptr_var, 1)
 
-        for ch in state.out_chars:
-            k = (state, ch)
-            dst = self.dfa_obj.trans_tbl[k]
-            assert len(dst) == 1
-            dst = dst[0]
-            c.ladd_ir_cmp(lst, c.data_var, ord(ch))
-            c.ladd_ir_beq(lst, dst.label)
+        if len(state.out_chars) > 0:
+            for ch in state.out_chars:
+                k = (state, ch)
+                dst = self.dfa_obj.trans_tbl[k]
+                assert len(dst) == 1
+                dst = dst[0]
+                c.ladd_ir_cmp(lst, c.data_var, ord(ch))
+                c.ladd_ir_beq(lst, dst.label)
+
+            c.ladd_ir_cmp(lst, c.data_var, 0)
+            c.ladd_ir_beq(lst, self.end1.label)
 
         if state.user_action:
             c.ladd_ir_com(lst, "save string pointer - before exit")
@@ -616,6 +612,7 @@ class lexer(object):
             c.ladd_ir_set(lst, c.data_var, state.user_action)
             c.ladd_ir_ret(lst, c.data_var)
             return lst
+
         c.ladd_ir_com(lst, "unmatched input")
         c.ladd_ir_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
         c.ladd_ir_ret(lst, c.data_var)
@@ -638,6 +635,9 @@ class lexer(object):
             dst = dst[0]
             c.ladd_ir_cmp(lst, c.data_var, ord(ch))
             c.ladd_ir_beq(lst, dst.label)
+
+        c.ladd_ir_cmp(lst, c.data_var, 0)
+        c.ladd_ir_beq(lst, self.end2.label)
 
         c.ladd_ir_com(lst, "unmatched input")
         c.ladd_ir_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
