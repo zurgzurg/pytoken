@@ -377,7 +377,7 @@ class fsa_state(object):
         return self.__repr__()
     def __repr__(self):
         if self.user_action:
-            return "state_%d_act=%d" % (self.num, self.user_action)
+            return "state_%d_action=%d" % (self.num, self.user_action)
         return "state_%d" % self.num
     pass
 
@@ -483,6 +483,9 @@ class lexer(object):
         return
 
     def compile_to_machine_code(self):
+        self.build_nfa()
+        self.build_dfa()
+        self.compile_to_ir()
         self.code_obj = compile_to_x86_32(self.ir)
         return self.code_obj
 

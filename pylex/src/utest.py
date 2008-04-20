@@ -1066,6 +1066,10 @@ class asm_full_06(lex_test):
         buf = pytoken.lexer_state()
         buf.set_input("ab")
 
+        print "FSA="
+        print lexer_obj.dfa_obj
+        print "------"
+
         tok = lexer_obj.get_token(buf)
         assert tok == 1
         pdb.set_trace()
