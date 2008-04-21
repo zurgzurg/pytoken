@@ -464,16 +464,8 @@ class lexer(object):
         self.end1 = dfa_obj.get_new_state()
         self.end2 = dfa_obj.get_new_state()
 
-        dfa_obj.add_edge(self.end1, '\x00', self.end2)
-
         dfa_obj.set_accepting_state(self.end2)
         self.end2.user_action = lexer.ACTION_NEED_FILL
-        
-        if 0:
-            print "-----------------"
-            print "At end of add_end_of_buf_edges"
-            print dfa_obj
-            print "-----------------"
         return
 
     def compile_to_machine_code(self):
