@@ -1,0 +1,80 @@
+What is pytoken
+
+Pytoken is a scanner generator. Given an input specification - a
+bunch of regular expressions - pytoken will generate x86 machine
+code that recognizes those regular expressions. Pytoken will be
+most useful for programmers that want to parse text files.
+
+Pytoken has separate objects for scanners and buffers.
+
+Here is a simple example:
+  import pytoken
+
+  lexer_obj = pytoken.lexer()
+  lexer_obj.add_pattern("a", 1)
+  lexer_obj.add_pattern("b", 2)
+  lexer_obj.compile_to_machine_code()
+
+  buf = pytoken.lexer_state()
+  buf.set_input("ab")
+
+  tok = lexer_obj.get_token(buf)
+  assert tok == 1
+  tok = lexer_obj.get_token(buf)
+  assert tok == 2
+
+Pytoken requires only python developement libraries, make and a C compiler.
+
+Pytoken has been written in a portable fashion - it is designed to support
+multiple CPU types, even though only the x86 (32 bit) is supported now.
+
+Why use pytoken
+
+1. Ease of use. Pytoken was created to make parsing files easy. The flex/lex
+   based scanners that are traditionally used in C based solutions have
+   complicated rules for buffer management. Pytoken follows the python
+   philispophy and makes buffer manegement explicit.
+
+2. Performance. pytoken was also written with the aim of creating very
+   high speed lexers. Tokenization is expensive, by definition some amount
+   of work needs to be done for each character in the input stream. Since
+   pytoken generates machine code directly it can ensure that no extra
+   work is done is processing the input stream. Pytoken aims to keep the
+   overhead of executing inside the python interpreter to a minimum.
+
+How is it different from these packages:
+
+
+-----
+http://pypi.python.org/pypi/pyggy/0.3
+pyggy 0.3
+
+pyggy includes a lexer and parser generator. The lexer is
+table driven. The generated scanner is written in python. Takes
+an input specification file reminiscant of flex.
+
+
+-----
+http://pypi.python.org/pypi/PyLexer/0.3
+PyLexer 0.3
+
+Takes an input file in the general style of flex and generates
+a python based scanner. Appears to be similar to pyggy.
+
+-----
+http://pypi.python.org/pypi/SilverCity/0.9.5
+
+Python bindings for the SilverCity package. There is some
+kind of relationship to Scintilla but its not clear to me.
+
+
+-----
+http://pypi.python.org/pypi/reflex/0.1
+
+?
+
+-----
+http://pypi.python.org/pypi/Pyrr/0.2
+home page link is dead
+
+-----
