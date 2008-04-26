@@ -1118,12 +1118,18 @@ escape_get_fill_caller_addr(PyObject *self, PyObject *args)
   return r;
 }
 
-extern void serialize_helper(void);
-
 static PyObject *
 escape_do_serialize(PyObject *self, PyObject *args)
 {
-  serialize_helper();
+  int op, reg[4];
+
+  asm volatile("pushl %%ebx      \n\t" /* save %ebx */
+	       "cpuid            \n\t"
+	       "movl %%ebx, %1   \n\t" /* save what cpuid just put in %ebx */
+	       "popl %%ebx       \n\t" /* restore the old %ebx */
+	       : "=a"(reg[0]), "=r"(reg[1]), "=c"(reg[2]), "=d"(reg[3])
+	       : "a"(op)
+	       : "cc");
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -1163,7 +1169,9 @@ static PyMethodDef escape_methods[] = {
    PyDoc_STR("Get address of code_call_fill_ptr function.")},
 
   {"do_serialize", escape_do_serialize, METH_NOARGS,
-   PyDoc_STR("Execute an x86 serializing instruction.")},
+   PyDoc_STR("Execute an x86 serializing instruction."
+	     "Forces cache flushes to allow code written as data to be"
+	     "loaded as instructions.")},
 
   {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
    
