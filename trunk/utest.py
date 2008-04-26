@@ -48,7 +48,7 @@ from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
 from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
      IR_CMP, IR_BEQ, IR_BNE, IR_NOP, IR_ADD, IR_RET
 
-sys.path.append("/home/ramb/src/pylex/src/build/lib.linux-i686-2.5")
+sys.path.append("./build/lib.linux-i686-2.5")
 import escape
 
 class lex_test(unittest.TestCase):
