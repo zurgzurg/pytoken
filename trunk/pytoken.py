@@ -41,7 +41,6 @@ import dl
 import pdb
 
 
-sys.path.append("./build/lib.linux-i686-2.5")
 import escape
 
 code        = escape.code
