@@ -1987,12 +1987,18 @@ class looper(lex_test):
             if verbose_mode:
                 print "starting on", n
             tc = sym()
-            nrefs = sys.gettotalrefcount()
+            try:
+                nrefs = sys.gettotalrefcount()
+            except AttributeError:
+                nres = 0
             for i in range(10):
                 if verbose_mode:
                     print "testing num", i
                 tc.runTest()
-                nrefs2 = sys.gettotalrefcount()
+                try:
+                    nrefs2 = sys.gettotalrefcount()
+                except AttributeError:
+                    nrefs2 = 0
                 self.assert_(nrefs2 - nrefs2 <= 3)
         return
     pass
