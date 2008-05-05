@@ -552,7 +552,10 @@ class lexer(object):
         return c
 
     def compile_one_node(self, c, state):
+
+        lab_unmatched_input = state.label + "_unmatched_input" 
         lst = []
+
         c.ladd_ir_com(lst, "begin " + str(state))
         c.ladd_ir_label(lst, state.label)
 
@@ -569,8 +572,9 @@ class lexer(object):
                 c.ladd_ir_cmp(lst, c.data_var, ord(ch))
                 c.ladd_ir_beq(lst, dst.label)
 
+        if not state.user_action:
             c.ladd_ir_cmp(lst, c.data_var, 0)
-            c.ladd_ir_beq(lst, self.end1.label)
+            c.ladd_ir_bne(lst, lab_unmatched_input)
 
         if state.user_action:
             c.ladd_ir_com(lst, "save string pointer - before exit")
@@ -585,6 +589,7 @@ class lexer(object):
             return lst
 
         c.ladd_ir_com(lst, "unmatched input")
+        c.ladd_ir_label(lst, lab_unmatched_input)
         c.ladd_ir_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
         c.ladd_ir_ret(lst, c.data_var)
         return lst
