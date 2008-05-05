@@ -572,9 +572,9 @@ class lexer(object):
                 c.ladd_ir_cmp(lst, c.data_var, ord(ch))
                 c.ladd_ir_beq(lst, dst.label)
 
-        if not state.user_action:
-            c.ladd_ir_cmp(lst, c.data_var, 0)
-            c.ladd_ir_bne(lst, lab_unmatched_input)
+            if not state.user_action:
+                c.ladd_ir_cmp(lst, c.data_var, 0)
+                c.ladd_ir_bne(lst, lab_unmatched_input)
 
         if state.user_action:
             c.ladd_ir_com(lst, "save string pointer - before exit")
