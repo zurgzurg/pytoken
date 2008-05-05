@@ -1123,6 +1123,7 @@ escape_do_serialize(PyObject *self, PyObject *args)
 {
   int op, reg[4];
 
+  op = 0;
   asm volatile("pushl %%ebx      \n\t" /* save %ebx */
 	       "cpuid            \n\t"
 	       "movl %%ebx, %1   \n\t" /* save what cpuid just put in %ebx */
