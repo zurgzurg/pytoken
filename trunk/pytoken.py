@@ -40,7 +40,6 @@ import re
 import dl
 import pdb
 
-
 import escape
 
 code        = escape.code
@@ -361,10 +360,10 @@ class fsa_state(object):
     pass
 
 class lexer(object):
-    ACTION_NEED_FILL      = 0
-    ACTION_FOUND_UNEXP    = 1
-    ACTION_FOUND_EOB      = 2
-    ACTION_INTERNAL_ERROR = 3
+    ACTION_FOUND_UNEXP    = 0
+    ACTION_FOUND_EOB      = 1
+    ACTION_ERR_IN_FILL    = 2
+    ACTION_BAD_FILL_RET   = 3
 
     FILL_RESULT_NO_NEW_DATA    = 0
     FILL_RESULT_NEW_DATA_READY = 1
@@ -383,9 +382,6 @@ class lexer(object):
         self.dfa_obj          = None
         self.ir               = None
         self.code_obj         = None
-
-        self.end1             = None
-        self.end2             = None
 
         return
 
@@ -433,25 +429,13 @@ class lexer(object):
 
     def build_dfa(self):
         self.dfa_obj = self.nfa_obj.convert_to_dfa()
-        self.add_end_of_buf_edges(self.dfa_obj)
         return self.dfa_obj
 
-    def add_end_of_buf_edges(self, dfa_obj):
-        assert dfa_obj.has_end_of_buf_edges == False, "Edges already present"
-        dfa_obj.has_end_of_buf_edges = True
-
-        self.end1 = dfa_obj.get_new_state()
-        self.end2 = dfa_obj.get_new_state()
-
-        dfa_obj.set_accepting_state(self.end2)
-        self.end2.user_action = lexer.ACTION_NEED_FILL
-        return
-
-    def compile_to_machine_code(self):
+    def compile_to_machine_code(self, debug=False):
         self.build_nfa()
         self.build_dfa()
         self.compile_to_ir()
-        self.code_obj = compile_to_x86_32(self.ir)
+        self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
 
     def get_token(self, lstate):
@@ -470,36 +454,19 @@ class lexer(object):
     ##
     ## intermediate representation generator
     ##
-    ## General approach: in each state get the next char
-    ## and add 1 to the next char pointer. The char is compared
-    ## to all outgoing edges from the current state. When a
-    ## match is found, branch to that state.
-    ##
-    ## The end of buffer detection is stolen from Flex. Two
-    ## null chars are placed sequentially. All states have
-    ## out edges to detect this case. Hopefully the two-null
-    ## char sequence is very rare in the users input.
-    ##
     ## The code object should be called like this
     ## code_obj_addr(code_obj, lex_state)
     ##
-    ## initial code sequence
-    ##   load second arg
-    ##   add offset to get address of lex_state->next_char_ptr
-    ##   deref ptr to get actual next_char_ptr
+    ## ----------------------------------------
+    ## return value protocol = int
     ##
-    ## each state looks roughly like this
-    ##   if this is an accepting state - save the
-    ##   char pointer, return value, and set the
-    ##   flag to indicate saved data is available
-    ##
-    ##   load cur char
-    ##
-    ##   branch to appopriate state based on char
-    ##
-    ##   if no appropriate char is found - then the
-    ##   lexer is wedged - since this is an input that
-    ##   is not matched by any user pattern - return a 1
+    ##  0 --> unhandled input
+    ##  1 --> end of buffer
+    ##  2 --> error in fill
+    ##  3 --> bad return code from fill
+    ##  3 --> user action
+    ##  4 --> user action
+    ##  5 --> ...
     ##
     ## The return value from the lexer is always an integer, which
     ## is used as an index into the self.actions list to find out
@@ -508,130 +475,210 @@ class lexer(object):
     ## if the lexer returns 0 a fill buffer operation is performed
     ## and a 1 indicates an unmatched input.
     ##
+    ##
+    ## end of buffer func -- the fill function
+    ## ---------------------------------------
+    ## called when NUL chars are found
+    ##
+    ## return values:
+    ##
+    ## 1 = got new data, pointers have been adjusted
+    ##     and the buffer may have moved
+    ##
+    ## 2 = no new data available, all pointers are unchanged
+    ##
+    ## 3 = error happened
+    ##
+    ##   ???? where is a real NUL char in the user data
+    ##        handled?
+    ##
     ####################################################
     ####################################################
     def compile_to_ir(self):
         self.ir = ir_code(self)
-        c = self.ir
-        c.make_std_vars()
+        ir = self.ir
+        ir.make_std_vars()
         for i, s in enumerate(self.dfa_obj.states):
             s.label = "lab_%d" % i
 
-        c.add_ir_com("main")
-        c.add_ir_gparm(c.lstate_ptr, 1)
+        ## initial code sequence
+        ##
+        ##   load second arg
+        ##   add offset to get address of lex_state->next_char_ptr
+        ##   deref ptr to get actual next_char_ptr
+        ##
+        ir.add_ir_com("main")
+        ir.add_ir_gparm(ir.lstate_ptr, 1)
+        ir.add_ir_set(ir.saved_valid, 0)
 
-        c.add_ir_com("get eob_found ptr")
-        c.add_ir_set(c.eob_found_ptr, c.lstate_ptr)
-        c.add_ir_add(c.eob_found_ptr, c.eob_found_offset)
+        ir.add_ir_com("get string ptr")
+        ir.add_ir_set(ir.tmp_var, ir.lstate_ptr)
+        ir.add_ir_add(ir.tmp_var, ir.char_ptr_offset)
+        ir.add_ir_ldw(ir.str_ptr_var, ir.make_indirect_var(ir.tmp_var))
 
-        c.add_ir_com("if eob found - return ACTION_FOUND_EOB")
-        c.add_ir_ldw(c.tmp_var, c.make_indirect_var(c.eob_found_ptr))
-        c.add_ir_cmp(c.tmp_var, 1)
-        c.add_ir_bne("lab_not_eob")
-        c.add_ir_set(c.tmp_var, lexer.ACTION_FOUND_EOB)
-        c.add_ir_ret(c.tmp_var)
-
-        c.add_ir_label("lab_not_eob")
-        c.add_ir_com("get string ptr")
-        c.add_ir_set(c.tmp_var, c.lstate_ptr)
-        c.add_ir_add(c.tmp_var, c.char_ptr_offset)
-        c.add_ir_ldw(c.str_ptr_var, c.make_indirect_var(c.tmp_var))
-
-        c.add_ir_com("no valid data yet")
-        c.add_ir_set(c.saved_valid, 0)
+        ir.add_ir_com("handle token start")
+        ir.add_ir_set(ir.token_start_ptr, ir.lstate_ptr)
+        ir.add_ir_add(ir.token_start_ptr, ir.token_start_offset)
+        ir.add_ir_stw(ir.make_indirect_var(ir.token_start_ptr), ir.str_ptr_var)
 
         for s in self.dfa_obj.states:
-            if s == self.end1:
-                tmp = self.compile_end1_of_buf_node(c, s)
-            elif s == self.end2:
-                tmp = self.compile_end2_of_buf_node(c, s)
-            else:
-                tmp = self.compile_one_node(c, s)
-            c.instructions.extend(tmp)
+            tmp = self.compile_one_node(s)
+            ir.instructions.extend(tmp)
 
-        return c
+        return self.ir
 
-    def compile_one_node(self, c, state):
-
-        lab_unmatched_input = state.label + "_unmatched_input" 
+    def compile_one_node(self, state):
+        ir = self.ir
         lst = []
 
-        c.ladd_ir_com(lst, "begin " + str(state))
-        c.ladd_ir_label(lst, state.label)
-
-        ld_src = c.make_indirect_var(c.str_ptr_var)
-        c.ladd_ir_ldb(lst, c.data_var, ld_src)
-        c.ladd_ir_add(lst, c.str_ptr_var, 1)
-
-        if len(state.out_chars) > 0:
-            for ch in state.out_chars:
-                k = (state, ch)
-                dst = self.dfa_obj.trans_tbl[k]
-                assert len(dst) == 1
-                dst = dst[0]
-                c.ladd_ir_cmp(lst, c.data_var, ord(ch))
-                c.ladd_ir_beq(lst, dst.label)
-
-            if not state.user_action:
-                c.ladd_ir_cmp(lst, c.data_var, 0)
-                c.ladd_ir_bne(lst, lab_unmatched_input)
-
+        ir.ladd_ir_com(lst, "begin " + str(state))
+        ir.ladd_ir_label(lst, state.label)
+        
+        ## 1. if this is an accepting state
+        ##      save the char pointer
+        ##      save return value
+        ##      set saved data valid flag
         if state.user_action:
-            c.ladd_ir_com(lst, "save string pointer - before exit")
-            c.ladd_ir_com(lst, "undo pointer advance at start of state")
-            c.ladd_ir_add(lst, c.str_ptr_var, -1)
-            c.ladd_ir_set(lst, c.tmp_var, c.lstate_ptr)
-            c.ladd_ir_add(lst, c.tmp_var, c.char_ptr_offset)
-            c.ladd_ir_stw(lst, c.make_indirect_var(c.tmp_var),
-                             c.str_ptr_var)
-            c.ladd_ir_set(lst, c.data_var, state.user_action)
-            c.ladd_ir_ret(lst, c.data_var)
-            return lst
+            ir.ladd_ir_com(lst, "accepting state")
+            ir.ladd_ir_com(lst, "save the char pointer")
+            ir.ladd_ir_set(lst, ir.saved_ptr, ir.str_ptr_var)
+            ir.ladd_ir_com(lst, "save the return value")
+            ir.ladd_ir_set(lst, ir.saved_result, state.user_action)
+            ir.ladd_ir_com(lst, "set saved data flag")
+            ir.ladd_ir_set(lst, ir.saved_valid, 1)
 
-        c.ladd_ir_com(lst, "unmatched input")
-        c.ladd_ir_label(lst, lab_unmatched_input)
-        c.ladd_ir_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
-        c.ladd_ir_ret(lst, c.data_var)
-        return lst
-
-    def compile_end1_of_buf_node(self, c, state):
-        lst = []
-
-        c.ladd_ir_com(lst, "begin " + str(state))
-        c.ladd_ir_label(lst, state.label)
-
-        ld_src = c.make_indirect_var(c.str_ptr_var)
-        c.ladd_ir_ldb(lst, c.data_var, ld_src)
-        c.ladd_ir_add(lst, c.str_ptr_var, 1)
-
+        ## 2. load cur char
+        ##    advance and save char pointer
+        ir.ladd_ir_ldb(lst, ir.data_var, ir.make_indirect_var(ir.str_ptr_var))
+        ir.ladd_ir_add(lst, ir.str_ptr_var, 1)
+        
+        ## 3. branch to appopriate state based on char
+        ##
+        lab_dispatch = state.label + "_dispatch"
+        ir.ladd_ir_label(lst, lab_dispatch)
         for ch in state.out_chars:
             k = (state, ch)
             dst = self.dfa_obj.trans_tbl[k]
             assert len(dst) == 1
             dst = dst[0]
-            c.ladd_ir_cmp(lst, c.data_var, ord(ch))
-            c.ladd_ir_beq(lst, dst.label)
+            ir.ladd_ir_cmp(lst, ir.data_var, ord(ch))
+            ir.ladd_ir_beq(lst, dst.label)
 
-        c.ladd_ir_cmp(lst, c.data_var, 0)
-        c.ladd_ir_beq(lst, self.end2.label)
+        ## 4. if control flow reaches this point then the current
+        ##    char does not match any next state - so either we
+        ##    have an error (illegal input char) or we hit EOB
+        ##
+        ## XXX - not handling case of user patterns
+        ## matching EOB chars
+        lab_eob = state.label + "_found_eob"
+        lab_bad_char = state.label + "_bad_char"
+        lab_1 = state.label + "_1"
+        lab_2 = state.label + "_2"
+        lab_3 = state.label + "_3"
+        lab_4 = state.label + "_4"
+        lab_5 = state.label + "_5"
 
-        c.ladd_ir_com(lst, "unmatched input")
-        c.ladd_ir_set(lst, c.data_var, lexer.ACTION_FOUND_UNEXP)
-        c.ladd_ir_ret(lst, c.data_var)
+        ## if NULL then do EOB work
+        ir.ladd_ir_com(lst, "no match on cur char")
+        ir.ladd_ir_cmp(lst, ir.data_var, 0)
+        ir.ladd_ir_beq(lst, lab_eob)
+        
+        ##  the current char is unmatched -- and is not NULL
+        ##
+        ##  if token_found_flag is set
+        ##    set token end ptr to saved value
+        ##    save cur char pointer
+        ##    return saved result
+        ##  else
+        ##    return error condition
+        ##
+        ir.ladd_ir_com(lst, "unmatched char")
+        ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
+        ir.ladd_ir_bne(lst, lab_bad_char)
 
-        return lst
+        ir.ladd_ir_com(lst, "unmatched char, but earlier match")
+        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
+                       ir.str_ptr_var)
+        ir.ladd_ir_ret(lst, ir.saved_result)
 
-    def compile_end2_of_buf_node(self, c, state):
-        lst = []
-        c.ladd_ir_com(lst, "begin end of buf code")
-        c.ladd_ir_label(lst, state.label)
-        c.ladd_ir_call(lst, c.fill_status, c.fill_caller_addr, c.lstate_ptr)
-        c.ladd_ir_cmp(lst, c.fill_status, lexer.FILL_RESULT_NO_NEW_DATA)
-        c.ladd_ir_bne(lst, "lab_end_fill_got_data")
-        c.ladd_ir_set(lst, c.eob_found_ptr, 1)
-        c.ladd_ir_label(lst, "lab_end_fill_got_data")
-        c.ladd_ir_set(lst, c.tmp_var, lexer.ACTION_INTERNAL_ERROR)
-        c.ladd_ir_ret(lst, c.tmp_var)
+        ir.ladd_ir_com(lst, "hit unmatched char")
+        ir.ladd_ir_label(lst, lab_bad_char)
+        ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_UNEXP)
+
+        # cur char is NULL - might be EOB marker
+        # save char pointer - fill routine might change it
+        # since the fill routine might reallocate the buffer
+        # call fill routine to maybe get more data
+
+        ir.ladd_ir_label(lst, lab_eob)
+
+        ir.ladd_ir_com(lst, "unmatched char")
+        ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
+        ir.ladd_ir_bne(lst, lab_5)
+
+        ir.ladd_ir_com(lst, "unmatched char, but earlier match")
+        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
+                       ir.str_ptr_var)
+        ir.ladd_ir_ret(lst, ir.saved_result)
+
+
+        ir.ladd_ir_label(lst, lab_5)
+        ir.ladd_ir_com(lst, "found eob char")
+
+        ir.ladd_ir_add(lst, ir.str_ptr_var, -1)
+        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
+                       ir.str_ptr_var)
+
+        ir.ladd_ir_call(lst, ir.fill_status, ir.fill_caller_addr,
+                        ir.lstate_ptr)
+
+        # 1 = got more data
+        # need to update various lexer state pointers
+        ir.ladd_ir_cmp(lst, ir.fill_status, 1)
+        ir.ladd_ir_bne(lst, lab_4)
+
+        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
+        ir.ladd_ir_ldw(lst, ir.str_ptr_var, ir.make_indirect_var(ir.tmp_var))
+
+        ir.ladd_ir_set(lst, ir.token_start_ptr, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.token_start_ptr, ir.token_start_offset)
+
+        ir.ladd_ir_ldb(lst, ir.data_var, ir.make_indirect_var(ir.str_ptr_var))
+        ir.ladd_ir_br(lst, lab_dispatch)
+
+
+        # 2a = no more data avail - but with previous valid result
+        ir.ladd_ir_label(lst, lab_4)
+        ir.ladd_ir_cmp(lst, ir.fill_status, 2)
+        ir.ladd_ir_bne(lst, lab_1)
+        ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
+        ir.ladd_ir_bne(lst, lab_3)
+        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+        ir.ladd_ir_ret(lst, ir.saved_result)
+        
+        # 2b = no more data avail - and no previous valid result
+        ir.ladd_ir_label(lst, lab_3)
+        ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_EOB)
+
+        # 3 = something went wrong in fill
+        ir.ladd_ir_label(lst, lab_1)
+        ir.ladd_ir_cmp(lst, ir.fill_status, 3)
+        ir.ladd_ir_bne(lst, lab_2)
+        ir.ladd_ir_ret(lst, lexer.ACTION_ERR_IN_FILL)
+
+        # 4 = last case = fill returns illegal val
+        ir.ladd_ir_label(lst, lab_2)
+        ir.ladd_ir_ret(lst, lexer.ACTION_BAD_FILL_RET)
+
         return lst
 
     #######################################
@@ -1006,7 +1053,7 @@ def ir_add(var, v):
     return (IR_ADD, var, v)
 
 def ir_ret(var):
-    assert_is_var(var)
+    assert_is_var_or_const(var)
     return (IR_RET, var)
 
 def ir_com(txt):
@@ -1122,8 +1169,11 @@ def str_ir_add(tup):
 
 def str_ir_ret(tup):
     assert len(tup)==2 and tup[0]==IR_RET
-    assert_is_var(tup[1])
-    return "    ret %s" % tup[1]
+    assert_is_var_or_const(tup[1])
+    if type(tup[1]) is int:
+        return "    ret %d" % tup[1]
+    else:
+        return "    ret %s" % tup[1]
 
 def str_ir_com(tup):
     assert len(tup)==2 and tup[0]==IR_COM
@@ -1278,12 +1328,17 @@ class ir_code(object):
         self.str_ptr_var        = None
         self.lstate_ptr         = None
         self.data_var           = None
+
+        self.saved_valid        = None
+        self.saved_ptr          = None
+        self.saved_result       = None
+
         self.next_avail_var_num = 1
         self.instructions       = []
         self.call_method_addr   = escape.get_func_addr("PyObject_CallMethod")
         self.char_ptr_offset    = escape.get_char_ptr_offset()
+        self.token_start_offset = escape.get_token_start_offset()
         self.fill_caller_addr   = escape.get_fill_caller_addr()
-        self.eob_found_offset   = escape.get_eob_found_offset()
         self.lbuf               = None
 
         symtab = globals()
@@ -1311,16 +1366,18 @@ class ir_code(object):
         return '(' + v + ')'
 
     def make_std_vars(self):
-        self.tmp_var       = self.make_new_var()
-        self.tmp_var2      = self.make_new_var()
-        self.str_ptr_var   = self.make_new_var()
-        self.data_var      = self.make_new_var()
-        self.saved_valid   = self.make_new_var()
-        self.saved_ptr     = self.make_new_var()
-        self.saved_result  = self.make_new_var()
-        self.lstate_ptr    = self.make_new_var()
-        self.fill_status   = self.make_new_var()
-        self.eob_found_ptr = self.make_new_var()
+        self.tmp_var           = self.make_new_var()
+        self.tmp_var2          = self.make_new_var()
+        self.str_ptr_var       = self.make_new_var()
+        self.token_start_ptr   = self.make_new_var()
+        self.data_var          = self.make_new_var()
+
+        self.saved_valid       = self.make_new_var()
+        self.saved_ptr         = self.make_new_var()
+        self.saved_result      = self.make_new_var()
+
+        self.lstate_ptr        = self.make_new_var()
+        self.fill_status       = self.make_new_var()
         return
 
     def set_str_ptr_var(self, val):
@@ -1452,10 +1509,10 @@ def compile_to_vcode(ir):
         r.append(tup)
     return r
 
-def compile_to_x86_32(ir):
+def compile_to_x86_32(ir, debug=False):
     if 1:
-        l = ir_to_asm_list_x86_32(ir)
-        r = asm_list_x86_32_to_code(l)
+        l = ir_to_asm_list_x86_32(ir, debug=debug)
+        r = asm_list_x86_32_to_code(l, print_asm_txt=debug)
         escape.do_serialize()
     return r
 
@@ -1537,13 +1594,15 @@ def asm_list_x86_32_to_code_as(lines, print_asm_txt=False):
     code_obj.set_bytes(b)
     return code_obj
 
-def ir_to_asm_list_x86_32(ir):
+def ir_to_asm_list_x86_32(ir, debug=False):
     asm_list = []
 
     var2offset = {}
     frame_offset = -4
     for r in ir.all_vars:
         var2offset[r] = frame_offset
+        if debug:
+            print "   offset=%d ---> <%s>" % (frame_offset, r)
         frame_offset += -4
     n_locals = len(ir.all_vars)
     locals_size = n_locals * 4
@@ -1662,7 +1721,8 @@ def ir_to_asm_list_x86_32(ir):
             dst_lab = tup[1]
             asm_list.append((None, "jne", dst_lab))
         elif op==IR_BR:
-            assert None, "op not yet supported:" + instr2txt[op]
+            dst_lab = tup[1]
+            asm_list.append((None, "jmp", dst_lab))
         elif op==IR_NOP:
             assert None, "op not yet supported:" + instr2txt[op]
         elif op==IR_ADD:
@@ -1683,13 +1743,22 @@ def ir_to_asm_list_x86_32(ir):
                 asm_list.append((None, "movl", "%%eax, %d(%%ebp)" % r_off))
         elif op==IR_RET:
             var = tup[1]
-            assert_is_var(var)
-            offset = var2offset[var]
-            asm_list.append(("#", "ret", None))
-            asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
-            asm_list.append((None, "movl", "%ebp, %esp"))
-            asm_list.append((None, "popl", "%ebp"))
-            asm_list.append((None, "ret", None))
+            assert_is_var_or_const(var)
+            if is_var(var):
+                offset = var2offset[var]
+                asm_list.append(("#", "ret", None))
+                asm_list.append((None, "movl", "%d(%%ebp), %%eax" % offset))
+                asm_list.append((None, "movl", "%ebp, %esp"))
+                asm_list.append((None, "popl", "%ebp"))
+                asm_list.append((None, "ret", None))
+            else:
+                assert type(var) is int
+                val = var
+                asm_list.append(("#", "ret", None))
+                asm_list.append((None, "movl", "$%d, %%eax" % val))
+                asm_list.append((None, "movl", "%ebp, %esp"))
+                asm_list.append((None, "popl", "%ebp"))
+                asm_list.append((None, "ret", None))
         elif op==IR_COM:
             asm_list.append(("#", tup[1], None))
         elif op==IR_CALL:
@@ -1869,6 +1938,7 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
                 else:
                     assert None, "movl"
             else:
+                pdb.set_trace()
                 assert None, "movl with unsupported src operand " + str(src)
         elif opcode=="movb":
             args2 = parse_x86_32_args(args)
@@ -1965,6 +2035,19 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             rel16or32_op = jumpcc_rel16or32_tbl[opcode]
             instr.bytes_rel32.append(0x0F)
             instr.bytes_rel32.append(rel16or32_op)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
+            instr.bytes_rel32.append(None)
+        elif opcode=="jmp":
+            assert type(args) is str
+            instr.jump_target = args
+            instr.is_var_len = True
+
+            instr.bytes_rel8.append(0xEB)
+            instr.bytes_rel8.append(None)
+
+            instr.bytes_rel32.append(0xE9)
             instr.bytes_rel32.append(None)
             instr.bytes_rel32.append(None)
             instr.bytes_rel32.append(None)
