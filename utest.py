@@ -634,7 +634,7 @@ class asm02(lex_test):
         lstate = pytoken.lexer_state()
         lstate.set_input("aa")
 
-        v = pytoken.run_vcode_simulation(code, lstate)
+        v = pytoken.run_vcode_simulation(code, lstate, debug_flag=False)
         self.assert_(obj.actions[v] == 1)
         return
     pass
@@ -741,6 +741,8 @@ class asm08(lex_test):
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_ir()
+        if 0:
+            pytoken.print_instructions(code1)
         code2 = pytoken.compile_to_x86_32(code1)
         return
     pass
@@ -894,13 +896,22 @@ class asm18(lex_test):
         code1   = lexer_obj.compile_to_ir()
         code2 = pytoken.compile_to_vcode(code1)
         
+        if 0:
+            pytoken.print_instructions(code2)
+
         lstate = pytoken.lexer_state();
         lstate.set_input("abc")
 
         tok = code2.get_token(lstate)
         self.assert_(lexer_obj.actions[tok] == 1)
 
+        if 0:
+            print lstate
+
         tok = code2.get_token(lstate)
+        if 0:
+            print "tok is -->", tok
+
         self.assert_(lexer_obj.actions[tok] == 2)
 
         return
@@ -1054,8 +1065,39 @@ class asm_full_06(lex_test):
 
         tok = lexer_obj.get_token(buf)
         assert tok == 1
+
+        if 0:
+            print "lexer state"
+            print buf
+
         tok = lexer_obj.get_token(buf)
+        #print "Returned tok", tok
         assert tok == 2
+        return
+    pass
+
+class asm_full_07(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", 1)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            pytoken.print_instructions(lexer_obj.ir)
+
+        def fill_func(lbuf):
+            lbuf.add_to_buffer("b")
+            return
+
+        # escape.print_gdb_info()
+
+        buf = pytoken.lexer_state()
+        buf.set_input("a")
+
+        buf.set_fill_method(fill_func)
+
+
+        tok = lexer_obj.get_token(buf)
         return
     pass
         
@@ -1084,7 +1126,7 @@ class asm_full2_01(lex_test):
 
         if 0:
             tup = lstate.get_all_state()
-            print "lstate=0x%x buf=0x%x size=%d next_char=0x%x eob=%d" % tup
+            print "lstate=0x%x buf=0x%x size=%d next_char=0x%x" % tup
             #escape.print_gdb_info()
 
         tok = code_x86.get_token(lstate)
@@ -1952,6 +1994,45 @@ class assembler44(lex_test):
         return
     pass
 
+class assembler45(lex_test):
+    def runTest(self):
+        asm_list = [
+            ("l1", "nop", None),
+            (None, "jmp", "l1")
+            ]
+
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 3)
+        self.assert_(ord(asm_bytes[0]) == 0x90)
+
+        self.assert_(ord(asm_bytes[1]) == 0xEB)
+        self.assert_(ord(asm_bytes[2]) == 0xFD)
+
+        return
+    pass
+
+class assembler46(lex_test):
+    def runTest(self):
+        asm_list = [
+            ("l1", "nop", None),
+            (None, "nop", None),
+            (None, "nop", None),
+            (None, "jmp", "l1")
+            ]
+
+        code = pytoken.asm_list_x86_32_to_code(asm_list)
+        asm_bytes = code.get_code()
+        self.assert_(len(asm_bytes) == 5)
+        self.assert_(ord(asm_bytes[0]) == 0x90)
+        self.assert_(ord(asm_bytes[1]) == 0x90)
+        self.assert_(ord(asm_bytes[2]) == 0x90)
+
+        self.assert_(ord(asm_bytes[3]) == 0xEB)
+        self.assert_(ord(asm_bytes[4]) == 0xFB)
+
+        return
+    pass
 ##############################################################
 class regtest01(lex_test):
     def runTest(self):
@@ -2084,7 +2165,6 @@ def make_suite(tlist):
     return suite
 
 if __name__=="__main__":
-    print "args=", sys.argv
     verbose_mode = False
     if len(sys.argv) > 1 and sys.argv[1] == "-v":
         verbose_mode = True

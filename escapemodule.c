@@ -63,9 +63,9 @@ static PyObject *lexer_state_set_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_get_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 static PyObject *lexer_state_set_fill_method(PyObject *, PyObject *);
-static PyObject *lexer_state_set_eob_found(PyObject *, PyObject *);
-static PyObject *lexer_state_get_eob_found(PyObject *, PyObject *);
 static PyObject *lexer_state_get_all_state(PyObject *, PyObject *);
+
+static PyObject *lexer_state_add_to_buffer(PyObject *, PyObject *);
 
 static PyObject *lexer_state_ldb(PyObject *, PyObject *);
 static PyObject *lexer_state_ldw(PyObject *, PyObject *);
@@ -92,16 +92,21 @@ static PyObject *lexer_state_str(PyObject *);
 typedef struct {
   PyObject_HEAD
 
-  char           *next_char_ptr;
   char           *buf;
+  char           *next_char_ptr;
+  char           *start_of_token;
   int             size_of_buf;
-  PyObject       *fill_ptr;
-  int             eob_found;
+  int             chars_in_buf;
+  PyObject       *fill_func_ptr;
 } lexer_state_t;
 
 static int is_valid_ptr(lexer_state_t *, char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
 static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
+
+#if 0
+static void lexer_state_print_buf(lexer_state_t *, int n_to_print);
+#endif
 
 static PyTypeObject lexer_state_type = {
   PyObject_HEAD_INIT(NULL)
@@ -125,13 +130,12 @@ static PyMethodDef lexer_state_methods[] = {
      "Set source of chars to read."},
     {"set_fill_method",   lexer_state_set_fill_method,   METH_VARARGS,
      "Set source of chars to read."},
-    {"set_eob_found",     lexer_state_set_eob_found,     METH_VARARGS,
-     "Set the eob_found flag."},
-    {"get_eob_found",     lexer_state_get_eob_found,     METH_NOARGS,
-     "Get the eob_found flag."},
+
+    {"add_to_buffer",     lexer_state_add_to_buffer,     METH_VARARGS,
+     "Add ARG to buffer. ARG can be a string."},
 
     {"get_all_state",     lexer_state_get_all_state,     METH_NOARGS,
-     "Return base ptr, buf size, next char ptr, eob flag as tuple."},
+     "Return base ptr, buf size, next char ptr as tuple."},
 
     {"ldb",               lexer_state_ldb,               METH_VARARGS,
      "simulator method - load byte"},
@@ -152,10 +156,11 @@ lexer_state_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  self->next_char_ptr = 0;
-  self->buf           = 0;
-  self->size_of_buf   = 0;
-  self->eob_found     = 0;
+  self->buf            = 0;
+  self->next_char_ptr  = 0;
+  self->start_of_token = 0;
+  self->size_of_buf    = 0;
+  self->chars_in_buf   = 0;
   return 0;
 }
 
@@ -166,11 +171,15 @@ lexer_state_dealloc(PyObject *arg_self)
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (self->buf)
+  if (self->buf) {
+    memset(self->buf, 0, self->size_of_buf);
     free(self->buf);
-  self->next_char_ptr = 0;
-  self->buf           = 0;
-  self->size_of_buf   = 0;
+  }
+  self->buf            = 0;
+  self->next_char_ptr  = 0;
+  self->start_of_token = 0;
+  self->size_of_buf    = 0;
+  self->chars_in_buf   = 0;
   arg_self->ob_type->tp_free(arg_self);
 }
 
@@ -284,16 +293,44 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
     return 0;
   if (self->buf)
     free(self->buf);
-  self->buf = malloc(tmp_buf_len + 2);
-  self->size_of_buf = tmp_buf_len + 2;
+
+  self->buf            = malloc(tmp_buf_len + 2);
+  self->next_char_ptr  = self->buf;
+  self->start_of_token = 0;
+  self->size_of_buf    = tmp_buf_len + 2;
+  self->chars_in_buf   = tmp_buf_len + 2;
+
   for (i=0; i<tmp_buf_len; i++)
     self->buf[i] = tmp_buf[i];
   self->buf[tmp_buf_len]     = '\0';
   self->buf[tmp_buf_len + 1] = '\0';
-  self->next_char_ptr = self->buf;
 
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+static int
+lexer_state_resize_buffer(lexer_state_t *self, int new_size)
+{
+  char *new_buf;
+  int n_remaining;
+
+  new_buf = malloc(new_size + 2);
+  if (new_buf == 0)
+    return 0;
+
+  n_remaining = self->size_of_buf - (self->start_of_token - self->buf);
+  memcpy(new_buf, self->start_of_token, n_remaining);
+
+  self->next_char_ptr = new_buf + (self->next_char_ptr - self->buf);
+  self->start_of_token = new_buf;
+  self->size_of_buf = new_size;
+  self->chars_in_buf = n_remaining;
+
+  free(self->buf);
+  self->buf = new_buf;
+
+  return 1;
 }
 
 static PyObject *
@@ -311,44 +348,10 @@ lexer_state_set_fill_method(PyObject *arg_self, PyObject *args)
     return 0;
   }
   Py_INCREF(func);
-  self->fill_ptr = func;
+  self->fill_func_ptr = func;
 
   Py_INCREF(Py_None);
   return Py_None;
-}
-
-static PyObject *
-lexer_state_set_eob_found(PyObject *arg_self, PyObject *args)
-{
-  lexer_state_t *self;
-  int val;
-
-  assert(arg_self->ob_type == &lexer_state_type);
-  self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "i:set_eob_found", &val))
-    return 0;
-
-  if (val!=0 && val!=1) {
-    PyErr_Format(PyExc_RuntimeError, "Can only set to 0 or 1.");
-    return 0;
-  }
-
-  self->eob_found = val;
-  Py_INCREF(Py_None);
-  return Py_None;
-}
-
-static PyObject *
-lexer_state_get_eob_found(PyObject *arg_self, PyObject *args)
-{
-  lexer_state_t *self;
-  PyObject *result;
-
-  assert(arg_self->ob_type == &lexer_state_type);
-  self = (lexer_state_t *)arg_self;
-  assert(self->eob_found==0 || self->eob_found==1);
-  result = PyInt_FromLong(self->eob_found);
-  return result;
 }
 
 static PyObject *
@@ -359,10 +362,80 @@ lexer_state_get_all_state(PyObject *arg_self, PyObject *args)
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  result = Py_BuildValue("(iiiii)", (int)self, (int)self->buf,
-			 self->size_of_buf,
-			 (int)self->next_char_ptr, self->eob_found);
+  result = Py_BuildValue("(iiii)", (int)self, (int)self->buf,
+			 self->size_of_buf, (int)self->next_char_ptr);
   return result;
+}
+
+static PyObject *
+lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
+{
+  lexer_state_t *self;
+  PyObject *obj_to_add;
+  Py_ssize_t str_len;
+  int space_left, new_size, space_needed;
+  const char *txt;
+  char *dst;
+
+  assert(arg_self->ob_type == &lexer_state_type);
+  self = (lexer_state_t *)arg_self;
+
+#if 0
+  printf("lexer_state_add_to_buffer() -- called - starting\n");
+  printf("buf=0x%x start_of_token=0x%x size_of_buf=%d "
+	 "n_chars=%d next_char_ptr=0x%x\n",
+	 (unsigned int)self->buf, (unsigned int)self->start_of_token,
+	 self->size_of_buf, self->chars_in_buf,
+	 (unsigned int)self->next_char_ptr);
+#endif
+
+  if (!PyArg_ParseTuple(args, "O", &obj_to_add))
+    return 0;
+
+  space_left = self->start_of_token - self->buf;
+#if 0
+  printf("lexer_state_add_to_buffer() -- %d bytes left\n", space_left);
+#endif
+
+  if ( ! PyString_Check(obj_to_add)) {
+    PyErr_Format(PyExc_RuntimeError,
+		 "add_to_buffer: only string objs can be used.");
+    return 0;
+  }
+
+  str_len = PyString_Size(obj_to_add);
+  txt = PyString_AsString(obj_to_add);
+  if (str_len <= 0) {
+    PyErr_Format(PyExc_RuntimeError, "add_to_buffer: received empty string");
+    return 0;
+  }
+
+  if (str_len > space_left) {
+    space_needed = str_len - space_left;
+    new_size = self->size_of_buf + space_needed;
+    if ( ! lexer_state_resize_buffer(self, new_size) ) {
+      PyErr_Format(PyExc_RuntimeError, "add_to_buffer: resize failed");
+      return 0;
+    }
+  }
+    
+  dst = self->buf + self->chars_in_buf - 2;
+  memcpy(dst, txt, str_len);
+
+  self->chars_in_buf += str_len;
+  self->buf[ self->chars_in_buf - 1] = '\0';
+  self->buf[ self->chars_in_buf ] = '\0';
+
+#if 0
+  printf("buf=0x%x start_of_token=0x%x size_of_buf=%d "
+	 "n_chars=%d next_char_ptr=0x%x\n",
+	 (unsigned int)self->buf, (unsigned int)self->start_of_token,
+	 self->size_of_buf, self->chars_in_buf,
+	 (unsigned int)self->next_char_ptr);
+#endif
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static PyObject *
@@ -542,6 +615,30 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
   return 0;
 }
 
+#if 0
+static void
+lexer_state_print_buf(lexer_state_t *self, int n_to_print)
+{
+  int i, lim;
+  char ch;
+
+  if (n_to_print > self->chars_in_buf)
+    lim = self->chars_in_buf;
+  else
+    lim = n_to_print;
+
+  printf("lexer buf:");
+  for (i=0; i < lim; i++) {
+    ch = self->buf[i];
+    if (ch >= ' ' && ch <= '~')
+      printf("%c", ch);
+    else
+      printf("<%02x>", (unsigned int)ch);
+  }
+  printf("\n");
+}
+#endif
+
 static PyObject *
 lexer_state_repr(PyObject *self)
 {
@@ -549,11 +646,13 @@ lexer_state_repr(PyObject *self)
   PyObject *result;
 
   ptr = (lexer_state_t *)self;
-  result = PyString_FromFormat("<lbuf buf=0x%x next_char=0x%x size=%d eob=%d>",
+  result = PyString_FromFormat("<lexer_state buf=0x%x next_char=0x%x "
+			       "tok_start=0x%x size_of_buf=%d "
+			       "chars_in_buf=%d>",
 			       (unsigned int)ptr->buf,
 			       (unsigned int)ptr->next_char_ptr,
-			       ptr->size_of_buf,
-			       ptr->eob_found);
+			       (unsigned int)ptr->start_of_token,
+			       ptr->size_of_buf, ptr->chars_in_buf);
   return result;
 }
 
@@ -564,11 +663,13 @@ lexer_state_str(PyObject *self)
   PyObject *result;
 
   ptr = (lexer_state_t *)self;
-  result = PyString_FromFormat("<lbuf buf=0x%x next_char=0x%x size=%d eob=%d>",
+  result = PyString_FromFormat("<lexer_state buf=0x%x next_char=0x%x "
+			       "tok_start=0x%x size_of_buf=%d "
+			       "chars_in_buf=%d>",
 			       (unsigned int)ptr->buf,
 			       (unsigned int)ptr->next_char_ptr,
-			       ptr->size_of_buf,
-			       ptr->eob_found);
+			       (unsigned int)ptr->start_of_token,
+			       ptr->size_of_buf, ptr->chars_in_buf);
   return result;
 }
 
@@ -595,7 +696,7 @@ static PyObject *code_get_start_addr(PyObject *, PyObject *);
 static PyObject *code_get_code(PyObject *, PyObject *);
 
 static PyObject *code_get_fill_caller_addr(PyObject *, PyObject *);
-static int code_call_fill_ptr(lexer_state_t *self);
+static int code_call_lexer_state_fill_func(lexer_state_t *self);
 
 typedef struct {
   PyObject_HEAD
@@ -936,49 +1037,47 @@ code_get_fill_caller_addr(PyObject *arg_self, PyObject *args)
   PyObject *result;
   long addr;
 
-  addr = (long)&code_call_fill_ptr;
+  addr = (long)&code_call_lexer_state_fill_func;
   result = PyInt_FromLong(addr);
   return result;
 }
 
 static int
-code_call_fill_ptr(lexer_state_t *lstate)
+code_call_lexer_state_fill_func(lexer_state_t *lstate)
 {
   PyObject *fill_status, *arg_list;
-  long val;
+  long n1, n2;
+
+  /* return val:               */
+  /* 1 = got more data         */
+  /* 2 = no more data avail    */
+  /* 3 = something went wrong  */
 
   if (lstate == 0) {
     PyErr_Format(PyExc_RuntimeError, "null lexer state sent to fill runtime");
-    return 2;
+    return 3;
   }
-  if (lstate->fill_ptr == 0) {
+  if (lstate->fill_func_ptr == 0) {
     PyErr_Format(PyExc_RuntimeError, "no fill pointer set in lexer state obj");
-    return 2;
+    return 3;
   }
+
+  n1 = lstate->chars_in_buf - (lstate->next_char_ptr - lstate->buf - 1);
+
   arg_list = Py_BuildValue("(O)", lstate);
   if (arg_list == 0)
-    return 2;
+    return 3;
 
-  fill_status = PyObject_Call(lstate->fill_ptr, arg_list, 0);
+  fill_status = PyObject_Call(lstate->fill_func_ptr, arg_list, 0);
   if (fill_status == 0)
-    return 2;
+    return 3;
 
-  if ( ! PyNumber_Check(fill_status)) {
-    PyErr_Format(PyExc_RuntimeError, "Fill method returned non-numeric");
-    Py_DECREF(fill_status);
-    return 2;
-  }
-
-  val = PyInt_AsLong(fill_status);
   Py_DECREF(fill_status);
-  if (val != 0 && val != 1) {
-    PyErr_Format(PyExc_RuntimeError,
-		 "Unexpected return val from fill method=%ld", val);
-    return 2;
-  }
-  
 
-  return val;
+  n2 = lstate->chars_in_buf - (lstate->next_char_ptr - lstate->buf - 1);
+  if (n2 > n1)
+    return 1;
+  return 2;
 }
 
 /***************************************************************/
@@ -1076,7 +1175,7 @@ escape_get_char_ptr_offset(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-escape_get_eob_found_offset(PyObject *self, PyObject *args)
+escape_get_token_start_offset(PyObject *self, PyObject *args)
 {
   lexer_state_t lstate;
   char *p1, *p2;
@@ -1084,7 +1183,7 @@ escape_get_eob_found_offset(PyObject *self, PyObject *args)
   PyObject *result;
   
   p1 = (char *)&lstate;
-  p2 = (char *)&lstate.eob_found;
+  p2 = (char *)&lstate.start_of_token;
   offset = p2 - p1;
   result = PyInt_FromLong(offset);
   return result;
@@ -1096,7 +1195,7 @@ escape_get_fill_caller_addr(PyObject *self, PyObject *args)
   long addr;
   PyObject *r;
 
-  addr = (long)&code_call_fill_ptr;
+  addr = (long)&code_call_lexer_state_fill_func;
   r = PyInt_FromLong(addr);
   return r;
 }
@@ -1145,9 +1244,8 @@ static PyMethodDef escape_methods[] = {
 
   {"get_char_ptr_offset", escape_get_char_ptr_offset, METH_NOARGS,
    PyDoc_STR("Return lex state offset for character pos ptr.")},
-
-  {"get_eob_found_offset", escape_get_eob_found_offset, METH_NOARGS,
-   PyDoc_STR("Return lex state offset for eob_found flag.")},
+  {"get_token_start_offset", escape_get_token_start_offset, METH_NOARGS,
+   PyDoc_STR("Return lex state offset for character pos ptr.")},
 
   {"get_fill_caller_addr", escape_get_fill_caller_addr, METH_NOARGS,
    PyDoc_STR("Get address of code_call_fill_ptr function.")},
