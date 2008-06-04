@@ -371,9 +371,9 @@ class lexer(object):
 
     def __init__(self):
         self.pats             = []
-        self.actions          = [self.runtime_fill_buffer,
-                                 self.runtime_unhandled_input,
+        self.actions          = [self.runtime_unhandled_input,
                                  "EOB",
+                                 self.runtime_internal_error,
                                  self.runtime_internal_error]
 
         self.next_avail_state = 1
@@ -666,9 +666,6 @@ class lexer(object):
     ## runtime support
     ##
     #######################################
-    def runtime_fill_buffer(self, lstate):
-        return
-
     def runtime_unhandled_input(self, lstate):
         raise RuntimeError, "no rule to match input"
 

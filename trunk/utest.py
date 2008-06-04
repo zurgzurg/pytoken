@@ -1061,7 +1061,7 @@ class asm_full_06(lex_test):
             print "------"
 
         tok = lexer_obj.get_token(buf)
-        assert tok == 1
+        self.assert_(tok == 1)
 
         if 0:
             print "lexer state"
@@ -1069,7 +1069,7 @@ class asm_full_06(lex_test):
 
         tok = lexer_obj.get_token(buf)
         #print "Returned tok", tok
-        assert tok == 2
+        self.assert_(tok == 2)
         return
     pass
 
@@ -1095,6 +1095,22 @@ class asm_full_07(lex_test):
 
 
         tok = lexer_obj.get_token(buf)
+        return
+    pass
+
+class asm_full_08(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", 1)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("ab")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "EOB")
         return
     pass
         
@@ -2138,7 +2154,7 @@ def get_all_tests():
                 match = True
         if sym == "looper" or sym=="lex_test":
             match = True
-        assert match
+        assert match != None
 
     return all_tests
 
