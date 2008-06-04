@@ -1057,10 +1057,8 @@ code_call_lexer_state_fill_func(lexer_state_t *lstate)
     PyErr_Format(PyExc_RuntimeError, "null lexer state sent to fill runtime");
     return 3;
   }
-  if (lstate->fill_func_ptr == 0) {
-    PyErr_Format(PyExc_RuntimeError, "no fill pointer set in lexer state obj");
-    return 3;
-  }
+  if (lstate->fill_func_ptr == 0)
+    return 2;
 
   n1 = lstate->chars_in_buf - (lstate->next_char_ptr - lstate->buf - 1);
 
