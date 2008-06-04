@@ -78,3 +78,53 @@ http://pypi.python.org/pypi/Pyrr/0.2
 home page link is dead
 
 -----
+
+TODO
+----------------------------------------------
+Before initial release:
+
+	make buffers work with file like objects
+
+	handle None as token id
+
+	support token id as callable, need to have clear
+	protocol on getting token info from buffer. Need
+	way to get buffer contents as well.
+
+	some simple examples
+
+	benchmarking vs flex
+
+	benchmarking vs re2c
+
+	benchmarking vs ??
+
+
+
+Info for developers
+----------------------------------------------------
+General info
+
+testing the assembler: Normally I just use gas or nasm to
+test create the expected output.
+
+junk.s:
+-----------------------
+l1:	nop
+	jmp l1
+-----------------------
+$ as -a junk.s
+GAS LISTING junk.s                      page 1
+
+
+   1 0000 90            l1:     nop
+   2 0001 EBFD                  jmp l1
+   3
+
+GAS LISTING junk.s                      page 2
+
+
+DEFINED SYMBOLS
+              junk.s:1      .text:00000000 l1
+
+NO UNDEFINED SYMBOLS
