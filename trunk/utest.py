@@ -1113,8 +1113,66 @@ class asm_full_08(lex_test):
         self.assert_(tok == "EOB")
         return
     pass
-        
 
+class asm_full_09(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", 1)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("ababab")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "EOB")
+        return
+    pass
+
+class asm_full_10(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", 1)
+        lexer_obj.add_pattern("ac", 2)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+
+        buf.set_input("ab")
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+
+        buf.set_input("ac")
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 2)
+
+        return
+    pass
+
+class asm_full_10(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", 1)
+        lexer_obj.add_pattern("ac", 2)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+
+        buf.set_input("ab")
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
+
+        buf.set_input("ac")
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 2)
+
+        return
+    pass
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
