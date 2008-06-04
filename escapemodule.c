@@ -156,11 +156,14 @@ lexer_state_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
+
   self->buf            = 0;
   self->next_char_ptr  = 0;
   self->start_of_token = 0;
   self->size_of_buf    = 0;
   self->chars_in_buf   = 0;
+  self->fill_func_ptr  = 0;
+
   return 0;
 }
 
@@ -647,11 +650,12 @@ lexer_state_repr(PyObject *self)
 
   ptr = (lexer_state_t *)self;
   result = PyString_FromFormat("<lexer_state buf=0x%x next_char=0x%x "
-			       "tok_start=0x%x size_of_buf=%d "
+			       "tok_start=0x%x fill=0x%x size_of_buf=%d "
 			       "chars_in_buf=%d>",
 			       (unsigned int)ptr->buf,
 			       (unsigned int)ptr->next_char_ptr,
 			       (unsigned int)ptr->start_of_token,
+			       (unsigned int)ptr->fill_func_ptr,
 			       ptr->size_of_buf, ptr->chars_in_buf);
   return result;
 }
@@ -659,17 +663,9 @@ lexer_state_repr(PyObject *self)
 static PyObject *
 lexer_state_str(PyObject *self)
 {
-  lexer_state_t *ptr;
   PyObject *result;
 
-  ptr = (lexer_state_t *)self;
-  result = PyString_FromFormat("<lexer_state buf=0x%x next_char=0x%x "
-			       "tok_start=0x%x size_of_buf=%d "
-			       "chars_in_buf=%d>",
-			       (unsigned int)ptr->buf,
-			       (unsigned int)ptr->next_char_ptr,
-			       (unsigned int)ptr->start_of_token,
-			       ptr->size_of_buf, ptr->chars_in_buf);
+  result = lexer_state_repr(self);
   return result;
 }
 
