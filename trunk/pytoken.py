@@ -554,8 +554,6 @@ class lexer(object):
         
         ## 3. branch to appopriate state based on char
         ##
-        lab_dispatch = state.label + "_dispatch"
-        ir.ladd_ir_label(lst, lab_dispatch)
         for ch in state.out_chars:
             k = (state, ch)
             dst = self.dfa_obj.trans_tbl[k]
@@ -571,12 +569,11 @@ class lexer(object):
         ## XXX - not handling case of user patterns
         ## matching EOB chars
         lab_eob = state.label + "_found_eob"
-        lab_bad_char = state.label + "_bad_char"
-        lab_1 = state.label + "_1"
-        lab_2 = state.label + "_2"
-        lab_3 = state.label + "_3"
-        lab_4 = state.label + "_4"
-        lab_5 = state.label + "_5"
+        lab_bad_char       = state.label + "_bad_char"
+        lab_fill_err       = state.label + "_fill_err"
+        lab_fill_bad_ret   = state.label + "_fill_bad_ret"
+        lab_real_eob       = state.label + "_real_eob"
+        lab_fill_no_data   = state.label + "_fill_no_data"
 
         ## if NULL then do EOB work
         ir.ladd_ir_com(lst, "no match on cur char")
@@ -608,43 +605,24 @@ class lexer(object):
         ir.ladd_ir_label(lst, lab_bad_char)
         ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_UNEXP)
 
-        # cur char is NULL - might be EOB marker
-        # save char pointer - fill routine might change it
+        # cur char is NULL - call fill routine
+        # but save char pointer and reload on return
         # since the fill routine might reallocate the buffer
-        # call fill routine to maybe get more data
-
+        # undo pointer increment so pointer points to the first null char
         ir.ladd_ir_label(lst, lab_eob)
-
-        ir.ladd_ir_com(lst, "unmatched char")
-        ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
-        ir.ladd_ir_bne(lst, lab_5)
-
-        ir.ladd_ir_com(lst, "unmatched char, but earlier match")
-        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
-        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
-        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
-        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
-                       ir.str_ptr_var)
-        ir.ladd_ir_ret(lst, ir.saved_result)
-
-
-        ir.ladd_ir_label(lst, lab_5)
         ir.ladd_ir_com(lst, "found eob char")
-
         ir.ladd_ir_add(lst, ir.str_ptr_var, -1)
         ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
         ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
-        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
-                       ir.str_ptr_var)
-
-        ir.ladd_ir_call(lst, ir.fill_status, ir.fill_caller_addr,
-                        ir.lstate_ptr)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var), ir.str_ptr_var)
+        ir.ladd_ir_call(lst, ir.fill_status, ir.fill_caller_addr,ir.lstate_ptr)
 
         # 1 = got more data
         # need to update various lexer state pointers
         ir.ladd_ir_cmp(lst, ir.fill_status, 1)
-        ir.ladd_ir_bne(lst, lab_4)
+        ir.ladd_ir_bne(lst, lab_fill_no_data)
 
+        ir.ladd_ir_com(lst, "after fill - got more data")
         ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
         ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
         ir.ladd_ir_ldw(lst, ir.str_ptr_var, ir.make_indirect_var(ir.tmp_var))
@@ -653,30 +631,32 @@ class lexer(object):
         ir.ladd_ir_add(lst, ir.token_start_ptr, ir.token_start_offset)
 
         ir.ladd_ir_ldb(lst, ir.data_var, ir.make_indirect_var(ir.str_ptr_var))
-        ir.ladd_ir_br(lst, lab_dispatch)
+        ir.ladd_ir_br(lst, state.label)
 
 
-        # 2a = no more data avail - but with previous valid result
-        ir.ladd_ir_label(lst, lab_4)
+        # 2 = no more data avail
+        ir.ladd_ir_label(lst, lab_fill_no_data)
         ir.ladd_ir_cmp(lst, ir.fill_status, 2)
-        ir.ladd_ir_bne(lst, lab_1)
+        ir.ladd_ir_bne(lst, lab_fill_err)
         ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
-        ir.ladd_ir_bne(lst, lab_3)
+        ir.ladd_ir_bne(lst, lab_real_eob)
+
+        ir.ladd_ir_com(lst, "no data after fill - but have valid result")
         ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
         ir.ladd_ir_ret(lst, ir.saved_result)
         
-        # 2b = no more data avail - and no previous valid result
-        ir.ladd_ir_label(lst, lab_3)
+        ir.ladd_ir_com(lst, "no data after fill - no valid result")
+        ir.ladd_ir_label(lst, lab_real_eob)
         ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_EOB)
 
         # 3 = something went wrong in fill
-        ir.ladd_ir_label(lst, lab_1)
+        ir.ladd_ir_label(lst, lab_fill_err)
         ir.ladd_ir_cmp(lst, ir.fill_status, 3)
-        ir.ladd_ir_bne(lst, lab_2)
+        ir.ladd_ir_bne(lst, lab_fill_bad_ret)
         ir.ladd_ir_ret(lst, lexer.ACTION_ERR_IN_FILL)
 
         # 4 = last case = fill returns illegal val
-        ir.ladd_ir_label(lst, lab_2)
+        ir.ladd_ir_label(lst, lab_fill_bad_ret)
         ir.ladd_ir_ret(lst, lexer.ACTION_BAD_FILL_RET)
 
         return lst
