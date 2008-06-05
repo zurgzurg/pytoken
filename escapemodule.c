@@ -286,27 +286,54 @@ lexer_state_set_cur_addr(PyObject *arg_self, PyObject *args)
 static PyObject *
 lexer_state_set_input(PyObject *arg_self, PyObject *args)
 {
+  PyObject *obj;
   lexer_state_t *self;
-  char *tmp_buf;
+  const char *tmp_buf;
   int i, tmp_buf_len;
+  size_t n_read;
+  FILE *fp;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "s#:set_input", &tmp_buf, &tmp_buf_len))
+  if (!PyArg_ParseTuple(args, "O:set_input", &obj))
     return 0;
-  if (self->buf)
-    free(self->buf);
 
-  self->buf            = malloc(tmp_buf_len + 2);
-  self->next_char_ptr  = self->buf;
-  self->start_of_token = 0;
-  self->size_of_buf    = tmp_buf_len + 2;
-  self->chars_in_buf   = tmp_buf_len + 2;
+  if (PyString_Check(obj)) {
+    tmp_buf_len = PyString_Size(obj);
+    tmp_buf = PyString_AsString(obj);
 
-  for (i=0; i<tmp_buf_len; i++)
-    self->buf[i] = tmp_buf[i];
-  self->buf[tmp_buf_len]     = '\0';
-  self->buf[tmp_buf_len + 1] = '\0';
+    if (self->buf)
+      free(self->buf);
+
+    self->buf            = malloc(tmp_buf_len + 2);
+    self->next_char_ptr  = self->buf;
+    self->start_of_token = 0;
+    self->size_of_buf    = tmp_buf_len + 2;
+    self->chars_in_buf   = tmp_buf_len + 2;
+    
+    for (i=0; i<tmp_buf_len; i++)
+      self->buf[i] = tmp_buf[i];
+    self->buf[tmp_buf_len]     = '\0';
+    self->buf[tmp_buf_len + 1] = '\0';
+  }
+  else if (PyFile_Check(obj)) {
+    fp = PyFile_AsFile(obj);
+    if (self->buf)
+      free(self->buf);
+    self->buf            = malloc(4096 + 2);
+    self->next_char_ptr  = self->buf;
+    self->start_of_token = 0;
+    self->size_of_buf    = 4096 + 2;
+    n_read = fread(self->buf, 1, 4096, fp);
+    self->chars_in_buf   = n_read;
+    self->buf[n_read] = '\0';
+    self->buf[n_read + 1] = '\0';
+  }
+  else {
+    PyErr_Format(PyExc_RuntimeError, "lexer_state set_input() method called "
+		 "with object not of type file or string. Stopping.");
+    return 0;
+  }
 
   Py_INCREF(Py_None);
   return Py_None;

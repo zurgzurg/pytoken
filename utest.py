@@ -1154,22 +1154,32 @@ class asm_full_10(lex_test):
         return
     pass
 
-class asm_full_10(lex_test):
+class asm_full_11(lex_test):
+    def setUp(self):
+        tmp = self.id().split(".")
+        self.fname = tmp[1] + ".tmp"
+        fp = open(self.fname, "w")
+        fp.write("a")
+        fp.close()
+        return
+
+    def tearDown(self):
+        os.unlink(self.fname)
+        return
+
     def runTest(self):
-        lexer_obj = pytoken.lexer()
-        lexer_obj.add_pattern("ab", 1)
-        lexer_obj.add_pattern("ac", 2)
-        lexer_obj.compile_to_machine_code(debug=False)
+        lo = pytoken.lexer()
+        lo.add_pattern("a", 1)
+        lo.compile_to_machine_code(debug=False)
 
+        fp2 = open(self.fname)
         buf = pytoken.lexer_state()
+        buf.set_input(fp2)
 
-        buf.set_input("ab")
-        tok = lexer_obj.get_token(buf)
+        tok = lo.get_token(buf)
         self.assert_(tok == 1)
 
-        buf.set_input("ac")
-        tok = lexer_obj.get_token(buf)
-        self.assert_(tok == 2)
+        fp2.close()
 
         return
     pass
@@ -2147,7 +2157,11 @@ class looper(lex_test):
             for i in range(10):
                 if verbose_mode:
                     print "testing num", i
+                if hasattr(tc, "setUp"):
+                    tc.setUp()
                 tc.runTest()
+                if hasattr(tc, "tearDown"):
+                    tc.tearDown()
                 try:
                     nrefs2 = sys.gettotalrefcount()
                 except AttributeError:
