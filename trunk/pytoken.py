@@ -394,7 +394,7 @@ class lexer(object):
     #######################################
     #######################################
     #######################################
-    def add_pattern(self, pat, action):
+    def add_pattern(self, pat, action, arg1=None):
         """Add a pattern to the lexer.
         The pattern is a regular expression, currently the only
         meta characters supported are * [] and |. The action argument
@@ -438,11 +438,14 @@ class lexer(object):
         self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
 
-    def get_token(self, lstate):
+    def get_token(self, lstate, arg2=None):
         assert self.code_obj is not None
-        idx = self.code_obj.get_token(lstate)
-        assert type(idx) is int and idx >= 0 and idx < len(self.actions)
-        action = self.actions[idx]
+        while True:
+            idx = self.code_obj.get_token(lstate)
+            assert type(idx) is int and idx >= 0 and idx < len(self.actions)
+            action = self.actions[idx]
+            if action is not None:
+                break
         if callable(action):
             r = action(lstate)
         else:
