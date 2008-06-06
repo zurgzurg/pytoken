@@ -83,13 +83,17 @@ TODO
 ----------------------------------------------
 Before initial release:
 
-	make buffers work with file like objects
+done	make buffers work with file like objects - set_input()
+	make buffers work with file like objects - fill()
 
-	handle None as token id
+done	handle None as token id
 
 	support token id as callable, need to have clear
 	protocol on getting token info from buffer. Need
-	way to get buffer contents as well.
+	way to get buffer contents as well., also callable
+	objs must have a way of passing two user defined objs
+	one at time regexp is specified and second when get_token is
+	called
 
 	some simple examples
 
