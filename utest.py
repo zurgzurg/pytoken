@@ -1205,6 +1205,106 @@ class asm_full_12(lex_test):
         return
     pass
 
+class asm_full_13(lex_test):
+    def action(self, lstate):
+        self.n_calls += 1
+        return "foobar"
+
+    def runTest(self):
+        self.n_calls = 0
+
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", self.action)
+        lexer_obj.add_pattern(" ", None)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("ab ab")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "foobar")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "foobar")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "EOB")
+
+        self.assert_(self.n_calls == 2)
+        return
+    pass
+
+class asm_full_14(lex_test):
+    def action(self, lstate):
+        self.n_calls += 1
+
+        t1 = lstate.get_match_text()
+        self.txt += t1
+
+        return "foobar"
+
+    def runTest(self):
+        self.n_calls = 0
+        self.txt = ""
+
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("ab", self.action)
+        lexer_obj.add_pattern(" ", None)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("ab ab")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "foobar")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "foobar")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == "EOB")
+
+        self.assert_(self.n_calls == 2)
+        self.assert_(self.txt == "abab")
+        return
+    pass
+
+class asm_full_15(lex_test):
+    def setUp(self):
+        tmp = self.id().split(".")
+        self.fname = tmp[1] + ".tmp"
+        fp = open(self.fname, "w")
+        for i in xrange(4096):
+            print >>fp, "foobar "
+        fp.close()
+        return
+
+    def tearDown(self):
+        os.unlink(self.fname)
+        return
+
+    def runTest(self):
+        lo = pytoken.lexer()
+        lo.add_pattern("foobar", 1)
+        lo.add_pattern(" ",  None)
+        lo.add_pattern("\n", None)
+        lo.compile_to_machine_code(debug=False)
+
+        fp2 = open(self.fname)
+        buf = pytoken.lexer_state()
+        buf.set_input(fp2)
+
+        for i in xrange(4096):
+            tok = lo.get_token(buf)
+            self.assert_(tok == 1)
+
+        tok = lo.get_token(buf)
+        self.assert_(tok == "EOB")
+
+        fp2.close()
+        return
+    pass
+
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
