@@ -93,7 +93,7 @@ done	protocol on getting token info from buffer. Need
 done	way to get buffer contents as well., also callable
 done	objs must have a way of passing user defined args.
 
-	very long token - larger that 4k
+done	very long token - larger that 4k
 	
 done	fill buffers with varying token sizes - to ensure
 	that tokens will be split accross buffer fills
