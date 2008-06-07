@@ -394,15 +394,15 @@ class lexer(object):
     #######################################
     #######################################
     #######################################
-    def add_pattern(self, pat, action, arg1=None):
-        """Add a pattern to the lexer.
-        The pattern is a regular expression, currently the only
-        meta characters supported are * [] and |. The action argument
-        can be anything. If action is None then those tokens are discarded
-        by the lexer. If the action is a non-callable then when that
-        pattern is found it will be returned, for callable actions, the
-        action will be called (args??) and the return value from the
-        callable will be returned."""
+    def add_pattern(self, pat, action):
+        """Add a pattern to the lexer.  The pattern is a regular
+        expression, currently the only meta characters supported are *
+        [] and |. The action argument can be anything. If action is
+        None then those tokens are discarded by the lexer. If the
+        action is a non-callable and not None then when that pattern
+        is found the action will be returned. For callable actions, the action
+        will be called (args??) and the return value from the callable
+        will be returned."""
         idx = len(self.actions)
         self.actions.append(action)
         self.pats.append((pat, idx))
@@ -438,7 +438,7 @@ class lexer(object):
         self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
 
-    def get_token(self, lstate, arg2=None):
+    def get_token(self, lstate, arg=None):
         assert self.code_obj is not None
         while True:
             idx = self.code_obj.get_token(lstate)
@@ -447,7 +447,10 @@ class lexer(object):
             if action is not None:
                 break
         if callable(action):
-            r = action(lstate)
+            if arg:
+                r = action(lstate, arg)
+            else:
+                r = action(lstate)
         else:
             r = action
         return r
