@@ -855,7 +855,7 @@ class lexer(object):
 
             else:
                 if len(result) > 0 and (type( result[-1] ) is str
-                                        or result[-1] == RPAREN):
+                                        or result[-1] in (RPAREN, STAR)):
                     result.append(CCAT)
                 result.append(ch)
             pass

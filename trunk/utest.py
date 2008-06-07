@@ -267,6 +267,15 @@ class tokens15(lex_test):
         return
     pass
 
+class tokens16(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("ab*c")
+        exp = ("a", CCAT, 'b', STAR, CCAT, "c")
+        self.check_structure(act, exp)
+        return
+    pass
+
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
@@ -1297,6 +1306,87 @@ class asm_full_15(lex_test):
         for i in xrange(4096):
             tok = lo.get_token(buf)
             self.assert_(tok == 1)
+
+        tok = lo.get_token(buf)
+        self.assert_(tok == "EOB")
+
+        fp2.close()
+        return
+    pass
+
+class asm_full_16(lex_test):
+    def setUp(self):
+        tmp = self.id().split(".")
+        self.fname = tmp[1] + ".tmp"
+        fp = open(self.fname, "w")
+        for i in xrange(4096):
+            print >>fp, "foobar "
+            print >>fp, "12345678901234567"
+        fp.close()
+        return
+
+    def tearDown(self):
+        os.unlink(self.fname)
+        return
+
+    def runTest(self):
+        lo = pytoken.lexer()
+        lo.add_pattern("foobar ", 1)
+        lo.add_pattern("12345678901234567", 2)
+        lo.add_pattern("\n", None)
+        lo.compile_to_machine_code(debug=False)
+
+        fp2 = open(self.fname)
+        buf = pytoken.lexer_state()
+        buf.set_input(fp2)
+
+        for i in xrange(4096):
+            tok = lo.get_token(buf)
+            self.assert_(tok == 1)
+            tok = lo.get_token(buf)
+            self.assert_(tok == 2)
+
+        tok = lo.get_token(buf)
+        self.assert_(tok == "EOB")
+
+        fp2.close()
+        return
+    pass
+
+class asm_full_17(lex_test):
+    def setUp(self):
+        tmp = self.id().split(".")
+        self.fname = tmp[1] + ".tmp"
+
+        txt = "a" + "b" * 2000 + "c"
+        fp = open(self.fname, "w")
+        fp.write(txt)
+        fp.close()
+
+        return
+
+    def action(self, lstate):
+        t1 = lstate.get_match_text()
+        return t1
+
+    def tearDown(self):
+        os.unlink(self.fname)
+        return
+
+    def runTest(self):
+        lo = pytoken.lexer()
+        lo.add_pattern("ab*c", self.action)
+        lo.add_pattern("\n", None)
+        lo.compile_to_machine_code(debug=False)
+
+        fp2 = open(self.fname)
+        buf = pytoken.lexer_state()
+        buf.set_input(fp2)
+
+        txt2 = "a" + "b" * 2000 + "c"
+
+        tok = lo.get_token(buf)
+        self.assert_(tok == txt2)
 
         tok = lo.get_token(buf)
         self.assert_(tok == "EOB")
