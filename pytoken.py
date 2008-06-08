@@ -202,6 +202,7 @@ class nfa(fsa):
 
         nfa_state.priority = the_state.priority
         nfa_state.user_action = the_state.user_action
+        nfa_state.is_discard  = the_state.is_discard
         nfa.set_accepting_state(nfa_state)
         return
 
@@ -341,21 +342,27 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
                     PLUS, STAR, CCAT)
 
 class fsa_state(object):
+    __slots__ = ['lexer', 'num', 'out_chars', 'label', 'is_accepting',
+                 'user_action', 'is_discard', 'priority']
     def __init__(self, lexer):
-        self.lexer         = lexer
-        self.num           = lexer.next_avail_state
-        self.out_chars     = []
-        self.label         = None
-        self.is_accepting  = False
-        self.user_action   = None
-        self.priority      = None
-        lexer.next_avail_state += 1
+        self.lexer               = lexer
+        self.num                 = lexer.next_avail_state
+        self.out_chars           = []
+        self.label               = None
+        self.is_accepting        = False
+        self.user_action         = None
+        self.is_discard          = False
+        self.priority            = None
+        lexer.next_avail_state  += 1
         pass
     def __str__(self):
         return self.__repr__()
     def __repr__(self):
         if self.user_action:
-            return "state_%d_action=%d" % (self.num, self.user_action)
+            if self.is_discard:
+                return "state_%d_action=%d(dis)" % (self.num, self.user_action)
+            else:
+                return "state_%d_action=%d(norm)"%(self.num,self.user_action)
         return "state_%d" % self.num
     pass
 
@@ -397,12 +404,12 @@ class lexer(object):
     def add_pattern(self, pat, action):
         """Add a pattern to the lexer.  The pattern is a regular
         expression, currently the only meta characters supported are *
-        [] and |. The action argument can be anything. If action is
+        [] () and |. The action argument can be anything. If action is
         None then those tokens are discarded by the lexer. If the
         action is a non-callable and not None then when that pattern
         is found the action will be returned. For callable actions, the action
-        will be called (args??) and the return value from the callable
-        will be returned."""
+        will be called with one arg - the lexer state buffer. The return
+        value from the callable will be returned from get_token()."""
         idx = len(self.actions)
         self.actions.append(action)
         self.pats.append((pat, idx))
@@ -411,11 +418,13 @@ class lexer(object):
     def build_nfa(self):
         priority = 1
         nfa_list = []
-        for p, a in self.pats:
+        for p, a_idx in self.pats:
             postfix = self.parse_as_postfix(p)
             nfa_obj = self.postfix_to_nfa(postfix)
             for st in nfa_obj.accepting_states:
-                st.user_action = a
+                st.user_action = a_idx
+                if self.actions[a_idx] is None:
+                    st.is_discard = True
                 st.priority    = priority
             nfa_list.append(nfa_obj)
             priority += 1
@@ -514,8 +523,10 @@ class lexer(object):
         ##   deref ptr to get actual next_char_ptr
         ##
         ir.add_ir_com("main")
+        ir.add_ir_label("lab_main")
         ir.add_ir_gparm(ir.lstate_ptr, 1)
         ir.add_ir_set(ir.saved_valid, 0)
+        ir.add_ir_set(ir.saved_is_discard, 0)
 
         ir.add_ir_com("get string ptr")
         ir.add_ir_set(ir.tmp_var, ir.lstate_ptr)
@@ -552,6 +563,13 @@ class lexer(object):
             ir.ladd_ir_set(lst, ir.saved_result, state.user_action)
             ir.ladd_ir_com(lst, "set saved data flag")
             ir.ladd_ir_set(lst, ir.saved_valid, 1)
+            if state.is_discard:
+                ir.ladd_ir_com(lst, "is discard")
+                ir.ladd_ir_set(lst, ir.saved_is_discard, 1)
+            else:
+                ir.ladd_ir_com(lst, "normal accept")
+                ir.ladd_ir_set(lst, ir.saved_is_discard, 0)
+
 
         ## 2. load cur char
         ##    advance and save char pointer
@@ -576,6 +594,7 @@ class lexer(object):
         ## matching EOB chars
         lab_eob = state.label + "_found_eob"
         lab_bad_char       = state.label + "_bad_char"
+        lab_discard        = state.label + "_discard"
         lab_fill_err       = state.label + "_fill_err"
         lab_fill_bad_ret   = state.label + "_fill_bad_ret"
         lab_real_eob       = state.label + "_real_eob"
@@ -598,6 +617,8 @@ class lexer(object):
         ir.ladd_ir_com(lst, "unmatched char")
         ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
         ir.ladd_ir_bne(lst, lab_bad_char)
+        ir.ladd_ir_cmp(lst, ir.saved_is_discard, 1)
+        ir.ladd_ir_beq(lst, lab_discard)
 
         ir.ladd_ir_com(lst, "unmatched char, but earlier match")
         ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
@@ -606,6 +627,16 @@ class lexer(object):
         ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
                        ir.str_ptr_var)
         ir.ladd_ir_ret(lst, ir.saved_result)
+
+        ir.ladd_ir_com(lst, "earlier match is discard")
+        ir.ladd_ir_label(lst, lab_discard)
+        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
+        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
+                       ir.str_ptr_var)
+        ir.ladd_ir_br(lst, "lab_main")
+        
 
         ir.ladd_ir_com(lst, "hit unmatched char")
         ir.ladd_ir_label(lst, lab_bad_char)
@@ -1358,6 +1389,7 @@ class ir_code(object):
         self.saved_valid       = self.make_new_var()
         self.saved_ptr         = self.make_new_var()
         self.saved_result      = self.make_new_var()
+        self.saved_is_discard  = self.make_new_var()
 
         self.lstate_ptr        = self.make_new_var()
         self.fill_status       = self.make_new_var()

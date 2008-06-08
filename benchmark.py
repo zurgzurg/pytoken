@@ -43,12 +43,33 @@ import bmark
 import pytoken
 
 
+######################################################
+##
+## flex based
+##
+######################################################
 def t01_flex_setup():
     global n_toks
     txt = "foo bar " * n_toks
     bmark.set_buffer(txt)
     return
 
+def t01_test_flex():
+    global n_toks
+    c1 = time.clock()
+    for i in xrange(n_toks):
+        tok = bmark.get_token()
+        assert tok == 2
+        tok = bmark.get_token()
+        assert tok == 3
+    c2 = time.clock()
+    return c2 - c1
+
+######################################################
+##
+## richer pytoken interface
+##
+######################################################
 def t01_pytoken_setup():
     global py_tok_buf
     global scanner_obj
@@ -65,22 +86,7 @@ def t01_pytoken_setup():
     py_tok_buf = pytoken.lexer_state()
     py_tok_buf.set_input(txt)
 
-    scanner_obj.code_obj.set_buf2(py_tok_buf)
-
     return
-
-######################################################
-
-def t01_test_flex():
-    global n_toks
-    c1 = time.clock()
-    for i in xrange(n_toks):
-        tok = bmark.get_token()
-        assert tok == 2
-        tok = bmark.get_token()
-        assert tok == 3
-    c2 = time.clock()
-    return c2 - c1
 
 def t01_test_pytoken():
     global n_toks
@@ -91,27 +97,52 @@ def t01_test_pytoken():
     for i in xrange(n_toks):
         #print "--->", i
 
-        tok = scanner_obj.code_obj.get_token2()
+        tok = scanner_obj.code_obj.get_token(py_token_buf)
         tok = scanner_obj.actions[tok]
         #print tok
         assert tok == 2
 
-        tok = scanner_obj.code_obj.get_token2()
+        tok = scanner_obj.code_obj.get_token(py_token_buf)
         tok = scanner_obj.actions[tok]
         #print tok
         assert tok == 4
 
-        tok = scanner_obj.code_obj.get_token2()
+        tok = scanner_obj.code_obj.get_token(py_token_buf)
         tok = scanner_obj.actions[tok]
         #print tok
         assert tok == 3
 
-        tok = scanner_obj.code_obj.get_token2()
+        tok = scanner_obj.code_obj.get_token(py_token_buf)
         tok = scanner_obj.actions[tok]
         #print tok
         assert tok == 4
     c2 = time.clock()
     return c2 - c1
+
+######################################################
+##
+## minimal pytoken interface
+##
+######################################################
+def t01_pytoken_setup2():
+    global py_tok_buf
+    global scanner_obj
+    global n_toks
+
+    scanner_obj = pytoken.lexer()
+    scanner_obj.add_pattern("foo", 2)
+    scanner_obj.add_pattern("bar", 3)
+    scanner_obj.add_pattern(" ",   None)
+    scanner_obj.add_pattern("\n",  None)
+    scanner_obj.compile_to_machine_code()
+
+    txt = "foo bar " * n_toks
+    py_tok_buf = pytoken.lexer_state()
+    py_tok_buf.set_input(txt)
+
+    scanner_obj.code_obj.set_buf2(py_tok_buf)
+
+    return
 
 def t01_test_pytoken2():
     global n_toks
@@ -121,13 +152,9 @@ def t01_test_pytoken2():
     c1 = time.clock()
     for i in xrange(n_toks):
         tok = scanner_obj.code_obj.get_token2()
-        assert tok != None
+        assert tok == 4
         tok = scanner_obj.code_obj.get_token2()
-        assert tok != None
-        tok = scanner_obj.code_obj.get_token2()
-        assert tok != None
-        tok = scanner_obj.code_obj.get_token2()
-        assert tok != None
+        assert tok == 5
     c2 = time.clock()
     return c2 - c1
 
@@ -140,7 +167,7 @@ n_toks      = 1000000
 t01_flex_setup()
 t1 = t01_test_flex()
 
-t01_pytoken_setup()
+t01_pytoken_setup2()
 t2 = t01_test_pytoken2()
 
 print "Flex=", t1, "pytoken=", t2
