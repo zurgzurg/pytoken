@@ -100,12 +100,7 @@ done	fill buffers with varying token sizes - to ensure
 
 	some simple examples
 
-	benchmarking vs flex
-
-	benchmarking vs re2c
-
-	benchmarking vs ??
-
+done	benchmarking vs flex
 
 
 Info for developers

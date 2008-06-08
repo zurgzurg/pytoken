@@ -55,9 +55,13 @@ class fsa(object):
         self.accepting_states = []
         return
 
-    def get_new_state(self):
+    def get_new_state(self, orig_state=None):
         result = self.lexer.get_new_state()
         self.states.append(result)
+        if orig_state:
+            result.is_accepting = orig_state.is_accepting
+            result.is_discard   = orig_state.is_discard
+            result.priority     = orig_state.priority
         return result
 
     def add_edge(self, cur_state, ch, next_state):
@@ -108,6 +112,12 @@ class nfa(fsa):
                 self.add_edge(st, ch, dst)
         return
 
+    def add_states_to_list(self, other_nfa):
+        for s in other_nfa.states:
+            if s not in self.states:
+                self.states.append(s)
+        return
+    
     ##
     ## dfa construction support
     ##
@@ -236,7 +246,7 @@ class nfa(fsa):
                     dst = seen[s2]
 
                 result.add_edge(cur_state, ch, dst)
-                cur_state.out_chars.append(ch)
+                cur_state.dfa_out_chars.append(ch)
                     
         return result
         
@@ -256,6 +266,8 @@ def do_nfa_ccat(lexer, nfa1, nfa2):
     result = nfa(lexer)
     result.copy_edges(nfa1)
     result.copy_edges(nfa2)
+    result.add_states_to_list(nfa1)
+    result.add_states_to_list(nfa2)
 
     result.add_edge(result.init_state, None, nfa1.init_state)
 
@@ -271,6 +283,8 @@ def do_nfa_pipe(lexer, nfa1, nfa2):
     result = nfa(lexer)
     result.copy_edges(nfa1)
     result.copy_edges(nfa2)
+    result.add_states_to_list(nfa1)
+    result.add_states_to_list(nfa2)
 
     for s1 in nfa1.accepting_states:
         result.set_accepting_state(s1)
@@ -281,6 +295,50 @@ def do_nfa_pipe(lexer, nfa1, nfa2):
     result.add_edge(result.init_state, None, nfa2.init_state)
     return result
 
+def do_nfa_copy(lexer, nfa1):
+    nfa2 = nfa(lexer)
+
+    for s1 in nfa1.states[1:]:
+        s2 = nfa2.get_new_state(s1)
+
+        s1.other_state = s2
+        s2.other_state = s1
+
+        if s1 in nfa1.accepting_states:
+            nfa2.set_accepting_state(s2)
+    nfa1.states[0].other_state = nfa2.init_state
+    nfa2.init_state = nfa1.states[0].other_state
+
+    for (st1, ch), dst_list in nfa1.trans_tbl.iteritems():
+        k = (st1.other_state, ch)
+        nfa2.trans_tbl[k] = [s1.other_state for s1 in dst_list]
+
+    return nfa2
+
+def do_nfa_plus(lexer, nfa1):
+    # nfa1 -> nfa2(copy)
+    nfa2 = do_nfa_copy(lexer, nfa1)
+    nfa3 = nfa(lexer)
+
+    nfa3.copy_edges(nfa1)
+    nfa3.copy_edges(nfa2)
+    nfa3.add_states_to_list(nfa1)
+    nfa3.add_states_to_list(nfa2)
+
+    nfa3.add_edge(nfa3.init_state, None, nfa1.init_state)
+    for s1 in nfa1.accepting_states:
+        nfa3.add_edge(s1, None, nfa2.init_state)
+
+    for s2 in nfa2.accepting_states:
+        nfa3.set_accepting_state(s2)
+
+    for s2 in nfa2.accepting_states:
+        nfa3.add_edge(nfa2.init_state, None, s2)
+        nfa3.add_edge(s2, None, nfa2.init_state)
+
+    #print "---------after plus-------------"
+    #print nfa3
+    return nfa3
 
 ###################################################################
 ###################################################################
@@ -342,12 +400,13 @@ all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
                     PLUS, STAR, CCAT)
 
 class fsa_state(object):
-    __slots__ = ['lexer', 'num', 'out_chars', 'label', 'is_accepting',
-                 'user_action', 'is_discard', 'priority']
+    __slots__ = ['lexer', 'num', 'other_state', 'dfa_out_chars', 'label',
+                 'is_accepting', 'user_action', 'is_discard', 'priority']
     def __init__(self, lexer):
         self.lexer               = lexer
         self.num                 = lexer.next_avail_state
-        self.out_chars           = []
+        self.other_state         = None
+        self.dfa_out_chars       = []
         self.label               = None
         self.is_accepting        = False
         self.user_action         = None
@@ -578,7 +637,7 @@ class lexer(object):
         
         ## 3. branch to appopriate state based on char
         ##
-        for ch in state.out_chars:
+        for ch in state.dfa_out_chars:
             k = (state, ch)
             dst = self.dfa_obj.trans_tbl[k]
             assert len(dst) == 1
@@ -744,6 +803,10 @@ class lexer(object):
                     nfa1.add_edge(st, None, nfa1.init_state)
                     nfa1.add_edge(nfa1.init_state, None, st)
                 stack.append(nfa1)
+            elif sym is PLUS:
+                nfa1 = stack.pop()
+                nfa3 = do_nfa_plus(self, nfa1)
+                stack.append(nfa3)
             else:
                 assert None, "Bad sym" + str(sym)
         return stack[0]
@@ -818,7 +881,7 @@ class lexer(object):
             elif tok == LPAREN:
                 operators.append(tok)
             else:
-                assert tok in (PIPE, STAR, CCAT)
+                assert tok in (PIPE, STAR, PLUS, CCAT)
 
                 while operators and self.pop_op(tok, operators[-1]):
                     tmp = operators.pop()
