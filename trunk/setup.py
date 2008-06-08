@@ -26,7 +26,10 @@ if idx:
     mlist.append(obj)
 
     # does distutils have a way to run flex?
-    c = os.system("flex -f -s -B -L -obmark_scan.c -Pbmark bmark_scan.lex")
+    cmd = "flex -f -s -B -L -obmark_scan.c -Pbmark bmark_scan.lex"
+    print "Running flex command"
+    print cmd
+    c = os.system(cmd)
     if c != 0:
         print "Flex return non-zero status. Stopping."
         sys.exit(-1)

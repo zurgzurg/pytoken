@@ -50,7 +50,7 @@ import pytoken
 ######################################################
 def t01_flex_setup():
     global n_toks
-    txt = "foo bar " * n_toks
+    txt = "foo12345678901234567890 bar " * n_toks
     bmark.set_buffer(txt)
     return
 
@@ -76,13 +76,13 @@ def t01_pytoken_setup():
     global n_toks
 
     scanner_obj = pytoken.lexer()
-    scanner_obj.add_pattern("foo", 2)
+    scanner_obj.add_pattern("foo12345678901234567890", 2)
     scanner_obj.add_pattern("bar", 3)
     scanner_obj.add_pattern(" ",   4)
     scanner_obj.add_pattern("\n",  5)
     scanner_obj.compile_to_machine_code()
 
-    txt = "foo bar " * n_toks
+    txt = "foo12345678901234567890 bar " * n_toks
     py_tok_buf = pytoken.lexer_state()
     py_tok_buf.set_input(txt)
 
@@ -130,13 +130,13 @@ def t01_pytoken_setup2():
     global n_toks
 
     scanner_obj = pytoken.lexer()
-    scanner_obj.add_pattern("foo", 2)
+    scanner_obj.add_pattern("foo12345678901234567890", 2)
     scanner_obj.add_pattern("bar", 3)
     scanner_obj.add_pattern(" ",   None)
     scanner_obj.add_pattern("\n",  None)
     scanner_obj.compile_to_machine_code()
 
-    txt = "foo bar " * n_toks
+    txt = "foo12345678901234567890 bar " * n_toks
     py_tok_buf = pytoken.lexer_state()
     py_tok_buf.set_input(txt)
 
