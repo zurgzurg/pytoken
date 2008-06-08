@@ -43,7 +43,7 @@ sys.path.append("./build/lib.linux-i686-2.5")
 
 import pytoken
 
-from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT
+from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT, PLUS
 from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
      IR_CMP, IR_BEQ, IR_BNE, IR_NOP, IR_ADD, IR_RET
 
@@ -276,6 +276,17 @@ class tokens16(lex_test):
         return
     pass
 
+class tokens17(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[0123456789]+")
+        exp = (LPAREN, '0', PIPE, '1', PIPE, '2', PIPE, '3', PIPE, '4',
+               PIPE,   '5', PIPE, '6', PIPE, '7', PIPE, '8', PIPE, '9',
+               RPAREN, PLUS)
+        self.check_structure(act, exp)
+        return
+    pass
+
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
@@ -417,6 +428,15 @@ class postfix16(lex_test):
         obj = pytoken.lexer()
         act = obj.parse_as_postfix("a(b|c)*")
         exp = ("a", "b", "c", PIPE, STAR, CCAT)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class postfix17(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("[0123]+")
+        exp = ("0", "1", PIPE, "2", PIPE, "3", PIPE, PLUS)
         self.check_structure(act, exp)
         return
     pass
@@ -1414,6 +1434,31 @@ class asm_full_18(lex_test):
         t1 = lexer_obj.code_obj.get_token2()
         t2 = lexer_obj.code_obj.get_token2()
         self.assert_(t1 == t2)
+
+        return
+    pass
+
+class asm_full_19(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("[01]+", 1)
+        lexer_obj.add_pattern(" ", None)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            print "NFA:"
+            print lexer_obj.nfa_obj
+            print "DFA:"
+            print lexer_obj.dfa_obj
+            #pytoken.print_instructions(lexer_obj.ir)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("00 11")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==1)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok == 1)
 
         return
     pass
