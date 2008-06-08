@@ -758,6 +758,9 @@ static PyObject *code_set_bytes(PyObject *, PyObject *);
 static PyObject *code_get_start_addr(PyObject *, PyObject *);
 static PyObject *code_get_code(PyObject *, PyObject *);
 
+static PyObject *code_set_buf2(PyObject *, PyObject *);
+static PyObject *code_get_token2(PyObject *, PyObject *);
+
 static PyObject *code_get_fill_caller_addr(PyObject *, PyObject *);
 static int code_call_lexer_state_fill_func(lexer_state_t *self);
 
@@ -772,8 +775,9 @@ typedef struct {
   int     num_in_buf;  /* num objs   */
   int     obj_size;    /* machine code : obj_size=1 : bytes */
                        /* vcode : obj_size=4 : PyObjects - likely tuples */
-
   int     is_vcode;
+
+  lexer_state_t *lstate;
 } code_t;
 
 static void code_grow(code_t *);
@@ -785,6 +789,12 @@ static PyTypeObject code_type = {
 static PyMethodDef code_methods[] = {
     {"get_token", (PyCFunction)code_get_token, METH_KEYWORDS,
      "Return the next token."},
+
+    {"set_buf2", code_set_buf2, METH_VARARGS,
+     "Set the buffer to be used with the get_token2() function."},
+
+    {"get_token2", code_get_token2, METH_NOARGS,
+     "Call a machine code get token function with a preset buffer."},
 
     {"set_type",  code_set_type,  METH_VARARGS,
      "Set type of code object to 'vcode' or 'mcode'."},
@@ -926,6 +936,41 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
 
   asm_func = (asm_func_t)(code_obj_ptr->u.buf);
   v = (*asm_func)(code_obj_ptr, (lexer_state_t*)lbuf);
+  res = PyInt_FromLong(v);
+  return res;
+}
+
+static PyObject *
+code_set_buf2(PyObject *arg_self, PyObject *args)
+{
+  code_t *self;
+  lexer_state_t *lbuf;
+
+  assert(arg_self->ob_type == &code_type);
+  self = (code_t *)arg_self;
+
+  if (!PyArg_ParseTuple(args, "O!:", &lexer_state_type, &lbuf))
+    return 0;
+
+  self->lstate = lbuf;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+code_get_token2(PyObject *arg_self, PyObject *args)
+{
+  code_t *code_obj_ptr;
+  typedef int (*asm_func_t)(code_t *, lexer_state_t *);
+  asm_func_t asm_func;
+  int v;
+  PyObject *res;
+
+  assert(arg_self->ob_type == &code_type);
+  code_obj_ptr = (code_t *)arg_self;
+  asm_func = (asm_func_t)(code_obj_ptr->u.buf);
+  v = (*asm_func)(code_obj_ptr, code_obj_ptr->lstate);
   res = PyInt_FromLong(v);
   return res;
 }
