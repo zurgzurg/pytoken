@@ -1395,6 +1395,28 @@ class asm_full_17(lex_test):
         return
     pass
 
+class asm_full_18(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("a", 1)
+        lexer_obj.add_pattern(" ", None)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            print lexer_obj.dfa_obj
+            pytoken.print_instructions(lexer_obj.ir)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("a a")
+
+        lexer_obj.code_obj.set_buf2(buf)
+
+        t1 = lexer_obj.code_obj.get_token2()
+        t2 = lexer_obj.code_obj.get_token2()
+        self.assert_(t1 == t2)
+
+        return
+    pass
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
