@@ -41,6 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/mman.h>
 #include <limits.h>
 
+#define PYTOKEN_DEBUG 0
+
 static int  escape_stop_here_counter = 0;
 void escape_stop_here(void);
 
@@ -110,7 +112,7 @@ static int is_valid_ptr(lexer_state_t *, char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
 static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
 
-#if 0
+#if PYTOKEN_DEBUG
 static void lexer_state_print_buf(lexer_state_t *, int n_to_print);
 #endif
 
@@ -432,8 +434,10 @@ lexer_state_get_all_state(PyObject *arg_self, PyObject *args)
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  result = Py_BuildValue("(iiii)", (int)self, (int)self->buf,
-			 self->size_of_buf, (int)self->next_char_ptr);
+  result = Py_BuildValue("(iiiiii)",
+			 (int)self, (int)self->buf,
+			 (int)self->start_of_token, (int)self->next_char_ptr,
+			 self->chars_in_buf, self->size_of_buf);
   return result;
 }
 
@@ -450,7 +454,7 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
 
-#if 0
+#if PYTOKEN_DEBUG
   printf("lexer_state_add_to_buffer() -- called - starting\n");
   printf("buf=0x%x start_of_token=0x%x size_of_buf=%d "
 	 "n_chars=%d next_char_ptr=0x%x\n",
@@ -463,7 +467,7 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
     return 0;
 
   space_left = self->start_of_token - self->buf;
-#if 0
+#if PYTOKEN_DEBUG
   printf("lexer_state_add_to_buffer() -- %d bytes left\n", space_left);
 #endif
 
@@ -496,7 +500,7 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
   self->buf[ self->chars_in_buf - 1] = '\0';
   self->buf[ self->chars_in_buf ] = '\0';
 
-#if 0
+#if PYTOKEN_DEBUG
   printf("buf=0x%x start_of_token=0x%x size_of_buf=%d "
 	 "n_chars=%d next_char_ptr=0x%x\n",
 	 (unsigned int)self->buf, (unsigned int)self->start_of_token,
@@ -685,12 +689,18 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
   return 0;
 }
 
-#if 0
+#if PYTOKEN_DEBUG
 static void
 lexer_state_print_buf(lexer_state_t *self, int n_to_print)
 {
-  int i, lim;
+  int i, lim, remain;
   char ch;
+
+  printf("lexer_state=0x%x buf=0x%x next_char=0x%x token_start=0x%x "
+	 "size=%d n_in_buf=%d\n",
+	 (unsigned int)self, (unsigned int)self->buf,
+	 (unsigned int)self->next_char_ptr, (unsigned int)self->start_of_token,
+	 self->size_of_buf, self->chars_in_buf);
 
   if (n_to_print > self->chars_in_buf)
     lim = self->chars_in_buf;
@@ -700,7 +710,22 @@ lexer_state_print_buf(lexer_state_t *self, int n_to_print)
   printf("lexer buf:");
   for (i=0; i < lim; i++) {
     ch = self->buf[i];
-    if (ch >= ' ' && ch <= '~')
+    if (ch > ' ' && ch <= '~')
+      printf("%c", ch);
+    else
+      printf("<%02x>", (unsigned int)ch);
+  }
+  printf("\n");
+
+  remain = self->chars_in_buf - (self->start_of_token - self->buf);
+  if (n_to_print > remain)
+    lim = remain;
+  else
+    lim = n_to_print;
+  printf("lexer token_start::");
+  for (i=0; i < lim; i++) {
+    ch = self->start_of_token[i];
+    if (ch > ' ' && ch <= '~')
       printf("%c", ch);
     else
       printf("<%02x>", (unsigned int)ch);
@@ -1155,11 +1180,16 @@ code_call_lexer_state_fill_func(lexer_state_t *lstate)
 {
   PyObject *fill_status, *arg_list;
   long n1, n2, s1, s2, n_avail, new_size, shift_amt, to_move;
+  int res;
 
   /* return val:               */
   /* 1 = got more data         */
   /* 2 = no more data avail    */
   /* 3 = something went wrong  */
+
+#if PYTOKEN_DEBUG
+  printf("Doing fill\n");
+#endif
 
   if (lstate == 0) {
     PyErr_Format(PyExc_RuntimeError, "null lexer state sent to fill runtime");
@@ -1174,6 +1204,10 @@ code_call_lexer_state_fill_func(lexer_state_t *lstate)
     size_t n_read;
     FILE *fp;
 
+#if PYTOKEN_DEBUG
+    printf("  doing file fill\n");
+    lexer_state_print_buf(lstate, 60);
+#endif
     fp = PyFile_AsFile(lstate->fill_obj);
     assert(fp != 0);
 
@@ -1182,8 +1216,12 @@ code_call_lexer_state_fill_func(lexer_state_t *lstate)
     n_avail = s1 + s2;
     if (n_avail == 0) {
       new_size = lstate->size_of_buf * 2;
-      if ( ! lexer_state_resize_buffer(lstate, new_size))
+      if ( ! lexer_state_resize_buffer(lstate, new_size)) {
+#if PYTOKEN_DEBUG
+	printf("file fill unable to resize, newsize=%ld\n", new_size);
+#endif
 	return 3;
+      }
       s1 = lstate->start_of_token - lstate->buf;
       s2 = lstate->size_of_buf - lstate->chars_in_buf;
       n_avail = s1 + s2;
@@ -1205,8 +1243,14 @@ code_call_lexer_state_fill_func(lexer_state_t *lstate)
     lstate->chars_in_buf += n_read;
 
     if (n_read == 0)
-      return 2;
-    return 1;
+      res = 2;
+    else
+      res = 1;
+#if PYTOKEN_DEBUG
+    lexer_state_print_buf(lstate, 60);
+    printf("at end of file fill result=%d\n\n", res);
+#endif
+    return res;
   }
   else {
     assert(PyCallable_Check(lstate->fill_obj));

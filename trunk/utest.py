@@ -1264,12 +1264,9 @@ class asm_full_13(lex_test):
     pass
 
 class asm_full_14(lex_test):
-    def action(self, lstate):
+    def action(self, txt):
         self.n_calls += 1
-
-        t1 = lstate.get_match_text()
-        self.txt += t1
-
+        self.txt += txt
         return "foobar"
 
     def runTest(self):
@@ -1303,9 +1300,15 @@ class asm_full_15(lex_test):
         tmp = self.id().split(".")
         self.fname = tmp[1] + ".tmp"
         fp = open(self.fname, "w")
-        for i in xrange(4096):
+        for i in xrange(4):
             print >>fp, "foobar "
         fp.close()
+
+        if 0:
+            fp = open(self.fname, "r")
+            txt = fp.read()
+            fp.close
+            print txt
         return
 
     def tearDown(self):
@@ -1319,12 +1322,19 @@ class asm_full_15(lex_test):
         lo.add_pattern("\n", None)
         lo.compile_to_machine_code(debug=False)
 
+        if 0:
+            pytoken.print_instructions(lo.ir)
+
         fp2 = open(self.fname)
         buf = pytoken.lexer_state()
         buf.set_input(fp2)
 
-        for i in xrange(4096):
+        #escape.print_gdb_info()
+
+        for i in xrange(4):
             tok = lo.get_token(buf)
+            #print "got a token", i, tok
+            #print "state -->", buf.get_all_state()
             self.assert_(tok == 1)
 
         tok = lo.get_token(buf)
@@ -1385,8 +1395,7 @@ class asm_full_17(lex_test):
 
         return
 
-    def action(self, lstate):
-        t1 = lstate.get_match_text()
+    def action(self, t1):
         return t1
 
     def tearDown(self):
@@ -1459,6 +1468,55 @@ class asm_full_19(lex_test):
         self.assert_(tok==1)
         tok = lexer_obj.get_token(buf)
         self.assert_(tok == 1)
+
+        return
+    pass
+
+class asm_full_20(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("a", 1)
+        lexer_obj.add_pattern(" ")
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            print "NFA:"
+            print lexer_obj.nfa_obj
+            print "DFA:"
+            print lexer_obj.dfa_obj
+            #pytoken.print_instructions(lexer_obj.ir)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("   a")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==1)
+        return
+    pass
+
+class asm_full_21(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("[0123456789]+", int)
+        lexer_obj.add_pattern(" ")
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            print "NFA:"
+            print lexer_obj.nfa_obj
+            print "DFA:"
+            print lexer_obj.dfa_obj
+            #pytoken.print_instructions(lexer_obj.ir)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("   10 20 40")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==10)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==20)
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==40)
 
         return
     pass

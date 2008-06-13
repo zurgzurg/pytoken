@@ -1,20 +1,68 @@
 import sys
 import os
+import pdb
 
 from distutils.command.clean import clean as _clean
 from distutils.core import setup, Extension
+from distutils import sysconfig
 
-module1 = Extension('escape',
-                    sources = ['escapemodule.c'])
+##################################################################
+def customize_compiler2(compiler):
+    (cc, cxx, opt, cflags, ccshared, ldshared, so_ext) = \
+         sysconfig.get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
+                                   'CCSHARED', 'LDSHARED', 'SO')
 
-mlist = [module1]
+    if 0:
+        print "cc=", cc
+        print "cxx=", cxx
+        print "opt=", opt
+        print "cflags=", cflags
+        print "ccshared=", ccshared
+
+        
+    cflags = cflags.replace("-DNDEBUG", "")
+    cflags = cflags.replace("-O2", "")
+
+    cpp = cc + " -E"
+    cc_cmd = cc + ' ' + cflags
+
+    compiler.set_executables(
+        preprocessor=cpp,
+        compiler=cc_cmd,
+        compiler_so=cc_cmd + ' ' + ccshared,
+        compiler_cxx=cxx,
+        linker_so=ldshared,
+        linker_exe=cc)
+
+    compiler.shared_lib_extension = so_ext
+    return
+
+idx = None
+for i, arg in enumerate(sys.argv):
+    if arg == "-debug":
+        idx = i
+if idx:
+    sys.argv.pop(idx)
+    
+    d = sysconfig.__dict__
+    d['customize_compiler'] = customize_compiler2
+
+
+##################################################################
+##
+## the main module - escape
+##
+##################################################################
+escape_module = Extension('escape',
+                          sources = ['escapemodule.c'])
+
+mlist = [escape_module]
 
 ##################################################################
 ##
 ## benchark support - most folks wont need this
 ##
 ##################################################################
-module2 = None
 idx = None
 for i, arg in enumerate(sys.argv):
     if arg == "-bmark":
@@ -37,11 +85,9 @@ if idx:
 
 ##################################################################
 ##
-##
+## custom clean func
 ##
 ##################################################################
-## how can I force setup to turn off -O ??
-##
 class clean(_clean):
     """Custom clean routine to clean pyc files"""
     def run(self):
@@ -56,6 +102,13 @@ class clean(_clean):
         return
     pass
 
+##################################################################
+##
+## toplevel
+##
+##################################################################
+## how can I force setup to turn off -O ??
+##
 setup(name = 'escape',
       version = '1.0',
       description = 'The escape package. Gives python low level access.',

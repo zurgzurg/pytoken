@@ -47,6 +47,13 @@ lexer_state = escape.lexer_state
 
 ##########################################################################
 class fsa(object):
+    """Base class for DFA and NFA classes. This implementation is slightly
+    unusual: states are not 'owned' by a state machine. Instead states
+    exist in the own right outside of any particular state machine, and
+    a single state can be referenced from multiple state machines. This
+    makes it easier to do the regular expression --> NFA transformation.
+    It is easiest to think of an NFA or DFA as just a hash table that
+    lists all the edges for the state machine."""
     def __init__(self, lexer):
         self.init_state       = lexer.get_new_state()
         self.trans_tbl        = {}
@@ -449,6 +456,8 @@ class lexer(object):
         self.ir               = None
         self.code_obj         = None
 
+        self.default_lstate   = None
+
         return
 
     #######################################
@@ -460,18 +469,62 @@ class lexer(object):
     #######################################
     #######################################
     #######################################
-    def add_pattern(self, pat, action):
-        """Add a pattern to the lexer.  The pattern is a regular
-        expression, currently the only meta characters supported are *
-        [] () and |. The action argument can be anything. If action is
-        None then those tokens are discarded by the lexer. If the
-        action is a non-callable and not None then when that pattern
-        is found the action will be returned. For callable actions, the action
-        will be called with one arg - the lexer state buffer. The return
-        value from the callable will be returned from get_token()."""
+    def add_pattern(self, pat, *args):
+        """Add a pattern to the lexer.
+
+        There are several possible ways to call add_pattern():
+
+        1. add_pattern(REGEXP)
+        2. add_pattern(REGEXP, None)
+        3. add_pattern(REGEXP, obj1)
+        4. add_pattern(REGEXP, obj1, obj2)
+
+        The different forms specify what should done by get_token()
+        when REGEXP is recognized.
+
+        Forms 1 and 2 are equivalent. When the scanner recognizes
+        REGEXP it will be discarded and the scanner will start matching
+        the next token.
+
+        Form 3: if obj1 is a callable then when REGEXP is recognized
+        obj1 will be called with a single argument - the text of the
+        buffer that matched REGEXP. The return value from calling
+        obj1 will be returned by get_token(). If obj1 is not callable
+        obj1 will be returned by get_token().
+
+        Form 4: obj1 must be a callable that accepts two argumens. The
+        first argument will be the buffer object passed to get_token()
+        and the second argument will be obj2. The return value from
+        calling obj1 will be returned by get_token().
+        
+        For forms 3 and 4 bound methods can be used for the callable.
+
+        Syntax of Regular Expressions:
+
+        Currently the syntax supported by pytoken is limited. The
+        meta characters supported are:
+
+        [] - character classes
+        () - grouping
+        |  - alternation
+        *  - kleene star - zero or more repeats
+        +  - 1 or more repeats
+
+        \\  - backslash - suppresses the meaning of one of the above chars.
+
+        How matching is done:
+
+        The scanner will give first preference to match longer tokens, then
+        tokens that were specified earlier.
+        """
         idx = len(self.actions)
-        self.actions.append(action)
-        self.pats.append((pat, idx))
+        if len(args) == 0 or (len(args)==1 and args[0] is None):
+            self.actions.append(None)
+            self.pats.append((pat, idx))
+        elif len(args)==1:
+            assert args[0] is not None
+            self.actions.append(args[0])
+            self.pats.append((pat, idx))
         return
 
     def build_nfa(self):
@@ -506,21 +559,34 @@ class lexer(object):
         self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
 
-    def get_token(self, lstate, arg=None):
+    def set_default_lexer_state(lstate):
+        self.default_lstate = lstate
+        return
+
+    def get_token(self, lstate=None):
+        """Return the next token.
+        This is done according to the rules listed under add_pattern().
+        There is an optional argument, a lexer_state object. If it
+        not given then the user must have called set_default_lexer_state(),
+        the argument given to that function will be used instead. If
+        the lexer state obj is given then is must be a lexer state object."""
         assert self.code_obj is not None
-        while True:
-            idx = self.code_obj.get_token(lstate)
-            assert type(idx) is int and idx >= 0 and idx < len(self.actions)
-            action = self.actions[idx]
-            if action is not None:
-                break
-        if callable(action):
-            if arg:
-                r = action(lstate, arg)
-            else:
-                r = action(lstate)
+
+        if lstate is not None:
+            lobj = lstate
         else:
-            r = action
+            lobj = self.default_lstate
+        idx = self.code_obj.get_token(lobj)
+        action_obj = self.actions[idx]
+        #if action_obj is None:
+        #    pdb.set_trace()
+        assert action_obj is not None
+
+        if not callable(action_obj):
+            return action_obj
+
+        txt = lobj.get_match_text()
+        r = action_obj(txt)
         return r
 
     ####################################################
@@ -646,14 +712,14 @@ class lexer(object):
             ir.ladd_ir_beq(lst, dst.label)
 
         ## 4. if control flow reaches this point then the current
-        ##    char does not match any next state - so either we
-        ##    have an error (illegal input char) or we hit EOB
+        ##    char does not match any next state. We may have walked
+        ##    past the end of a valid token, hit an illegal char,
+        ##    or found eob.
         ##
         ## XXX - not handling case of user patterns
         ## matching EOB chars
-        lab_eob = state.label + "_found_eob"
+        lab_eob            = state.label + "_found_eob"
         lab_bad_char       = state.label + "_bad_char"
-        lab_discard        = state.label + "_discard"
         lab_fill_err       = state.label + "_fill_err"
         lab_fill_bad_ret   = state.label + "_fill_bad_ret"
         lab_real_eob       = state.label + "_real_eob"
@@ -664,42 +730,28 @@ class lexer(object):
         ir.ladd_ir_cmp(lst, ir.data_var, 0)
         ir.ladd_ir_beq(lst, lab_eob)
         
-        ##  the current char is unmatched -- and is not NULL
-        ##
-        ##  if token_found_flag is set
-        ##    set token end ptr to saved value
-        ##    save cur char pointer
-        ##    return saved result
-        ##  else
-        ##    return error condition
-        ##
+        ##  unmatched char
         ir.ladd_ir_com(lst, "unmatched char")
         ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
         ir.ladd_ir_bne(lst, lab_bad_char)
-        ir.ladd_ir_cmp(lst, ir.saved_is_discard, 1)
-        ir.ladd_ir_beq(lst, lab_discard)
 
-        ir.ladd_ir_com(lst, "unmatched char, but earlier match")
-        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+        # have saved hit - lstate->next_char_ptr <--- saved_char_ptr
         ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
         ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
-        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
-                       ir.str_ptr_var)
+        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var), ir.saved_ptr)
+        ir.ladd_ir_cmp(lst, ir.saved_is_discard, 1)
+        ir.ladd_ir_beq(lst, "lab_main")
+
+        # not discard: store cur_char - return saved result
+        ir.ladd_ir_com(lst, "unmatched char, but earlier match")
         ir.ladd_ir_ret(lst, ir.saved_result)
 
-        ir.ladd_ir_com(lst, "earlier match is discard")
-        ir.ladd_ir_label(lst, lab_discard)
-        ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
-        ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
-        ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
-        ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var),
-                       ir.str_ptr_var)
-        ir.ladd_ir_br(lst, "lab_main")
-        
-
+        #--
         ir.ladd_ir_com(lst, "hit unmatched char")
         ir.ladd_ir_label(lst, lab_bad_char)
         ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_UNEXP)
+
+        #############
 
         # cur char is NULL - call fill routine
         # but save char pointer and reload on return
@@ -712,43 +764,39 @@ class lexer(object):
         ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
         ir.ladd_ir_stw(lst, ir.make_indirect_var(ir.tmp_var), ir.str_ptr_var)
         ir.ladd_ir_call(lst, ir.fill_status, ir.fill_caller_addr,ir.lstate_ptr)
-
-        # 1 = got more data
-        # need to update various lexer state pointers
-        ir.ladd_ir_cmp(lst, ir.fill_status, 1)
-        ir.ladd_ir_bne(lst, lab_fill_no_data)
-
-        ir.ladd_ir_com(lst, "after fill - got more data")
         ir.ladd_ir_set(lst, ir.tmp_var, ir.lstate_ptr)
         ir.ladd_ir_add(lst, ir.tmp_var, ir.char_ptr_offset)
         ir.ladd_ir_ldw(lst, ir.str_ptr_var, ir.make_indirect_var(ir.tmp_var))
-
-        ir.ladd_ir_set(lst, ir.token_start_ptr, ir.lstate_ptr)
-        ir.ladd_ir_add(lst, ir.token_start_ptr, ir.token_start_offset)
-
-        ir.ladd_ir_ldb(lst, ir.data_var, ir.make_indirect_var(ir.str_ptr_var))
-        ir.ladd_ir_br(lst, state.label)
-
+        
+        # dispatch based on fill status
+        ir.ladd_ir_cmp(lst, ir.fill_status, 1)
+        ir.ladd_ir_beq(lst, state.label)
+        ir.ladd_ir_cmp(lst, ir.fill_status, 2)
+        ir.ladd_ir_beq(lst, lab_fill_no_data)
+        ir.ladd_ir_cmp(lst, ir.fill_status, 3)
+        ir.ladd_ir_beq(lst, lab_fill_err)
+        ir.ladd_ir_br(lst, lab_fill_bad_ret)
 
         # 2 = no more data avail
         ir.ladd_ir_label(lst, lab_fill_no_data)
-        ir.ladd_ir_cmp(lst, ir.fill_status, 2)
-        ir.ladd_ir_bne(lst, lab_fill_err)
         ir.ladd_ir_cmp(lst, ir.saved_valid, 1)
         ir.ladd_ir_bne(lst, lab_real_eob)
 
+        ir.ladd_ir_cmp(lst, ir.saved_is_discard, 1)
+        ir.ladd_ir_beq(lst, "lab_main")
+
         ir.ladd_ir_com(lst, "no data after fill - but have valid result")
         ir.ladd_ir_set(lst, ir.str_ptr_var, ir.saved_ptr)
+
         ir.ladd_ir_ret(lst, ir.saved_result)
         
+        #--
         ir.ladd_ir_com(lst, "no data after fill - no valid result")
         ir.ladd_ir_label(lst, lab_real_eob)
         ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_EOB)
 
         # 3 = something went wrong in fill
         ir.ladd_ir_label(lst, lab_fill_err)
-        ir.ladd_ir_cmp(lst, ir.fill_status, 3)
-        ir.ladd_ir_bne(lst, lab_fill_bad_ret)
         ir.ladd_ir_ret(lst, lexer.ACTION_ERR_IN_FILL)
 
         # 4 = last case = fill returns illegal val
