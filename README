@@ -41,9 +41,79 @@ Why use pytoken
    pytoken generates machine code directly it can ensure that no extra
    work is done is processing the input stream. Pytoken aims to keep the
    overhead of executing inside the python interpreter to a minimum.
+   Minimal benchmarking - see bencharm.py shows that pytoken is around
+   30% slower than flex.
 
-How is it different from these packages:
+TODO
+----------------------------------------------
+Before initial release:
 
+done	make buffers work with file like objects - set_input()
+done	make buffers work with file like objects - fill()
+
+done	handle None as token id
+
+done	support token id as callable, need to have clear
+done	protocol on getting token info from buffer. Need
+done	way to get buffer contents as well., also callable
+done	objs must have a way of passing user defined args.
+
+done	very long token - larger that 4k
+	
+done	fill buffers with varying token sizes - to ensure
+	that tokens will be split accross buffer fills
+
+	some simple examples
+
+done	benchmarking vs flex
+
+
+Other TODO Items:
+	Need a manual.
+
+	Need to support matching NULL chars in users patterns.
+
+	Need to support a richer set of REGEXP meta chars.
+
+	Rework/Rewrite the IR representation. This needs to
+	be done before better machine code can be generated.
+
+	Emit better machine code. Need a frame work for doing
+	traditional compiler style optimizations.
+
+	? Comments from users ?
+
+Info for developers
+----------------------------------------------------
+General info
+
+testing the assembler: Normally I just use gas or nasm to
+test create the expected output.
+
+junk.s:
+-----------------------
+l1:	nop
+	jmp l1
+-----------------------
+$ as -a junk.s
+GAS LISTING junk.s                      page 1
+
+
+   1 0000 90            l1:     nop
+   2 0001 EBFD                  jmp l1
+   3
+
+GAS LISTING junk.s                      page 2
+
+
+DEFINED SYMBOLS
+              junk.s:1      .text:00000000 l1
+
+NO UNDEFINED SYMBOLS
+
+
+
+How is it different from these packages: (This need more info).
 
 -----
 http://pypi.python.org/pypi/pyggy/0.3
@@ -79,54 +149,3 @@ home page link is dead
 
 -----
 
-TODO
-----------------------------------------------
-Before initial release:
-
-done	make buffers work with file like objects - set_input()
-done	make buffers work with file like objects - fill()
-
-done	handle None as token id
-
-done	support token id as callable, need to have clear
-done	protocol on getting token info from buffer. Need
-done	way to get buffer contents as well., also callable
-done	objs must have a way of passing user defined args.
-
-done	very long token - larger that 4k
-	
-done	fill buffers with varying token sizes - to ensure
-	that tokens will be split accross buffer fills
-
-	some simple examples
-
-done	benchmarking vs flex
-
-
-Info for developers
-----------------------------------------------------
-General info
-
-testing the assembler: Normally I just use gas or nasm to
-test create the expected output.
-
-junk.s:
------------------------
-l1:	nop
-	jmp l1
------------------------
-$ as -a junk.s
-GAS LISTING junk.s                      page 1
-
-
-   1 0000 90            l1:     nop
-   2 0001 EBFD                  jmp l1
-   3
-
-GAS LISTING junk.s                      page 2
-
-
-DEFINED SYMBOLS
-              junk.s:1      .text:00000000 l1
-
-NO UNDEFINED SYMBOLS
