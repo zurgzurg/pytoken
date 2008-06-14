@@ -109,9 +109,12 @@ class clean(_clean):
 ##################################################################
 ## how can I force setup to turn off -O ??
 ##
-setup(name = 'escape',
-      version = '1.0',
-      description = 'The escape package. Gives python low level access.',
+setup(name = 'pytoken',
+      version = '1.01',
+      description = 'Generates scanners for python.',
+      author = 'Ram Bhamidipaty',
+      author_email = 'rambham@gmail.com',
+      url = 'http://code.google.com/p/pytoken/',
       ext_modules = mlist,
-
+      py_modules = ['pytoken'],
       cmdclass = {"clean" : clean} )
