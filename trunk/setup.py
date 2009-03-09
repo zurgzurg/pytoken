@@ -60,7 +60,7 @@ mlist = [escape_module]
 
 ##################################################################
 ##
-## benchark support - most folks wont need this
+## benchark support - most folks won't need this
 ##
 ##################################################################
 idx = None
@@ -116,5 +116,5 @@ setup(name = 'pytoken',
       author_email = 'rambham@gmail.com',
       url = 'http://code.google.com/p/pytoken/',
       ext_modules = mlist,
-      py_modules = ['pytoken'],
+      py_modules = ['pytoken', 'pytoken_ply'],
       cmdclass = {"clean" : clean} )

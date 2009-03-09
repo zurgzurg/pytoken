@@ -805,7 +805,7 @@ typedef struct {
   lexer_state_t *lstate;
 } code_t;
 
-static void code_grow(code_t *);
+static int code_grow(code_t *);
 
 static PyTypeObject code_type = {
   PyObject_HEAD_INIT(NULL)
@@ -852,11 +852,10 @@ code_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   self->num_in_buf    = 0;
-  self->size_of_buf   = 1024;
+  self->size_of_buf   = 0;
   self->is_vcode      = 0;
   self->obj_size      = 1;
-
-  self->u.buf         = calloc(self->obj_size, self->size_of_buf);
+  self->u.buf         = 0;
 
   return 0;
 }
@@ -865,7 +864,7 @@ static void
 code_dealloc(PyObject *arg_self)
 {
   code_t *self;
-  int i;
+  int i, err_code;
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
@@ -877,7 +876,8 @@ code_dealloc(PyObject *arg_self)
     self->u.obuf = 0;
   }
   else {
-    free(self->u.buf);
+    err_code = munmap(self->u.buf, self->size_of_buf);
+    assert (err_code == 0); /* how should a failure be handled ? */
   }
 
   self->num_in_buf    = 0;
@@ -1053,8 +1053,11 @@ code_append(PyObject *arg_self, PyObject *args)
 		   "append tuples.");
       return 0;
     }
+
     if (self->num_in_buf == self->size_of_buf)
-      code_grow(self);
+      if ( ! code_grow(self))
+	return 0;
+
     Py_INCREF(tup);
     self->u.obuf[ self->num_in_buf ] = tup;
     self->num_in_buf++;
@@ -1065,8 +1068,11 @@ code_append(PyObject *arg_self, PyObject *args)
 
   if (!PyArg_ParseTuple(args, "i:append", &ival))
     return 0;
+
   if (self->num_in_buf == self->size_of_buf)
-    code_grow(self);
+    if ( ! code_grow(self))
+      return 0;
+
   self->u.buf[ self->num_in_buf ] = (char)(ival & 0xFF);
   self->num_in_buf++;
 
@@ -1079,7 +1085,7 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
 {
   code_t *self;
   const char *sbuf;
-  int i, slen, status;
+  int i, slen;
   unsigned char *page_base;
 
   assert(arg_self->ob_type == &code_type);
@@ -1089,7 +1095,8 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   if (!PyArg_ParseTuple(args, "s#:append", &sbuf, &slen))
     return 0;
   while (slen > self->size_of_buf)
-    code_grow(self);
+    if ( ! code_grow(self))
+      return 0;
   for (i=0; i<slen; i++)
     self->u.buf[i] = sbuf[i];
   self->num_in_buf = slen;
@@ -1098,11 +1105,13 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   page_base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
   while (page_base < (unsigned char *)(self->u.buf + slen)) {
     i++;
+#if 0
     status = mprotect(page_base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
     if (status != 0) {
       perror("mprotect failed:");
       exit(1);
     }
+#endif
     page_base = page_base + 4096;
   }
 
@@ -1110,14 +1119,68 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   return Py_None;
 }
 
-static void
+static int
 code_grow(code_t *self)
 {
+  char *tmp, msg[200];
+  int err_code;
+
+  if (self->is_vcode) {
+    if (self->size_of_buf == 0) {
+      self->size_of_buf = 1024;
+      self->u.buf = malloc (self->size_of_buf * self->obj_size);
+      if (self->u.buf == 0)
+	{
+	  PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
+	  return 0;
+	}
+      return 1;
+    }
+    self->size_of_buf = 2 * self->size_of_buf;
+    self->u.buf         = realloc(self->u.buf,
+				  self->size_of_buf * self->obj_size);
+    if (self->u.buf == 0)
+      {
+	PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
+	return 0;
+      }
+    return 1;
+  }
+
+  if (self->size_of_buf == 0) {
+    self->size_of_buf = sysconf(_SC_PAGESIZE);
+    self->u.buf = mmap(0, self->size_of_buf,
+		       PROT_READ | PROT_WRITE | PROT_EXEC,
+		       MAP_PRIVATE | MAP_ANONYMOUS,
+		       -1, 0);
+    if (self->u.buf == MAP_FAILED) {
+      msg[0] = '\0';
+      strerror_r(errno, msg, sizeof(msg));
+      PyErr_Format(PyExc_RuntimeError, "Could not mmap anonymous buffer: %d",
+		   errno);
+      return 0;
+    }
+    return 1;
+  }
+
   self->size_of_buf = 2 * self->size_of_buf;
-  self->u.buf         = realloc(self->u.buf,
-				self->size_of_buf * self->obj_size);
-  assert(self->u.buf != 0);
-  return;
+  tmp = mmap (0, self->size_of_buf, PROT_READ | PROT_WRITE | PROT_EXEC,
+	      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (tmp == MAP_FAILED) {
+      PyErr_Format(PyExc_RuntimeError, "Could not mmap anonymous 2nd buffer");
+      return 0;
+    }
+    
+  memcpy (tmp, self->u.buf, self->num_in_buf);
+  err_code = munmap (self->u.buf, self->size_of_buf);
+  if (err_code != 0) {
+      PyErr_Format(PyExc_RuntimeError, "Could not munmap anonymous buffer");
+      return 0;
+    }
+
+  self->u.buf = tmp;
+
+  return 1;
 }
 
 static PyObject *
