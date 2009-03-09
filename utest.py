@@ -39,7 +39,7 @@ import sys
 import unittest
 import pdb
 
-sys.path.append("./build/lib.linux-i686-2.5")
+#sys.path.append("./build/lib.linux-i686-2.6")
 
 import pytoken
 
@@ -767,6 +767,7 @@ class asm08(lex_test):
         nfa_obj = obj.build_nfa()
         dfa_obj = obj.build_dfa()
         code1   = obj.compile_to_ir()
+        #escape.print_gdb_info()
         if 0:
             pytoken.print_instructions(code1)
         code2 = pytoken.compile_to_x86_32(code1)
