@@ -349,15 +349,16 @@ def do_nfa_plus(lexer, nfa1):
 
 ###################################################################
 ###################################################################
-LPAREN   = 1
-RPAREN   = 2
-LBRACKET = 3
-RBRACKET = 4
-PIPE     = 5
-PLUS     = 6
-STAR     = 7
-TEXT     = 8
-CCAT     = 9
+LPAREN   =  1
+RPAREN   =  2
+LBRACKET =  3
+RBRACKET =  4
+PIPE     =  5
+PLUS     =  6
+QMARK    =  7
+STAR     =  8
+TEXT     =  9
+CCAT     = 10
 
 char2sym = {
     '('  : LPAREN,
@@ -366,6 +367,7 @@ char2sym = {
     ']'  : RBRACKET,
     '|'  : PIPE,
     '+'  : PLUS,
+    '?'  : QMARK,
     '*'  : STAR
     }
 
@@ -376,6 +378,7 @@ sym2name = {
     RBRACKET : "RB",
     PIPE     : "PIPE",
     PLUS     : "PLUS",
+    QMARK    : "QMARK",
     STAR     : "STAR",
     TEXT     : "TEXT",
     CCAT     : "CCAT"
@@ -388,6 +391,7 @@ sym2char = {
     RBRACKET : "]",
     PIPE     : "|",
     PLUS     : "+",
+    QMARK    : "?",
     STAR     : "*",
     TEXT     : None,
     CCAT     : None
@@ -398,13 +402,14 @@ sym2prec = {
     CCAT   : 1,
     PIPE   : 1,
     STAR   : 2,
+    QMARK  : 2,
     LPAREN : 3,
     RPAREN : 3
     }
     
 
 all_special_syms = (LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE,
-                    PLUS, STAR, CCAT)
+                    PLUS, STAR, QMARK, CCAT)
 
 class fsa_state(object):
     __slots__ = ['lexer', 'num', 'other_state', 'dfa_out_chars', 'label',
@@ -984,7 +989,7 @@ class lexer(object):
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
 
-            elif ch in ('(', ')', '|', '*', '+'):
+            elif ch in ('(', ')', '|', '*', '+', '?'):
                 if ch == '(':
                     n_paren += 1
                 elif ch == ')':
