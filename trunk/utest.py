@@ -43,7 +43,8 @@ import pdb
 
 import pytoken
 
-from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET, PIPE, STAR, CCAT, PLUS
+from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET
+from pytoken import PIPE, PLUS, QMARK, STAR, CCAT
 from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
      IR_CMP, IR_BEQ, IR_BNE, IR_NOP, IR_ADD, IR_RET
 
@@ -284,6 +285,120 @@ class tokens17(lex_test):
                PIPE,   '5', PIPE, '6', PIPE, '7', PIPE, '8', PIPE, '9',
                RPAREN, PLUS)
         self.check_structure(act, exp)
+        return
+    pass
+
+class tokens18(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("a+")
+        exp = ('a', PLUS)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens19(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("a?")
+        exp = ('a', QMARK)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens20(lex_test):
+    def runTest(self):
+        ch = 'a'
+        while ch <= 'z':
+            obj = pytoken.lexer()
+            act = obj.tokenize_pattern(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        ch = 'A'
+        while ch <= 'Z':
+            obj = pytoken.lexer()
+            act = obj.tokenize_pattern(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        ch = '0'
+        while ch <= '9':
+            obj = pytoken.lexer()
+            act = obj.tokenize_pattern(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("!")
+        self.check_structure(act, ("!"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("\"")
+        self.check_structure(act, ("\""))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("#")
+        self.check_structure(act, ("#"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("%")
+        self.check_structure(act, ("%"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("&")
+        self.check_structure(act, ("&"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("\'")
+        self.check_structure(act, ("\'"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(",")
+        self.check_structure(act, (","))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("-")
+        self.check_structure(act, ("-"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("/")
+        self.check_structure(act, ("/"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(":")
+        self.check_structure(act, (":"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(";")
+        self.check_structure(act, (";"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("<")
+        self.check_structure(act, ("<"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("=")
+        self.check_structure(act, ("="))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(">")
+        self.check_structure(act, (">"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("_")
+        self.check_structure(act, ("_"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("`")
+        self.check_structure(act, ("`"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("~")
+        self.check_structure(act, ("~"))
+
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(" ")
+        self.check_structure(act, (" "))
+
         return
     pass
 
@@ -2476,6 +2591,10 @@ class errtest02(lex_test):
         self.assertRaises( RuntimeError, obj.tokenize_pattern, "(")
         return
     pass
+
+##############################################################
+
+            
 
 ##############################################################
 class looper(lex_test):
