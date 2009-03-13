@@ -556,6 +556,112 @@ class postfix17(lex_test):
         return
     pass
 
+class postfix18(lex_test):
+    def runTest(self):
+        ch = 'a'
+        while ch <= 'z':
+            obj = pytoken.lexer()
+            act = obj.parse_as_postfix(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        ch = 'A'
+        while ch <= 'Z':
+            obj = pytoken.lexer()
+            act = obj.parse_as_postfix(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        ch = '0'
+        while ch <= '9':
+            obj = pytoken.lexer()
+            act = obj.parse_as_postfix(ch)
+            self.check_structure(act, (ch))
+            ch = chr(ord(ch) + 1)
+        
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("!")
+        self.check_structure(act, ("!"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("\"")
+        self.check_structure(act, ("\""))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("#")
+        self.check_structure(act, ("#"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("%")
+        self.check_structure(act, ("%"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("&")
+        self.check_structure(act, ("&"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("\'")
+        self.check_structure(act, ("\'"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix(",")
+        self.check_structure(act, (","))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("-")
+        self.check_structure(act, ("-"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("/")
+        self.check_structure(act, ("/"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix(":")
+        self.check_structure(act, (":"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix(";")
+        self.check_structure(act, (";"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("<")
+        self.check_structure(act, ("<"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("=")
+        self.check_structure(act, ("="))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix(">")
+        self.check_structure(act, (">"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("_")
+        self.check_structure(act, ("_"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("`")
+        self.check_structure(act, ("`"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("~")
+        self.check_structure(act, ("~"))
+
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix(" ")
+        self.check_structure(act, (" "))
+
+        return
+    pass
+
+
+class postfix19(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.parse_as_postfix("a?")
+        exp = ("a", QMARK)
+        self.check_structure(act, exp)
+        return
+    pass
+
 ##############################################################
 class nfa01(lex_test):
     def runTest(self):
@@ -624,6 +730,16 @@ class nfa07(lex_test):
         return
     pass
 
+class nfa08(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        postfix = ("a",QMARK)
+        nfa_obj = obj.postfix_to_nfa(postfix)
+        self.assert_(self.path_exists(nfa_obj, "a"))
+        self.assert_(self.path_exists(nfa_obj, ""))
+        return
+    pass
+
 ##############################################################
 class dfa01(lex_test):
     def runTest(self):
@@ -676,6 +792,18 @@ class dfa05(lex_test):
         self.assert_(self.path_exists(dfa_obj, "aa"))
         return
     pass
+
+class dfa06(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        p = obj.parse_as_postfix("a?")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        self.assert_(self.path_exists(dfa_obj, "a"))
+        self.assert_(self.path_exists(dfa_obj, ""))
+        return
+    pass
+
 ##############################################################
 class ir01(lex_test):
     def runTest(self):
@@ -1636,6 +1764,29 @@ class asm_full_21(lex_test):
 
         return
     pass
+
+class asm_full_22(lex_test):
+    def runTest(self):
+        lexer_obj = pytoken.lexer()
+        lexer_obj.add_pattern("b?", 1)
+        lexer_obj.compile_to_machine_code(debug=False)
+
+        if 0:
+            print "NFA:"
+            print lexer_obj.nfa_obj
+            print "DFA:"
+            print lexer_obj.dfa_obj
+            #pytoken.print_instructions(lexer_obj.ir)
+
+        buf = pytoken.lexer_state()
+        buf.set_input("b")
+
+        tok = lexer_obj.get_token(buf)
+        self.assert_(tok==1)
+
+        return
+    pass
+
 ##############################################################
 class asm_full2_01(lex_test):
     def runTest(self):
