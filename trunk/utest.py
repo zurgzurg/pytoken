@@ -402,6 +402,15 @@ class tokens20(lex_test):
         return
     pass
 
+class tokens21(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(".")
+        self.check_structure(act, (DOT))
+        return
+    pass
+
+
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
