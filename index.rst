@@ -32,6 +32,24 @@ around for a long time. pytoken is different because it creates
 scanners at run time and it emits native x86 machine code. The aim
 of pytoken is to generate scanners that are extremely fast.
 
+A Simple Example
+
+  import pytoken
+
+  lexer_obj = pytoken.lexer()
+  lexer_obj.add_pattern("a", 1)
+  lexer_obj.add_pattern("b", 2)
+  lexer_obj.compile_to_machine_code()
+
+  buf = pytoken.lexer_state()
+  buf.set_input("ab")
+
+  tok = lexer_obj.get_token(buf)
+  assert tok == 1
+  tok = lexer_obj.get_token(buf)
+  assert tok == 2
+
+
 pytoken defines two main classes:
 
 .. class:: lexer

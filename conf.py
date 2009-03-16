@@ -38,7 +38,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pytoken'
-copyright = u'2009, Ram Bhamidipaty'
+copyright = u'2008-2009, Ram Bhamidipaty'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
