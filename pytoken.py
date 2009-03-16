@@ -349,18 +349,20 @@ def do_nfa_plus(lexer, nfa1):
 
 ###################################################################
 ###################################################################
-LPAREN   =  1
-RPAREN   =  2
-LBRACKET =  3
-RBRACKET =  4
-PIPE     =  5
-PLUS     =  6
-QMARK    =  7
-STAR     =  8
-TEXT     =  9
-CCAT     = 10
+DOT      =  1
+LPAREN   =  2
+RPAREN   =  3
+LBRACKET =  4
+RBRACKET =  5
+PIPE     =  6
+PLUS     =  7
+QMARK    =  8
+STAR     =  9
+TEXT     = 10
+CCAT     = 11
 
 char2sym = {
+    '.'  : DOT,
     '('  : LPAREN,
     ')'  : RPAREN,
     '['  : LBRACKET,
@@ -372,6 +374,7 @@ char2sym = {
     }
 
 sym2name = {
+    DOT      : "DOT",
     LPAREN   : "LP",
     RPAREN   : "RP",
     LBRACKET : "LB",
@@ -385,6 +388,7 @@ sym2name = {
     }
 
 sym2char = {
+    DOT      : ".",
     LPAREN   : "(",
     RPAREN   : ")",
     LBRACKET : "[",
@@ -399,6 +403,7 @@ sym2char = {
 
 # larger numbers have higher precendence
 sym2prec = {
+    DOT    : 1,
     CCAT   : 1,
     PIPE   : 1,
     STAR   : 2,
@@ -994,7 +999,7 @@ class lexer(object):
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
 
-            elif ch in ('(', ')', '|', '*', '+', '?'):
+            elif ch in ('.', '(', ')', '|', '*', '+', '?'):
                 if ch == '(':
                     n_paren += 1
                 elif ch == ')':

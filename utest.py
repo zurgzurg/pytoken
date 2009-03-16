@@ -43,7 +43,7 @@ import pdb
 
 import pytoken
 
-from pytoken import LPAREN, RPAREN, LBRACKET, RBRACKET
+from pytoken import DOT, LPAREN, RPAREN, LBRACKET, RBRACKET
 from pytoken import PIPE, PLUS, QMARK, STAR, CCAT
 from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
      IR_CMP, IR_BEQ, IR_BNE, IR_NOP, IR_ADD, IR_RET
@@ -406,7 +406,7 @@ class tokens21(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
         act = obj.tokenize_pattern(".")
-        self.check_structure(act, (DOT))
+        self.check_structure(act, (DOT,))
         return
     pass
 
