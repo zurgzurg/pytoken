@@ -406,7 +406,41 @@ class tokens21(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
         act = obj.tokenize_pattern(".")
-        self.check_structure(act, (DOT,))
+        exp = [LPAREN, '\0']
+        for code in range(1,128):
+            exp.append(CCAT)
+            exp.append(chr(code))
+        exp.append(RPAREN)
+        self.check_structure(act, exp)
+        act = obj.tokenize_pattern("[.]")
+        self.check_structure(act, (LPAREN, ".", RPAREN))
+        return
+    pass
+
+class tokens22(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        got_error = False
+        try:
+            obj.tokenize_pattern("[")
+        except RuntimeError:
+            got_error = True
+        self.assert_(got_error == True)
+        return
+    pass
+
+class tokens23(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[^a]")
+        exp = [LPAREN, '\0']
+        for code in range(1,128):
+            if code == ord("a"):
+                continue
+            exp.append(PIPE)
+            exp.append(chr(code))
+        exp.append(RPAREN)
+        self.check_structure(act, exp)
         return
     pass
 

@@ -980,26 +980,58 @@ class lexer(object):
                 if len(result) > 0 and type( result[-1] ) is str:
                     result.append(CCAT)
                 result.append(LPAREN)
-                need_pipe = False
+
+                is_negation = False
+                if len(pat) > 0 and pat[0] == '^':
+                    is_negation = True
+                    pat = pat[1:]
+
                 end_found = False
+                chars = []
                 while len(pat) > 0:
                     ch = pat[0]
                     pat = pat[1:]
-
                     if ch == ']':
                         end_found = True
-                        result.append(RPAREN)
                         break
-                    else:
-                        if need_pipe:
-                            result.append(PIPE)
-                        result.append(ch)
-                        need_pipe = True
+                    chars.append(ch)
                     pass
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
 
-            elif ch in ('.', '(', ')', '|', '*', '+', '?'):
+                if is_negation:
+                    need_pipe = False
+                    for code in range(0, 128):
+                        if chr(code) in chars:
+                            continue
+                        if need_pipe:
+                            result.append(PIPE)
+                        need_pipe = True
+                        result.append(chr(code))
+                        pass
+                    pass
+                else:
+                    need_pipe = False
+                    for ch in chars:
+                        if need_pipe:
+                            result.append(PIPE)
+                        need_pipe = True
+                        result.append(ch)
+                        pass
+                    pass
+                result.append(RPAREN)
+
+
+            elif ch == '.':
+                result.append(LPAREN)
+                result.append(chr(0))
+                for code in range(1,128):
+                    result.append(CCAT)
+                    result.append(chr(code))
+                result.append(RPAREN)
+                pass
+
+            elif ch in ('(', ')', '|', '*', '+', '?'):
                 if ch == '(':
                     n_paren += 1
                 elif ch == ')':
