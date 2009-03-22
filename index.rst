@@ -165,26 +165,37 @@ Regular Expression Syntax
 :mod:`pytoken` supports a limited set of regular expression meta characters.
 The supported meta characters are:
 
-  |
-    Alternation.
+  ``'|'``
+    Alternation. Applies to the two regexs that are directly adjascent to the
+    ``'|'``. For example in ``'abcd|e'`` the alternation applies to the ``'d'``
+    and ``'e'``.
 
-  []
-    Character class. If the first character is ^ then
-    the sense of the class is inverted - anything not in the class.
+  ``'[]'``
+    Character class. The character class extends to the first ``']'``. A
+    character class is just a simple way to specify an alternation. For example
+    ``'[abc]'`` is the same as ``'(a|b|c)'``. If the first character of the
+    character class is ``'^'`` then the sense of the class is inverted,
+    that is it matches anything not in the class.
 
-  ()
-    Grouping.
+    As a convenience ranges of characters can be specified with the ``'-'``
+    character. For example all the lower case letters can be specified
+    with ``'[a-z]'``. To include a literal ``'-'`` in character class
+    put it at the beginning or the end: ``'[0-9-]'`` or ``'[-0-9]'``.
 
-  *
+  ``'()'``
+    Grouping. Useful to control the binding of other meta characters. If you
+    want ``'abc'`` or ``'def'`` you can use ``'(abc)|(def)'``.
+
+  ``'*'``
     Traditional kleene star. Zero or more repetions of the previous regex.
 
-  +
-    One or more repetitions.
+  ``'+'``
+    One or more repetitions of the previous regex.
 
-  ?
-    Zero or one.
+  ``'?'``
+    Zero or one repetion of the previous regex.
 
-  .
+  ``'.'``
     Any character. Including newline.
 
 

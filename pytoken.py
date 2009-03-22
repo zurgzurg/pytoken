@@ -569,7 +569,7 @@ class lexer(object):
         self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
 
-    def set_default_lexer_state(lstate):
+    def set_default_lexer_state(self, lstate):
         self.default_lstate = lstate
         return
 
@@ -988,13 +988,24 @@ class lexer(object):
 
                 end_found = False
                 chars = []
+
+                if len(pat) > 0 and pat[0] == '-':
+                    pat = pat[1:]
+                    chars.append('-')
+
                 while len(pat) > 0:
                     ch = pat[0]
                     pat = pat[1:]
                     if ch == ']':
                         end_found = True
                         break
-                    chars.append(ch)
+                    if len(pat) >= 2 and pat[0] == '-':
+                        ch2 = pat[1]
+                        pat = pat[2:]
+                        for code in range(ord(ch), ord(ch2)+1):
+                            chars.append(chr(code))
+                    else:
+                        chars.append(ch)
                     pass
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
