@@ -444,6 +444,40 @@ class tokens23(lex_test):
         return
     pass
 
+class tokens24(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[0-9]+")
+        exp = (LPAREN, '0', PIPE, '1', PIPE, '2', PIPE, '3', PIPE, '4',
+               PIPE,   '5', PIPE, '6', PIPE, '7', PIPE, '8', PIPE, '9',
+               RPAREN, PLUS)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens25(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[0-9-]+")
+        exp = (LPAREN, '0', PIPE, '1', PIPE, '2', PIPE, '3', PIPE, '4',
+               PIPE,   '5', PIPE, '6', PIPE, '7', PIPE, '8', PIPE, '9',
+               PIPE, '-', RPAREN, PLUS)
+        self.check_structure(act, exp)
+        return
+    pass
+
+class tokens26(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[-0-9]+")
+        exp = (LPAREN, '-', PIPE, '0', PIPE, '1', PIPE, '2', PIPE,
+               '3', PIPE, '4',
+               PIPE,   '5', PIPE, '6', PIPE, '7', PIPE, '8', PIPE, '9',
+               RPAREN, PLUS)
+        self.check_structure(act, exp)
+        return
+    pass
+
 
 ##############################################################
 class postfix01(lex_test):
