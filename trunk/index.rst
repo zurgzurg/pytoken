@@ -125,7 +125,21 @@ Otherwise the normal return protocol will be followed.
 
    .. method:: lexer.compile_to_machine_code()
 
+      This method can be called only once. The patterns will be merged into
+      a single DFA and then compiled into machine code. There is no return
+      value. Currently the function always works. More work is needed to
+      do things like limiting the number of NFA states that can be created
+      and bounding the total run time that can be spent.
+
    .. method:: lexer.get_token(lstate=None)
+
+      This method should only be called after
+      :meth:`lexer.compile_to_machine_code()`. The return value will be
+      the action associated with the next token from the lexer_state object
+      that is passed. If no lexer_state argument is given then the default
+      one will be used -- if a default one has been assigned. The
+      consequences of callign get_token() with no lexer_state argument
+      and without specifying a default lexer_state object are unspecified.
 
    .. method:: lexer.set_default_lexer_state(lstate)
 
