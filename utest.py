@@ -2821,8 +2821,21 @@ class errtest02(lex_test):
     pass
 
 ##############################################################
-
-            
+class interface01(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.compile_to_machine_code()
+        
+        got_exception = False
+        try:
+            tok = obj.get_token()
+        except Exception:
+            got_exception = True
+        self.assert_(got_exception == True)
+        return
+    pass
+        
 
 ##############################################################
 class looper(lex_test):
