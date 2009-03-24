@@ -77,6 +77,8 @@ Calling :meth:`lexer.get_token()` requires an instance of
 can change on each call. This techique can be used to handle
 switching the input stream on a per-token basis.
 
+The scanners are designed to store all state
+
 Protocol for :meth:`lexer.get_token()`
 ----------------------------------------
 
@@ -143,6 +145,11 @@ Otherwise the normal return protocol will be followed.
 
    .. method:: lexer.set_default_lexer_state(lstate)
 
+      This is a convenience routine to set a default lexer state object.
+      For the case when all tokens will come from the same lexer state
+      object this function can be used to avoid needing to pass the
+      same object to all get_token() calls.
+
 
 :class:`pytoken.lexer_state`
 ----------------------------
@@ -152,26 +159,70 @@ Otherwise the normal return protocol will be followed.
    to keep track of the current position in a file, stream, buffer or
    other input source.
 
+   Instances have a buffer that holds the data that is waiting to be
+   scanned, a pointer to the start of the current token and a next
+   char pointer and some bookkeeping info.
+
    .. method:: lexer_state.has_data()
 
-   .. method:: lexer_state.set_cur_offset()
+      Returns True if there is data in the buffer that has not yet been
+      scanned. More precisely the return value is true if there is
+      a buffer with data and the next char pointer is not null.
+
+   .. method:: lexer_state.set_cur_offset(offset)
+
+      Sets the next char pointer to point to offset chars into the buffer. It
+      is an error if the offset position is outside the range of the buffer.
+      There is no restriction on resetting the offset back to zero, if
+      the scanner has advanced it, but there is also no supported protocol
+      of when the scanner will cause the buffer to be shifted and filled
+      again.
+
 
    .. method:: lexer_state.get_cur_offset()
 
-   .. method:: lexer_state.set_cur_addr()
+      Raises an exception if there is no data in the buffer or the
+      next char pointer is out of range. Otherwise an int is returned
+      which is the offset of the next char pointer from the start of the
+      buffer.
+
+   .. method:: lexer_state.set_cur_addr(addr)
+
+      Not intended for general use. This allows setting the next char pointer
+      directly. It is the users resposibility to ensure that a valid address
+      is passed.
 
    .. method:: lexer_state.get_cur_addr()
 
+      Returns the next char pointer address as an integer. An exception is
+      raised if there is no valid next char pointer.
+
    .. method:: lexer_state.get_match_text()
 
-   .. method:: lexer_state.set_input()
+      Returns the text from the start of the current token to one before the
+      next char pointer as a string. Raises an exception if the intstance
+      does not have valid token start and next char pointers.
 
-   .. method:: lexer_state.set_fill_method()
+   .. method:: lexer_state.set_input(obj)
 
-   .. method:: lexer_state.add_to_buffer()
+      Obj can either be a string or a file object. If obj is a string then the
+      buffer will get a copy of the string. If the obj is a file then a
+      buffer (of unspecified size) will be allocated and filled with bytes
+      from the file. No other object type is supported (yet).
+
+   .. method:: lexer_state.set_fill_method(obj)
+
+      Obj must be a callable. If a fill method is given then it will be
+      called when the buffer needs to be filled.
+
+   .. method:: lexer_state.add_to_buffer(txt)
+
+      Not yet documented.
+      
 
    .. method:: lexer_state.get_all_state()
 
+      Not yet documented.
 
 Regular Expression Syntax
 -------------------------
