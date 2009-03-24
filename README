@@ -69,11 +69,11 @@ done	benchmarking vs flex
 
 
 Other TODO Items:
-	Need a manual.
+inprog	Need a manual.
 
 	Need to support matching NULL chars in users patterns.
 
-	Need to support a richer set of REGEXP meta chars.
+inprog	Need to support a richer set of REGEXP meta chars.
 
 	Rework/Rewrite the IR representation. This needs to
 	be done before better machine code can be generated.
