@@ -116,5 +116,5 @@ setup(name = 'pytoken',
       author_email = 'rambham@gmail.com',
       url = 'http://code.google.com/p/pytoken/',
       ext_modules = mlist,
-      py_modules = ['pytoken', 'pytoken_ply'],
+      py_modules = ['pytoken', 'pytoken_ply_lex'],
       cmdclass = {"clean" : clean} )
