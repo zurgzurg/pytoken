@@ -4,7 +4,7 @@
 if 0:
     import ply.lex as lex
 else:
-    import pytoken.ply_lex as lex
+    import pytoken.pytoken_ply_lex as lex
 import ply.yacc as yacc
 
 ###########################
