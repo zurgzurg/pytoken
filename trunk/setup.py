@@ -99,6 +99,8 @@ class clean(_clean):
                or f.endswith(".o") \
                or f in ("a.out", "pytoken.tar.gz"):
                 os.unlink(f)
+        os.unlink("parser.out")
+        os.unlink("parsetab.py")
         return
     pass
 
@@ -116,5 +118,6 @@ setup(name = 'pytoken',
       author_email = 'rambham@gmail.com',
       url = 'http://code.google.com/p/pytoken/',
       ext_modules = mlist,
-      py_modules = ['pytoken', 'pytoken_ply_lex'],
+      packages = ["pytoken"],
+      #py_modules = ['pytoken', 'pytoken_ply_lex'],
       cmdclass = {"clean" : clean} )
