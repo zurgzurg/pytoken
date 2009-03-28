@@ -40,7 +40,8 @@ import re
 import dl
 import pdb
 
-import escape
+import pytoken.escape
+import pytoken.ply_lex
 
 code        = escape.code
 lexer_state = escape.lexer_state
