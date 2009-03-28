@@ -1,6 +1,7 @@
 import sys
 import os
 import pdb
+import shutil
 
 from distutils.command.clean import clean as _clean
 from distutils.core import setup, Extension
@@ -99,8 +100,12 @@ class clean(_clean):
                or f.endswith(".o") \
                or f in ("a.out", "pytoken.tar.gz"):
                 os.unlink(f)
-        os.unlink("parser.out")
-        os.unlink("parsetab.py")
+        for f in ["parser.out", "parsetab.py"]: 
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
+        shutil.rmtree("build")
         return
     pass
 
