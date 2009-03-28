@@ -53,8 +53,8 @@ if idx:
 ## the main module - escape
 ##
 ##################################################################
-escape_module = Extension('escape',
-                          sources = ['escapemodule.c'])
+escape_module = Extension('pytoken.escape',
+                          sources = ['pytoken/escapemodule.c'])
 
 mlist = [escape_module]
 
