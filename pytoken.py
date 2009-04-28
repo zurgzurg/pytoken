@@ -40,11 +40,12 @@ import re
 import dl
 import pdb
 
-import pytoken.escape
-import pytoken.ply_lex
+import escape
+import pytoken_ply_lex
 
 code        = escape.code
 lexer_state = escape.lexer_state
+ply_lex     = pytoken_ply_lex.lex
 
 ##########################################################################
 class fsa(object):
@@ -226,7 +227,7 @@ class nfa(fsa):
 
     def convert_to_dfa(self):
         result = dfa(self.lexer)
-        all_ch = [chr(i) for i in range(127)]
+        all_ch = [chr(i) for i in range(256)]
 
         seen = {}
         start = self.e_closure(self.init_state)
@@ -975,7 +976,14 @@ class lexer(object):
             if ch == '\\':
                 ch  = pat[0]
                 pat = pat[1:]
-                result.append(ch)
+                if ch == 'n':
+                    result.append("\n")
+                elif ch == "t":
+                    result.append("\t")
+                elif ch == "r":
+                    result.append("\r")
+                else:
+                    result.append(ch)
 
             elif ch == '[':
                 if len(result) > 0 and type( result[-1] ) is str:
@@ -1413,6 +1421,20 @@ def is_indirect_var(r):
 
 def is_num(val):
     if type(val) in (int,long):
+        return True
+    return False
+
+def is_signed_8bit_num(val):
+    if not is_num(val):
+        return False
+    if val >= -127 and val <= 127:
+        return True
+    return False
+
+def is_signed_16bit_num(val):
+    if not is_num(val):
+        return False
+    if val >= -32767 and val <= 32767:
         return True
     return False
 
@@ -1899,6 +1921,28 @@ def ir_to_asm_list_x86_32(ir, debug=False):
                 assert is_num(v)
                 asm_list.append((None, "movl", "%d(%%ebp), %%eax" % r_off))
                 asm_list.append((None, "cmpl", "$%d, %%eax" % v))
+            #var = tup[1]
+            #op2 = tup[2]
+            #assert_is_var(var)
+            #voff = var2offset[var]
+
+            #if is_var(op2):
+            #    op2_off = var2offset[op2]
+            #    asm_list.append((None, "movl", "%d(%%ebp), %%eax" % voff))
+            #    asm_list.append((None, "cmpl", "%d(%%ebp), %%eax" % op2_off))
+            #else:
+            #    assert is_num(op2)
+            #   asm_list.append((None, "cmpl", "$%d, %d(%%ebp)" % (op2, voff)))
+                #if is_signed_8bit_num(op2):
+                #    asm_list.append((None, "movl", "%d(%%ebp), %%eax" % voff))
+                #    asm_list.append((None, "cmpl", "$%d, %%eax" % op2))
+                #else:
+                #    asm_list.append((None, "cmpl", "%d(%%ebp), %%eax" % voff))
+                #    asm_list.append((None, "", ""))
+                #    assert is_signed_16bit_num(op2)
+                #    pdb.set_trace()
+                #    assert None
+
         elif op==IR_BEQ:
             dst_lab = tup[1]
             asm_list.append((None, "je", dst_lab))
@@ -2208,6 +2252,37 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
                 instr.bytes.append(0x3B)
                 tmp = asm_86_32_encode_modrm_reg_indirreg(a2, a1)
                 instr.bytes.extend(tmp)
+            #
+            # a1 = "$97"
+            # a2 = "-20(%ebp)"
+            #if x86_32_arg_is_plain_reg(a2):
+            #    if x86_32_arg_is_const(a1):
+            #        a1 = x86_32_arg_parse_const(a1)
+            #        assert x86_32_const_is_imm8(a1)
+            #        instr.bytes.append(0x83)
+            #        reg_sel = modrm_tbl1[a2]
+            #        modrm = asm86_32_make_modrm(3, 7, reg_sel)
+            #        imm = asm_x86_32_make_s_immed8(a1)
+            #        instr.bytes.append(modrm)
+            #        instr.bytes.append(imm)
+            #    else:
+            #        assert x86_32_arg_is_reg_indirect(a1)
+            #        instr.bytes.append(0x3B)
+            #        tmp = asm_86_32_encode_modrm_reg_indirreg(a2, a1)
+            #        instr.bytes.extend(tmp)
+            #elif x86_32_arg_is_reg_indirect(a2):
+            #    off, reg = x86_32_arg_parse_indirect(a2)
+            #    instr.bytes.append(0x83)
+
+            #    reg_sel = modrm_tbl1[reg]
+            #    # modrm -- reg = 7
+            #    modrm = asm86_32_make_modrm(3, 7, reg_sel)
+            #    a1_val = x86_32_arg_parse_const(a1)
+            #    imm = asm_x86_32_make_immed8(a1_val)
+            #    instr.bytes.append(modrm)
+            #    instr.bytes.append(imm)
+            #else:
+            #    assert None, "Uknown arg type to compare=" + a2
         elif opcode in ("jne", "je"):
             assert type(args) is str
             instr.jump_target = args
@@ -2537,9 +2612,13 @@ def x86_32_arg_is_plain_reg(txt):
     return False
 
 def x86_32_const_is_imm8(val):
-    if val >= -127 and val < 128:
+    if val >= -127 and val <= 127:
         return True
     return False
+
+def x86_32_const_is_imm16(val):
+    if val >= -32767 and val <= 32767:
+        return True
 
 ############
 ## consts
@@ -2598,6 +2677,15 @@ def asm_x86_32_make_s_immed8(val):
     if val >= 0:
         return val
     return 256 - abs(val)
+
+def asm_x86_32_make_immed8(val):
+    if val >= 0:
+        assert val <= 255
+        return val
+    else:
+        assert val >= -127
+        return 256 - abs(val)
+    pass
 
 ##################################################################
 ##

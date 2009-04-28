@@ -38,6 +38,7 @@ import os
 import sys
 import unittest
 import pdb
+import random
 
 #sys.path.append("./build/lib.linux-i686-2.6")
 
@@ -50,6 +51,7 @@ from pytoken import IR_LABEL, IR_LDW, IR_LDB, IR_STW, IR_STB, \
 
 import escape
 
+##########################################################
 class lex_test(unittest.TestCase):
     def setUp(self):
         global verbose_mode
@@ -478,7 +480,30 @@ class tokens26(lex_test):
         return
     pass
 
+class tokens27(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern(r'\n')
+        exp = ("\n")
+        self.check_structure(act, exp)
+        act = obj.tokenize_pattern(r'\r')
+        exp = ("\r")
+        self.check_structure(act, exp)
+        act = obj.tokenize_pattern(r'\t')
+        exp = ("\t")
+        self.check_structure(act, exp)
+        return
+    pass
 
+class tokens28(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("[a-c0-2]*")
+        exp = (LPAREN, 'a', PIPE, 'b', PIPE, 'c', PIPE, '0', PIPE,
+               '1', PIPE, '2', RPAREN, STAR)
+        self.check_structure(act, exp)
+        return
+    pass
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
@@ -878,6 +903,19 @@ class dfa06(lex_test):
         dfa_obj = nfa_obj.convert_to_dfa()
         self.assert_(self.path_exists(dfa_obj, "a"))
         self.assert_(self.path_exists(dfa_obj, ""))
+        return
+    pass
+
+class dfa07(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        p = obj.parse_as_postfix("[a-z]*\n")
+        nfa_obj = obj.postfix_to_nfa(p)
+        dfa_obj = nfa_obj.convert_to_dfa()
+        self.assert_(self.path_exists(dfa_obj, "a\n"))
+        self.assert_(self.path_exists(dfa_obj, "ab\n"))
+        self.assert_(self.path_exists(dfa_obj, "abc\n"))
+        self.assert_(self.path_exists(dfa_obj, "\n"))
         return
     pass
 
@@ -1863,6 +1901,114 @@ class asm_full_22(lex_test):
 
         return
     pass
+
+##############################################################
+
+class full_directed01(lex_test):
+    def runTest(self):
+        # XXXX
+        return True 
+        obj = pytoken.lexer()
+        obj.add_pattern(chr(244), 244)
+        
+        if 0:
+            obj.compile_to_machine_code(debug=True)
+        else:
+            obj.build_nfa()
+            if 0:
+                print "NFA"
+                print obj.nfa_obj
+            obj.build_dfa()
+            if 0:
+                print "DFA"
+                print obj.dfa_obj
+            obj.compile_to_ir()
+            if 1:
+                print "IR"
+                pytoken.print_instructions(obj.ir)
+            if 1:
+                l = pytoken.ir_to_asm_list_x86_32(obj.ir)
+                print "ASM"
+                pytoken.print_instructions(l)
+                r = pytoken.asm_list_x86_32_to_code(l)
+                obj.code_obj = r
+            else:
+                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, True)
+
+        buf = pytoken.lexer_state()
+        buf.set_input(chr(244))
+        tok = obj.get_token(buf)
+        self.assert_(tok == 244)
+        return
+    pass
+
+class full_rand01(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        for code in range(ord('a'), ord('z') + 1):
+            ch = chr(code)
+            obj.add_pattern(ch, code)
+        obj.compile_to_machine_code()
+
+        rgen = random.Random()
+        rgen.seed(42)
+        
+        txt_len = 1000
+        txt = [chr(ord('a') + rgen.randint(0,25)) for idx in range(txt_len)]
+        txt = "".join(txt)
+        
+        buf = pytoken.lexer_state()
+        buf.set_input(txt)
+        
+        for idx in range(txt_len):
+            tok = obj.get_token(buf)
+            ch = txt[idx]
+            self.assert_(tok == ord(ch))
+
+        return
+    pass
+
+class full_rand02(lex_test):
+    def runTest(self):
+        # XXXX
+        return True
+        obj = pytoken.lexer()
+        for code in range(1, 256):
+            ch = chr(code)
+            if ch in ('(', ')', '[', ']', '\\', '*', '?', '+', '.', '|'):
+                regex = '\\' + ch
+            elif ch == '\n':
+                regex = '\\n'
+            elif ch == '\t':
+                regex = '\\t'
+            elif ch == '\r':
+                regex = '\\r'
+            else:
+                regex = ch
+            #print repr(regex), "-->", code
+            obj.add_pattern(regex, code)
+        obj.compile_to_machine_code()
+
+        rgen = random.Random()
+        rgen.seed(2)
+        
+        txt_len = 1000
+        txt = [chr(rgen.randint(1,255)) for idx in range(txt_len)]
+        txt = "".join(txt)
+        
+        buf = pytoken.lexer_state()
+        buf.set_input(txt)
+        print "Done with setup"
+        
+        for idx in range(txt_len):
+            print "idx=", idx, "expected=", repr(txt[idx])
+            tok = obj.get_token(buf)
+            ch = txt[idx]
+            self.assert_(tok == ord(ch))
+
+        return
+    pass
+
 
 ##############################################################
 class asm_full2_01(lex_test):
@@ -2884,7 +3030,7 @@ class looper(lex_test):
 ##############################################################
 test_groups = ["tokens", "postfix", "nfa", "dfa", "ir",
                "asm", "asm_full_", "asm_full2_", "manual_x86_",
-               "assembler", 
+               "assembler", "full_rand", "full_directed",
                "errtest", "regtest"]
 tests_tbl = {}
 

@@ -4,7 +4,7 @@
 if 0:
     import ply.lex as lex
 else:
-    import pytoken.ply_lex as lex
+    import pytoken
 import ply.yacc as yacc
 
 ###########################
@@ -30,8 +30,8 @@ def p_line_list_line(p):
 
 #############################
 
-lexer = lex.lex()
+lexer = pytoken.ply_lex()
 parser = yacc.yacc()
 
-llist = parser.parse("foo\nbar\n")
+llist = parser.parse("foo\nbar\n", lexer)
 print llist
