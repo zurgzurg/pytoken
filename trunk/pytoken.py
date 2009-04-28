@@ -2226,7 +2226,6 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
                     instr.bytes.append(modrm)
                     instr.bytes.append(imm)
                 elif x86_32_const_is_unsigned8(a1):
-                    # a1 == 244, a2 == "%eax"
                     instr.bytes.append(0x3D)
                     imm = asm_x86_32_make_immed32(a1)
                     instr.bytes.extend(imm)
