@@ -1931,7 +1931,7 @@ def ir_to_asm_list_x86_32(ir, debug=False):
             dst_lab = tup[1]
             asm_list.append((None, "jmp", dst_lab))
         elif op==IR_NOP:
-            assert None, "op not yet supported:" + instr2txt[op]
+            asm_list.append((None, "nop", None))
         elif op==IR_ADD:
             r = tup[1]
             assert_is_var(r)

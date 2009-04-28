@@ -1941,6 +1941,49 @@ class full_directed01(lex_test):
         return
     pass
 
+class full_directed02(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern(chr(244), 244)
+        
+        if 0:
+            obj.compile_to_machine_code(debug=True)
+        else:
+            obj.build_nfa()
+            if 0:
+                print "NFA"
+                print obj.nfa_obj
+            obj.build_dfa()
+            if 0:
+                print "DFA"
+                print obj.dfa_obj
+            obj.compile_to_ir()
+            tmp = []
+            for tup in obj.ir.instructions:
+                tmp.append(tup)
+                for n in range(500):
+                    tmp.append((pytoken.IR_NOP,))
+            obj.ir.instructions = tmp
+            if 0:
+                print "IR"
+                pytoken.print_instructions(obj.ir)
+            if 0:
+                l = pytoken.ir_to_asm_list_x86_32(obj.ir)
+                print "ASM"
+                pytoken.print_instructions(l)
+                r = pytoken.asm_list_x86_32_to_code(l)
+                obj.code_obj = r
+            else:
+                debug_compile = False
+                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
+
+        buf = pytoken.lexer_state()
+        buf.set_input(chr(244))
+        tok = obj.get_token(buf)
+        self.assert_(tok == 244)
+        return
+    pass
+
 class full_rand01(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
