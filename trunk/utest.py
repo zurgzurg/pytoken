@@ -1906,8 +1906,6 @@ class asm_full_22(lex_test):
 
 class full_directed01(lex_test):
     def runTest(self):
-        # XXXX
-        return True 
         obj = pytoken.lexer()
         obj.add_pattern(chr(244), 244)
         
@@ -1923,17 +1921,18 @@ class full_directed01(lex_test):
                 print "DFA"
                 print obj.dfa_obj
             obj.compile_to_ir()
-            if 1:
+            if 0:
                 print "IR"
                 pytoken.print_instructions(obj.ir)
-            if 1:
+            if 0:
                 l = pytoken.ir_to_asm_list_x86_32(obj.ir)
                 print "ASM"
                 pytoken.print_instructions(l)
                 r = pytoken.asm_list_x86_32_to_code(l)
                 obj.code_obj = r
             else:
-                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, True)
+                debug_compile = False
+                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
 
         buf = pytoken.lexer_state()
         buf.set_input(chr(244))
