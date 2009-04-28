@@ -263,6 +263,11 @@ The supported meta characters are:
   ``'.'``
     Any character. Including newline.
 
+  ``'\'``
+    Backslash. Escapes the next character for all characters other than
+    ``'n'``, ``'r'``, and ``'t'``. For those characters a newline, carriage
+    return or tab is matched.
+
 
 
 Using :mod:`pytoken` with Ply

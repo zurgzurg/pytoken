@@ -2,6 +2,7 @@ import sys
 import os
 import pdb
 import shutil
+import os.path
 
 from distutils.command.clean import clean as _clean
 from distutils.core import setup, Extension
@@ -54,8 +55,8 @@ if idx:
 ## the main module - escape
 ##
 ##################################################################
-escape_module = Extension('pytoken.escape',
-                          sources = ['pytoken/escapemodule.c'])
+escape_module = Extension('escape',
+                          sources = ['escapemodule.c'])
 
 mlist = [escape_module]
 
@@ -93,6 +94,9 @@ class clean(_clean):
     """Custom clean routine to clean pyc files"""
     def run(self):
         _clean.run(self)
+        if os.path.exists("build"):
+            print "Removing build dir"
+            shutil.rmtree("build")
         for f in os.listdir("."):
             if f.endswith(".pyc") \
                or f.endswith("~") \
@@ -105,7 +109,6 @@ class clean(_clean):
                 os.unlink(f)
             except OSError:
                 pass
-        shutil.rmtree("build")
         return
     pass
 
@@ -123,6 +126,5 @@ setup(name = 'pytoken',
       author_email = 'rambham@gmail.com',
       url = 'http://code.google.com/p/pytoken/',
       ext_modules = mlist,
-      packages = ["pytoken"],
-      #py_modules = ['pytoken', 'pytoken_ply_lex'],
+      py_modules = ['pytoken', 'pytoken_ply_lex'],
       cmdclass = {"clean" : clean} )
