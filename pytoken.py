@@ -2168,7 +2168,7 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             elif x86_32_arg_is_const(src):
                 assert x86_32_arg_is_plain_reg(dst)
                 src_val = x86_32_arg_parse_const(src)
-                if x86_32_const_is_imm8(src_val):
+                if x86_32_const_is_signed8(src_val):
                     instr.bytes.append(0x83)
                     mod = 3
                     r   = 0
@@ -2192,7 +2192,7 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             src, dst = parse_x86_32_args(args)
             if x86_32_arg_is_const(src) and x86_32_arg_is_plain_reg(dst):
                 src_val = x86_32_arg_parse_const(src)
-                if x86_32_const_is_imm8(src_val):
+                if x86_32_const_is_signed8(src_val):
                     instr.bytes.append(0x83)
                     mod = 3
                     r   = 0
@@ -2218,13 +2218,20 @@ def asm_list_x86_32_to_code_py(asm_list, print_asm_txt=False):
             assert x86_32_arg_is_plain_reg(a2)
             if x86_32_arg_is_const(a1):
                 a1 = x86_32_arg_parse_const(a1)
-                assert x86_32_const_is_imm8(a1)
-                instr.bytes.append(0x83)
-                reg_sel = modrm_tbl1[a2]
-                modrm = asm86_32_make_modrm(3, 7, reg_sel)
-                imm = asm_x86_32_make_s_immed8(a1)
-                instr.bytes.append(modrm)
-                instr.bytes.append(imm)
+                if x86_32_const_is_signed8(a1):
+                    instr.bytes.append(0x83)
+                    reg_sel = modrm_tbl1[a2]
+                    modrm = asm86_32_make_modrm(3, 7, reg_sel)
+                    imm = asm_x86_32_make_s_immed8(a1)
+                    instr.bytes.append(modrm)
+                    instr.bytes.append(imm)
+                elif x86_32_const_is_unsigned8(a1):
+                    # a1 == 244, a2 == "%eax"
+                    instr.bytes.append(0x3D)
+                    imm = asm_x86_32_make_immed32(a1)
+                    instr.bytes.extend(imm)
+                else:
+                    assert None, "Cannot compute cmp instruction"
             else:
                 assert x86_32_arg_is_reg_indirect(a1)
                 instr.bytes.append(0x3B)
@@ -2558,12 +2565,17 @@ def x86_32_arg_is_plain_reg(txt):
         return True
     return False
 
-def x86_32_const_is_imm8(val):
+def x86_32_const_is_signed8(val):
     if val >= -127 and val <= 127:
         return True
     return False
 
-def x86_32_const_is_imm16(val):
+def x86_32_const_is_unsigned8(val):
+    if val >= 0 and val <= 255:
+        return True
+    return False
+
+def x86_32_const_is_signed16(val):
     if val >= -32767 and val <= 32767:
         return True
 
