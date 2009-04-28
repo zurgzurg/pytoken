@@ -1969,8 +1969,6 @@ class full_rand01(lex_test):
 
 class full_rand02(lex_test):
     def runTest(self):
-        # XXXX
-        return True
         obj = pytoken.lexer()
         for code in range(1, 256):
             ch = chr(code)
@@ -1997,10 +1995,8 @@ class full_rand02(lex_test):
         
         buf = pytoken.lexer_state()
         buf.set_input(txt)
-        print "Done with setup"
         
         for idx in range(txt_len):
-            print "idx=", idx, "expected=", repr(txt[idx])
             tok = obj.get_token(buf)
             ch = txt[idx]
             self.assert_(tok == ord(ch))
