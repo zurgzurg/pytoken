@@ -2041,8 +2041,7 @@ class full_directed03(lex_test):
     def runTest(self):
         #escape.print_gdb_info()
         #time.sleep(10)
-        for n_nops in range(0, 4096):
-            print "Starting one iteration"
+        for n_nops in (0, 256, 512, 1024, 4096):
             sys.stdout.flush()
             obj = pytoken.lexer()
             for code in range(1, 255):
@@ -2053,22 +2052,18 @@ class full_directed03(lex_test):
                 else:
                     obj.add_pattern(chr(code), code)
         
-            print "Done adding regex patterns."
             sys.stdout.flush()
             obj.build_nfa()
-            print "Done building nfa."
             sys.stdout.flush()
             if 0:
                 print "NFA"
                 print obj.nfa_obj
             obj.build_dfa()
-            print "Done building dfa."
             sys.stdout.flush()
             if 0:
                 print "DFA"
                 print obj.dfa_obj
             obj.compile_to_ir()
-            print "Done compiling to IR."
             sys.stdout.flush()
             for n in range(n_nops):
                 obj.ir.instructions.insert(0, ((pytoken.IR_NOP, None, None)))
@@ -2077,10 +2072,8 @@ class full_directed03(lex_test):
                 pytoken.print_instructions(obj.ir)
             debug_compile = False
             obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
-            print "done compiling to machine code."
             sys.stdout.flush()
             addr = obj.code_obj.get_start_addr()
-            print "num nops=%d base_addr=0x%x" % (n_nops, addr)
             sys.stdout.flush()
 
             for targ in range(1, 255):
