@@ -38,7 +38,10 @@ import os
 import sys
 import unittest
 import pdb
+import bdb
+import traceback
 import random
+import time
 
 #sys.path.append("./build/lib.linux-i686-2.6")
 
@@ -53,6 +56,56 @@ import escape
 
 ##########################################################
 class lex_test(unittest.TestCase):
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+        result.startTest(self)
+        testMethod = getattr(self, self._testMethodName)
+        try:
+            try:
+                self.setUp()
+            except KeyboardInterrupt:
+                raise
+            except:
+                result.addError(self, self._exc_info())
+                return
+
+            ok = False
+            try:
+                testMethod()
+                ok = True
+            #except self.failureException:
+            #    result.addFailure(self, self._exc_info())
+            except KeyboardInterrupt:
+                raise
+            except:
+                print "Caught an exception"
+                print ""
+                info = sys.exc_info()
+                print "Traceback:", info[0], info[1]
+                print ""
+                traceback.print_tb(info[2])
+                print ""
+                pdb.post_mortem(info[2])
+
+                result.addError(self, self._exc_info())
+
+            try:
+                self.tearDown()
+            except KeyboardInterrupt:
+                raise
+            except:
+                result.addError(self, self._exc_info())
+                ok = False
+            if ok: result.addSuccess(self)
+        finally:
+            result.stopTest(self)
+    
+        return
+
+    #####
+
     def setUp(self):
         global verbose_mode
         if verbose_mode:
@@ -1984,6 +2037,62 @@ class full_directed02(lex_test):
         return
     pass
 
+class full_directed03(lex_test):
+    def runTest(self):
+        #escape.print_gdb_info()
+        #time.sleep(10)
+        for n_nops in range(0, 4096):
+            print "Starting one iteration"
+            sys.stdout.flush()
+            obj = pytoken.lexer()
+            for code in range(1, 255):
+                if chr(code) in (".", "(", ")", "[", "]", "*", "?",
+                                 "+", "\\", "|"):
+                    regex = "\\" + chr(code)
+                    obj.add_pattern(regex, code)
+                else:
+                    obj.add_pattern(chr(code), code)
+        
+            print "Done adding regex patterns."
+            sys.stdout.flush()
+            obj.build_nfa()
+            print "Done building nfa."
+            sys.stdout.flush()
+            if 0:
+                print "NFA"
+                print obj.nfa_obj
+            obj.build_dfa()
+            print "Done building dfa."
+            sys.stdout.flush()
+            if 0:
+                print "DFA"
+                print obj.dfa_obj
+            obj.compile_to_ir()
+            print "Done compiling to IR."
+            sys.stdout.flush()
+            for n in range(n_nops):
+                obj.ir.instructions.insert(0, ((pytoken.IR_NOP, None, None)))
+            if 0:
+                print "IR"
+                pytoken.print_instructions(obj.ir)
+            debug_compile = False
+            obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
+            print "done compiling to machine code."
+            sys.stdout.flush()
+            addr = obj.code_obj.get_start_addr()
+            print "num nops=%d base_addr=0x%x" % (n_nops, addr)
+            sys.stdout.flush()
+
+            for targ in range(1, 255):
+                #print "targ byte=%d" % targ
+                #sys.stdout.flush()
+                buf = pytoken.lexer_state()
+                buf.set_input(chr(targ))
+                tok = obj.get_token(buf)
+                self.assert_(tok == targ)
+        return
+    pass
+
 class full_rand01(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
@@ -3131,16 +3240,17 @@ def make_suite(tlist):
             suite.addTest(t_obj)
     return suite
 
-if __name__=="__main__":
-    verbose_mode = False
-    if len(sys.argv) > 1 and sys.argv[1] == "-v":
-        verbose_mode = True
-        sys.argv.pop(1)
+def run_some_tests(argv):
+    global verbose_mode
 
-    if len(sys.argv) > 1 and sys.argv[1] == "-loop":
+    if len(argv) > 1 and argv[1] == "-v":
+        verbose_mode = True
+        argv.pop(1)
+
+    if len(argv) > 1 and argv[1] == "-loop":
         symtab = globals()
-        suite = make_suite([sys.argv[3]])
-        ntests = int(sys.argv[2])
+        suite = make_suite([argv[3]])
+        ntests = int(argv[2])
         for c in xrange(ntests):
             print "on iter", c
             print "fill_addr = 0x%x" % escape.get_fill_caller_addr()
@@ -3151,10 +3261,16 @@ if __name__=="__main__":
 
         print "Done"
     else:
-        if len(sys.argv) > 1:
-            suite = make_suite(sys.argv[1:])
+        if len(argv) > 1:
+            suite = make_suite(argv[1:])
         else:
             tmp = get_all_tests()
             suite = make_suite(tmp)
         runner = unittest.TextTestRunner()
         runner.run(suite)
+    return
+
+if __name__=="__main__":
+    verbose_mode = False
+    run_some_tests(sys.argv)
+    
