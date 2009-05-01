@@ -806,6 +806,7 @@ typedef struct {
 } code_t;
 
 static int code_grow(code_t *);
+static int code_set_size(code_t *, size_t new_size);
 
 static PyTypeObject code_type = {
   PyObject_HEAD_INIT(NULL)
@@ -1086,34 +1087,26 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   code_t *self;
   const char *sbuf;
   int i, slen;
-  unsigned char *page_base;
+  size_t page_size, desired_size;
 
   assert(arg_self->ob_type == &code_type);
   self = (code_t *)arg_self;
   assert(self->is_vcode == 0);
 
-  if (!PyArg_ParseTuple(args, "s#:append", &sbuf, &slen))
+  if (!PyArg_ParseTuple(args, "s#:set_bytes", &sbuf, &slen))
     return 0;
-  while (slen > self->size_of_buf)
-    if ( ! code_grow(self))
-      return 0;
+
+  page_size = sysconf(_SC_PAGESIZE);
+  desired_size = page_size;
+  while (desired_size < slen)
+    desired_size = desired_size * 2;
+
+  if (code_set_size(self, desired_size) != 1)
+    return 0;
+
   for (i=0; i<slen; i++)
     self->u.buf[i] = sbuf[i];
   self->num_in_buf = slen;
-
-  i = 0;
-  page_base = (unsigned char *)((unsigned int)self->u.buf & 0xFFFFF000);
-  while (page_base < (unsigned char *)(self->u.buf + slen)) {
-    i++;
-#if 0
-    status = mprotect(page_base, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
-    if (status != 0) {
-      perror("mprotect failed:");
-      exit(1);
-    }
-#endif
-    page_base = page_base + 4096;
-  }
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -1180,6 +1173,36 @@ code_grow(code_t *self)
 
   self->u.buf = tmp;
 
+  return 1;
+}
+
+static int
+code_set_size(code_t *self, size_t new_size)
+{
+  int err_code, n_pages;
+
+  if (self->is_vcode) {
+    PyErr_Format(PyExc_RuntimeError, "Cannot use code_set_size on vcode.");
+    return 0;
+  }
+
+  if (self->size_of_buf != 0) {
+    assert(self->u.buf != 0);
+    err_code = munmap(self->u.buf, self->size_of_buf);
+    if (err_code != 0) {
+      PyErr_Format(PyExc_RuntimeError, "Unable to munmap code buffer.");
+      return 0;
+    }
+  }
+
+  self->u.buf = mmap(0, new_size, PROT_READ | PROT_WRITE | PROT_EXEC,
+		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (self->u.buf == 0 || self->u.buf == (void *)-1) {
+    PyErr_Format(PyExc_RuntimeError, "Unable to mmap code buffer");
+    return 0;
+  }
+
+  self->size_of_buf = new_size;
   return 1;
 }
 

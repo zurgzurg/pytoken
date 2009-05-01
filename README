@@ -63,6 +63,8 @@ done	very long token - larger that 4k
 done	fill buffers with varying token sizes - to ensure
 	that tokens will be split accross buffer fills
 
+	'|' as a regex is illegal
+
 	some simple examples
 
 done	benchmarking vs flex
