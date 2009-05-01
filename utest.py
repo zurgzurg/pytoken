@@ -2086,6 +2086,26 @@ class full_directed03(lex_test):
         return
     pass
 
+class full_directed04(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        buf_list = []
+        for code in range(ord('a'), ord('z')+1):
+            obj.add_pattern(chr(code), code)
+            buf = pytoken.lexer_state()
+            buf.set_input(chr(code))
+            buf_list.append(buf)
+        obj.compile_to_machine_code()
+        
+        exp = 'a'
+        for buf in buf_list:
+            tok = obj.get_token(buf)
+            self.assert_(tok == ord(exp))
+            exp = chr(ord(exp) + 1)
+        return
+    pass
+
+
 class full_rand01(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
@@ -2149,6 +2169,34 @@ class full_rand02(lex_test):
         return
     pass
 
+class full_rand03(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        for ch_code in range(ord('a'), ord('z') + 1):
+            pat = 'a' + chr(ch_code)
+            obj.add_pattern(pat, ch_code)
+        obj.compile_to_machine_code()
+
+        rgen = random.Random()
+        rgen.seed(10)
+        expected = []
+        txt = []
+        for tnum in range(500):
+            rand_char = rgen.randint(ord('a'), ord('z'))
+            txt.append('a' + chr(rand_char))
+            expected.append(rand_char)
+        txt = "".join(txt)
+
+        buf = pytoken.lexer_state()
+        buf.set_input(txt)
+        
+        while expected:
+            tok = obj.get_token(buf)
+            exp = expected.pop(0)
+            self.assert_(tok == exp)
+
+        return
+    pass
 
 ##############################################################
 class asm_full2_01(lex_test):
