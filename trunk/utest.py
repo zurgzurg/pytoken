@@ -2105,6 +2105,41 @@ class full_directed04(lex_test):
         return
     pass
 
+class full_directed05(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern(chr(0), 22)
+        obj.compile_to_machine_code()
+        buf = pytoken.lexer_state()
+        buf.set_input(chr(0))
+        tok = obj.get_token(buf)
+        self.assert_(tok == 22)
+        return
+    pass
+
+#class full_directed06(lex_test):
+#    def runTest(self):
+#        obj = pytoken.lexer()
+#        obj.add_pattern(chr(0), 0)
+#        obj.add_pattern('a', 1)
+#        obj.compile_to_machine_code()
+#        buf = pytoken.lexer_state()
+#        buf.set_input("\x00a\x00a\x00")
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 0)
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 1)
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 0)
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 1)
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 0)
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == "EOB")
+#        return
+#    pass
+
 
 class full_rand01(lex_test):
     def runTest(self):
