@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2008, Ram Bhamidipaty
+Copyright (c) 2008-2009, Ram Bhamidipaty
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <stdint.h>
 #include <limits.h>
 
 #define PYTOKEN_DEBUG 0
@@ -80,6 +81,20 @@ static char *lexer_state_get_char_ptr(PyObject *);
 
 static PyObject *lexer_state_repr(PyObject *);
 static PyObject *lexer_state_str(PyObject *);
+
+/***************************************************************/
+/***************************************************************/
+/***                                                         ***/
+/*** uval32_t --> simple uint32_t wrapper                    ***/
+/***                                                         ***/
+/***************************************************************/
+/***************************************************************/
+static int uval32_init(PyObject *, PyObject *, PyObject *);
+static void uval32_dealloc(PyObject *);
+static PyObject *uval32_repr(PyObject *);
+static PyObject *uval32_str(PyObject *);
+
+static PyObject *uval32_get_str(PyObject *, PyObject *);
 
 /*******************************************/
 /*                                         */
@@ -761,6 +776,105 @@ lexer_state_str(PyObject *self)
   return result;
 }
 
+/*******************************************/
+/*                                         */
+/* simple obj to allow easy python         */
+/* manipulation of unsigned 32 bit objs    */
+/*                                         */
+/*******************************************/
+typedef struct {
+  PyObject_HEAD
+  uint32_t     val;
+} uval32_t;
+
+static PyTypeObject uval32_type = {
+  PyObject_HEAD_INIT(NULL)
+};
+
+static PyMethodDef uval32_methods[] = {
+  {"get_string", (PyCFunction)uval32_get_str, METH_NOARGS,
+   "Return uval32 as string."},
+
+  {NULL}
+};
+
+static int
+uval32_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
+{
+  uval32_t *self;
+  unsigned int val;
+
+#if 0
+  printf("calling uval32_init\n");
+#endif
+
+  if (!PyArg_ParseTuple(args, "I:uval32", &val)) {
+    printf("unable to get an integer\n");
+    return 1;
+  }
+
+  assert(arg_self->ob_type == &uval32_type);
+  self = (uval32_t *)arg_self;
+  self->val = (uint32_t)val;
+
+#if 0
+  {
+    printf("creating uval32 obj val=%d (%x) \n", val, (unsigned int)val);
+    printf("uint32 val = %u\n", (unsigned int)self->val);
+  }
+#endif
+
+  return 0;
+}
+
+static void
+uval32_dealloc(PyObject *arg_self)
+{
+  uval32_t *self;
+
+  assert(arg_self->ob_type == &uval32_type);
+  self = (uval32_t *)arg_self;
+  self->val = 0;
+  arg_self->ob_type->tp_free(arg_self);
+}
+
+static PyObject *
+uval32_repr(PyObject *self)
+{
+  uval32_t *ptr;
+  PyObject *result;
+
+  ptr = (uval32_t *)self;
+  result = PyString_FromFormat("<uval32=0x%x>", (unsigned int)ptr->val);
+  return result;
+}
+
+static PyObject *
+uval32_str(PyObject *self)
+{
+  uval32_t *ptr;
+  PyObject *result;
+
+  ptr = (uval32_t *)self;
+  result = PyString_FromFormat("0x%x", (unsigned int)ptr->val);
+#if 0
+  {
+    char *txt;
+
+    txt = PyString_AsString(result);
+    printf("uval32 string=>%s\n", txt);
+  }
+#endif
+  return result;
+}
+
+static PyObject *
+uval32_get_str(PyObject *self, PyObject *args)
+{
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 /***************************************************************/
 /***************************************************************/
 /***                                                         ***/
@@ -1179,7 +1293,7 @@ code_grow(code_t *self)
 static int
 code_set_size(code_t *self, size_t new_size)
 {
-  int err_code, n_pages;
+  int err_code;
 
   if (self->is_vcode) {
     PyErr_Format(PyExc_RuntimeError, "Cannot use code_set_size on vcode.");
@@ -1564,16 +1678,34 @@ initescape(void)
   lexer_state_type.tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   lexer_state_type.tp_doc         = "Full state for lexer code objs.";
   lexer_state_type.tp_init        = lexer_state_init;
-
   lexer_state_type.tp_repr        = lexer_state_repr;
   lexer_state_type.tp_str         = lexer_state_str;
-
   code = PyType_Ready(&lexer_state_type);
   if (code < 0)
     return;
-
   Py_INCREF(&lexer_state_type);
   code = PyModule_AddObject(m, "lexer_state", (PyObject *)&lexer_state_type);
+  if (code < 0)
+    return;
+
+  /****************************/
+  /* uval32                   */
+  /****************************/
+  uval32_type.tp_name             = "escape.uval32";
+  uval32_type.tp_basicsize        = sizeof(uval32_t);
+  uval32_type.tp_new              = PyType_GenericNew;
+  uval32_type.tp_dealloc          = uval32_dealloc;
+  uval32_type.tp_methods          = uval32_methods;
+  uval32_type.tp_flags            = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  uval32_type.tp_doc              = "Simple unsigned 32 bit quantity.";
+  uval32_type.tp_init             = uval32_init;
+  uval32_type.tp_repr             = uval32_repr;
+  uval32_type.tp_str              = uval32_str;
+  code = PyType_Ready(&uval32_type);
+  if (code < 0)
+    return;
+  Py_INCREF(&uval32_type);
+  code = PyModule_AddObject(m, "uval32", (PyObject *)&uval32_type);
   if (code < 0)
     return;
 

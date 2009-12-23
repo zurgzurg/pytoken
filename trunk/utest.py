@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ########################################################
 ##
-## Copyright (c) 2008, Ram Bhamidipaty
+## Copyright (c) 2008-2009, Ram Bhamidipaty
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ import time
 #sys.path.append("./build/lib.linux-i686-2.6")
 
 import pytoken
+import escape
 
 from pytoken import DOT, LPAREN, RPAREN, LBRACKET, RBRACKET
 from pytoken import PIPE, PLUS, QMARK, STAR, CCAT
@@ -557,6 +558,7 @@ class tokens28(lex_test):
         self.check_structure(act, exp)
         return
     pass
+
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
@@ -972,6 +974,34 @@ class dfa07(lex_test):
         return
     pass
 
+##############################################################
+class uval01(lex_test):
+    def runTest(self):
+        v = escape.uval32(8)
+        self.assert_(v is not None)
+        s = str(v)
+        self.assert_(s == "0x8")
+        return
+    pass
+
+class uval02(lex_test):
+    def runTest(self):
+        v = escape.uval32(0xffffffff)
+        #print "v is ", str(v)
+        self.assert_(v is not None)
+        s = str(v)
+        self.assert_(s == "0xffffffff")
+        return
+    pass
+
+class uval03(lex_test):
+    def runTest(self):
+        v = escape.uval32(-1)
+        #print "v is ", str(v)
+        s = str(v)
+        self.assert_(s == "0xffffffff")
+        return
+    pass
 ##############################################################
 class ir01(lex_test):
     def runTest(self):
@@ -2105,17 +2135,25 @@ class full_directed04(lex_test):
         return
     pass
 
-class full_directed05(lex_test):
-    def runTest(self):
-        obj = pytoken.lexer()
-        obj.add_pattern(chr(0), 22)
-        obj.compile_to_machine_code()
-        buf = pytoken.lexer_state()
-        buf.set_input(chr(0))
-        tok = obj.get_token(buf)
-        self.assert_(tok == 22)
-        return
-    pass
+#class full_directed05(lex_test):
+#    def runTest(self):
+#        obj = pytoken.lexer()
+#        obj.add_pattern(chr(0), 22)
+#
+#        obj.build_nfa()
+#        obj.build_dfa()
+#        if 1:
+#            print "DFA"
+#            print obj.dfa_obj
+#        obj.compile_to_ir()
+#        obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug=False)
+#
+#        buf = pytoken.lexer_state()
+#        buf.set_input(chr(0))
+#        tok = obj.get_token(buf)
+#        self.assert_(tok == 22)
+#        return
+#    pass
 
 #class full_directed06(lex_test):
 #    def runTest(self):

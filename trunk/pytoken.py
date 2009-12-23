@@ -1,6 +1,6 @@
 ########################################################
 ##
-## Copyright (c) 2008, Ram Bhamidipaty
+## Copyright (c) 2008-2009, Ram Bhamidipaty
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -446,20 +446,19 @@ class fsa_state(object):
 
 class lexer(object):
     ACTION_FOUND_UNEXP    = 0
-    ACTION_FOUND_EOB      = 1
-    ACTION_ERR_IN_FILL    = 2
-    ACTION_BAD_FILL_RET   = 3
+    ACTION_ERR_IN_FILL    = 1
+    ACTION_BAD_FILL_RET   = 2
 
     FILL_RESULT_NO_NEW_DATA    = 0
     FILL_RESULT_NEW_DATA_READY = 1
     FILL_RESULT_ERROR          = 2
 
-    def __init__(self):
+    def __init__(self, end_of_buffer="\x00\x00"):
         self.pats             = []
         self.actions          = [self.runtime_unhandled_input,
-                                 "EOB",
                                  self.runtime_internal_error,
-                                 self.runtime_internal_error]
+                                 self.runtime_internal_error,
+                                 ]
 
         self.next_avail_state = 1
 
@@ -469,6 +468,10 @@ class lexer(object):
         self.code_obj         = None
 
         self.default_lstate   = None
+
+        self.add_pattern(end_of_buffer, "EOB")
+        assert len(self.pats) == 1 and len(self.pats[0]) == 2
+        lexer.ACTION_FOUND_EOB = self.pats[0][1]
 
         return
 
@@ -1254,7 +1257,11 @@ def ir_com(txt):
 def ir_call(var, func, *args):
     assert_is_var(var)
     assert_is_addr_or_var(func)
-    tmp = [IR_CALL, var, func]
+    if is_num(func):
+        func_addr = escape.uval32(func)
+        tmp = [IR_CALL, var, func_addr]
+    else:
+        tmp = [IR_CALL, var, func]
     tmp.extend(args)
     return tuple(tmp)
 
@@ -1380,7 +1387,8 @@ def str_ir_call(tup):
     args = ", ".join(tmp)
     if is_var(func):
         return "    call %s <-- %s(%s)" % (dst, func, args)
-    return "    call %s <-- %x(%s)" % (dst, func, args)
+    assert isinstance(func, escape.uint32)
+    return "    call %s <-- %s(%s)" % (dst, str(func), args)
 
 def str_ir_gparm(tup):
     assert len(tup)==3 and tup[0]==IR_GPARM
@@ -1972,9 +1980,12 @@ def ir_to_asm_list_x86_32(ir, debug=False):
             asm_list.append(("#", "call", None))
             dst_var = tup[1]
             fptr    = tup[2]
+            if isinstance(fptr, escape.uval32):
+                fptr = str(fptr)
             if len(tup) == 3:
                 # no args
-                asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
+                assert type(fptr) is str and fptr.startswith("0x")
+                asm_list.append((None, "movl", "$%s, %%eax" % fptr))
                 asm_list.append((None, "call", "*%eax"))
                 n_pops = 0
             else:
@@ -2000,7 +2011,8 @@ def ir_to_asm_list_x86_32(ir, debug=False):
                     o = var2offset[fptr]
                     asm_list.append((None, "movl", "%d(%%ebp), %%eax" % o))
                 else:
-                    asm_list.append((None, "movl", "$0x%x, %%eax" % fptr))
+                    assert type(fptr) is str and fptr.startswith("0x")
+                    asm_list.append((None, "movl", "$%s, %%eax" % fptr))
                 asm_list.append((None, "call", "*%eax"))
                 n_pops = len(args)
             if is_var(dst_var):
