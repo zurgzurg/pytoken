@@ -46,6 +46,18 @@ Why use pytoken
 
 TODO
 ----------------------------------------------
+For next full release:
+
+	'|' as a regex is illegal
+
+	some simple examples
+
+	support \xx encoding of chars in hex
+
+	Need to support matching NULL chars in users patterns.
+
+	Fully working end of buffer detection.
+
 Before initial release:
 
 done	make buffers work with file like objects - set_input()
@@ -63,17 +75,12 @@ done	very long token - larger that 4k
 done	fill buffers with varying token sizes - to ensure
 	that tokens will be split accross buffer fills
 
-	'|' as a regex is illegal
-
-	some simple examples
 
 done	benchmarking vs flex
 
 
 Other TODO Items:
 inprog	Need a manual.
-
-	Need to support matching NULL chars in users patterns.
 
 inprog	Need to support a richer set of REGEXP meta chars.
 
@@ -84,6 +91,7 @@ inprog	Need to support a richer set of REGEXP meta chars.
 	traditional compiler style optimizations.
 
 	? Comments from users ?
+
 
 Info for developers
 ----------------------------------------------------
