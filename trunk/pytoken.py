@@ -931,7 +931,7 @@ class lexer(object):
         return False
 
     def parse_as_postfix(self, pat):
-        result  = []
+        result = []
         operators = []
         tok_list = self.tokenize_pattern(pat)
         while tok_list:
@@ -980,13 +980,13 @@ class lexer(object):
                 ch  = pat[0]
                 pat = pat[1:]
                 if ch == 'n':
-                    result.append("\n")
+                    self.add_token_to_list(result, "\n")
                 elif ch == "t":
-                    result.append("\t")
+                    self.add_token_to_list(result, "\t")
                 elif ch == "r":
-                    result.append("\r")
+                    self.add_token_to_list(result, "\r")
                 else:
-                    result.append(ch)
+                    self.add_token_to_list(result, ch)
 
             elif ch == '[':
                 if len(result) > 0 and type( result[-1] ) is str:
@@ -1066,15 +1066,24 @@ class lexer(object):
                 result.append(char2sym[ch])
 
             else:
-                if len(result) > 0 and (type( result[-1] ) is str
-                                        or result[-1] in (RPAREN, STAR)):
-                    result.append(CCAT)
-                result.append(ch)
+                self.add_token_to_list(result, ch)
             pass
 
         if n_paren != 0:
             raise RuntimeError, "Unbalanced parens found"
         return result
+
+    def add_token_to_list(self, tok_list, tok):
+        if self.need_add_ccat_to_tok_list(tok_list):
+            tok_list.append(CCAT)
+        tok_list.append(tok)
+        return
+
+    def need_add_ccat_to_tok_list(self, tok_list):
+        if len(tok_list) > 0 and (type(tok_list[-1] ) is str
+                                  or tok_list[-1] in (RPAREN, STAR)):
+            return True
+        return False
 
     pass
 

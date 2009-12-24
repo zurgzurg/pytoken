@@ -175,6 +175,17 @@ class lex_test(unittest.TestCase):
 
         return
 
+    def walk_dfa(self, dfa, txt):
+        cur = dfa.init_state
+        for idx, ch in enumerate(txt):
+            k = (cur, ch)
+            try:
+                slist = dfa.trans_tbl[k]
+            except KeyError:
+                raise RuntimeError, "mismatch at idx=%d" % idx
+            assert len(slist) == 1
+            cur = slist[0]
+        return cur
     pass
 
 ################################################################
@@ -809,7 +820,6 @@ class postfix18(lex_test):
         return
     pass
 
-
 class postfix19(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
@@ -973,6 +983,150 @@ class dfa07(lex_test):
         self.assert_(self.path_exists(dfa_obj, "\n"))
         return
     pass
+
+class dfa08(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        p = obj.parse_as_postfix("8\\\\")
+        if 0:
+            print p
+        nfa_obj = obj.postfix_to_nfa(p)
+        if 0:
+            print "nfa="
+            print nfa_obj
+        dfa_obj = nfa_obj.convert_to_dfa()
+        if 0:
+            print "dfa="
+            print dfa_obj
+        s = self.walk_dfa(dfa_obj, "8\\")
+        self.assert_(s in dfa_obj.accepting_states)
+        return
+    pass
+
+##############################################################
+##
+## random regexs
+##
+##############################################################
+class component(object):
+    def __init__(self, rgen):
+        self.rgen = rgen
+        return
+    def gen_txt(self, lst):
+        assert None, "gen_txt not defined by derived class"
+        return
+    def gen_regex(self):
+        assert None, "gen_regex not defined by derived class"
+        return
+    # utils
+    def make_regex_for_code(self, code):
+        assert code >= ord(' ') and code <= ord('~')
+        ch = chr(code)
+        if ch not in ('(', ')', '[', ']', '|', '\\', '?', '+', '*', '.'):
+            return ch
+        return '\\' + ch
+    def get_rand_char_code(self):
+        code = self.rgen.randint(ord(' '), ord('~'))
+        return code
+    pass
+
+class atom(component):
+    def __init__(self, rgen):
+        super(atom, self).__init__(rgen)
+        self.code = self.get_rand_char_code()
+        return
+    def gen_txt(self, lst):
+        ch = chr(self.code)
+        lst.append(ch)
+        return
+    def gen_regex(self):
+        regex = self.make_regex_for_code(self.code)
+        return regex
+    pass
+
+class concat(component):
+    def __init__(self, rgen, lhs, rhs):
+        super(concat, self).__init__(rgen)
+        self.lhs = lhs
+        self.rhs = rhs
+        return
+    def gen_txt(self, lst):
+        self.lhs.gen_txt(lst)
+        self.rhs.gen_txt(lst)
+        return
+    def gen_regex(self):
+        re_lhs = self.lhs.gen_regex()
+        re_rhs = self.rhs.gen_regex()
+        return re_lhs + re_rhs
+    pass
+
+class rand_dfa01(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(200):
+            robj = atom(rgen)
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+class rand_dfa02(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = concat(rgen, atom(rgen), atom(rgen))
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
 
 ##############################################################
 class uval01(lex_test):
@@ -3247,13 +3401,22 @@ class interface01(lex_test):
 ##############################################################
 class looper(lex_test):
     def runTest(self):
-        global verbose_mode
+        print ""
+        print "Starting long running looper test"
+
         sym_tab = globals()
-        for n, sym in sym_tab.iteritems():
-            if type(sym) is not type or n in ("looper", "lex_test"):
+        work = sym_tab.items()
+        tnum = 0
+        for n, sym in work:
+            tnum += 1
+            if type(sym) is not type:
                 continue
-            if verbose_mode:
-                print "starting on", n
+            if not issubclass(sym, lex_test):
+                continue
+            if n in ("looper", "lex_test"):
+                continue
+            if 1:
+                print "starting on %s (%d/%d)" % (n, tnum, len(work))
             tc = sym()
             try:
                 nrefs = sys.gettotalrefcount()
@@ -3292,7 +3455,7 @@ class looper(lex_test):
 test_groups = ["tokens", "postfix", "nfa", "dfa", "ir",
                "asm", "asm_full_", "asm_full2_", "manual_x86_",
                "assembler", "full_rand", "full_directed",
-               "errtest", "regtest"]
+               "errtest", "regtest", "uval", "rand_dfa"]
 tests_tbl = {}
 
 def get_all_objs_by_name_prefix(p):
