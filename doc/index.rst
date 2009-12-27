@@ -49,8 +49,8 @@ A Simple Example::
   tok = lexer_obj.get_token(buf)
   assert tok == 2
 
-Overview of Available Types
-----------------------------
+Main Interface
+--------------
 
 The two main classes are :class:`pytoken.lexer` and
 :class:`pytoken.lexer_state`. Instances of :class:`pytoken.lexer` are
@@ -268,6 +268,8 @@ The supported meta characters are:
     ``'n'``, ``'r'``, and ``'t'``. For those characters a newline, carriage
     return or tab is matched.
 
+Operator Precedence and Compatability with Other Regular Expression Systems
+---------------------------------------------------------------------------
 
 
 Using :mod:`pytoken` with Ply
