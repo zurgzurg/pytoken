@@ -1003,12 +1003,31 @@ class dfa08(lex_test):
         return
     pass
 
+class dfa09(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        p = obj.parse_as_postfix("foo|bar")
+        if 0:
+            print p
+        nfa_obj = obj.postfix_to_nfa(p)
+        if 0:
+            print "nfa="
+            print nfa_obj
+        dfa_obj = nfa_obj.convert_to_dfa()
+        if 0:
+            print "dfa="
+            print dfa_obj
+        s = self.walk_dfa(dfa_obj, "8\\")
+        self.assert_(s in dfa_obj.accepting_states)
+        return
+    pass
+
 ##############################################################
 ##
 ## random regexs
 ##
 ##############################################################
-class component(object):
+class rre_component(object):
     def __init__(self, rgen):
         self.rgen = rgen
         return
@@ -1030,9 +1049,9 @@ class component(object):
         return code
     pass
 
-class atom(component):
+class rre_atom(rre_component):
     def __init__(self, rgen):
-        super(atom, self).__init__(rgen)
+        super(rre_atom, self).__init__(rgen)
         self.code = self.get_rand_char_code()
         return
     def gen_txt(self, lst):
@@ -1044,9 +1063,9 @@ class atom(component):
         return regex
     pass
 
-class concat(component):
+class rre_concat(rre_component):
     def __init__(self, rgen, lhs, rhs):
-        super(concat, self).__init__(rgen)
+        super(rre_concat, self).__init__(rgen)
         self.lhs = lhs
         self.rhs = rhs
         return
@@ -1060,13 +1079,51 @@ class concat(component):
         return re_lhs + re_rhs
     pass
 
+class rre_alt(rre_component):
+    def __init__(self, rgen, lhs, rhs):
+        super(rre_alt, self).__init__(rgen)
+        self.lhs = lhs
+        self.rhs = rhs
+        return
+    def gen_txt(self, lst):
+        r = self.rgen.randint(0,1)
+        if r == 0:
+            self.lhs.gen_txt(lst)
+        else:
+            self.rhs.gen_txt(lst)
+        return
+    def gen_regex(self):
+        re_lhs = self.lhs.gen_regex()
+        re_rhs = self.rhs.gen_regex()
+        return "(" + re_lhs + ")" + "|" + "(" + re_rhs + ")"
+    pass
+
+class rre_star(rre_component):
+    def __init__(self, rgen, other):
+        super(rre_star, self).__init__(rgen)
+        self.other = other
+        return
+    def gen_txt(self, lst):
+        tmp = []
+        self.other.gen_txt(tmp)
+        n_repeats = self.rgen.randint(0, 20)
+        for i in xrange(n_repeats):
+            lst.extend(tmp)
+        return
+    def gen_regex(self):
+        re_other = self.other.gen_regex()
+        return "(" + re_other + ")*"
+    pass
+
+######################
+
 class rand_dfa01(lex_test):
     def runTest(self):
         rgen = random.Random()
         rgen.seed(20)
         
         for i in xrange(200):
-            robj = atom(rgen)
+            robj = rre_atom(rgen)
             re_txt = robj.gen_regex()
             txt_list = []
             robj.gen_txt(txt_list)
@@ -1098,7 +1155,7 @@ class rand_dfa02(lex_test):
         rgen.seed(20)
         
         for i in xrange(60):
-            robj = concat(rgen, atom(rgen), atom(rgen))
+            robj = rre_concat(rgen, rre_atom(rgen), rre_atom(rgen))
             re_txt = robj.gen_regex()
             txt_list = []
             robj.gen_txt(txt_list)
@@ -1127,6 +1184,313 @@ class rand_dfa02(lex_test):
         return
     pass
 
+class rand_dfa03(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = rre_concat(rgen,
+                          rre_concat(rgen, rre_atom(rgen), rre_atom(rgen)),
+                          rre_concat(rgen, rre_atom(rgen), rre_atom(rgen)))
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+class rand_dfa04(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = rre_alt(rgen, rre_atom(rgen), rre_atom(rgen))
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+class rand_dfa05(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = rre_star(rgen, rre_atom(rgen))
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+class rand_dfa05b(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = rre_star(rgen, rre_atom(rgen))
+            re_txt = robj.gen_regex()
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            for i in xrange(40):
+                txt_list = []
+                robj.gen_txt(txt_list)
+                txt = "".join(txt_list)
+
+                state = self.walk_dfa(dfa_obj, txt)
+                if 0:
+                    print "state=", state
+                    print "accepting=", dfa_obj.accepting_states
+                    if state in dfa_obj.accepting_states:
+                        print "found"
+                    else:
+                        print "not found"
+                self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+class rand_dfa06(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(20)
+        
+        for i in xrange(60):
+            robj = rre_star(rgen, rre_atom(rgen))
+            re_txt = robj.gen_regex()
+            txt_list = []
+            robj.gen_txt(txt_list)
+            txt = "".join(txt_list)
+            if 0:
+                print "re=", re_txt
+                print "txt=", txt
+
+            lobj = pytoken.lexer()
+            lobj.add_pattern(re_txt, 1)
+            lobj.build_nfa()
+            dfa_obj = lobj.build_dfa()
+            if 0:
+                print "dfa obj"
+                print dfa_obj
+
+            state = self.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            self.assert_(state in dfa_obj.accepting_states)
+        return
+    pass
+
+##############################################################
+##
+## rre2 - rand regex 2
+##
+##############################################################
+def rre2_code_2_regex(code):
+    assert code >= ord(' ') and code <= ord('~')
+    ch = chr(code)
+    if ch not in ('(', ')', '[', ']', '|', '\\', '?', '+', '*', '.'):
+        return ch
+    return '\\' + ch
+
+def rre2_get_rand_char_code(rgen):
+    code = rgen.randint(ord(' '), ord('~'))
+    return code
+
+class rre2(object):
+    def __init__(self, rgen):
+        self.rgen = rgen
+        self.children = []
+        return
+    pass
+        
+class rre2_atom_run(rre2):
+    def __init__(self, rgen):
+        super(rre2_atom_run, self).__init__(rgen)
+        run_len = rgen.randint(1, 10)
+        self.codes = [rre2_get_rand_char_code(rgen) for i in xrange(run_len)]
+        return
+    def get_regex(self):
+        re_txt = "".join([rre2_code_2_regex(i) for i in self.codes])
+        return re_txt
+    def get_txt(self):
+        txt = "".join([chr(i) for i in self.codes])
+        return txt
+    @staticmethod
+    def make1(rgen):
+        obj = rre2_atom_run(rgen)
+        return obj
+    pass
+
+class rre2_alt_set(rre2):
+    def get_regex(self):
+        tmp = [i.get_regex() for i in self.children]
+        tmp = ["(%s)" % i for i in tmp]
+        tmp = "|".join(tmp)
+        return tmp
+    def get_txt(self):
+        idx = self.rgen.randint(0, len(self.children) - 1)
+        txt = self.children[idx].get_txt()
+        return txt
+    @staticmethod
+    def make1(rgen):
+        "Alternations of atom_run."
+        obj = rre2_alt_set(rgen)
+        n_children = rgen.randint(1, 8)
+        for i in xrange(n_children):
+            child = rre2_atom_run.make1(rgen)
+            obj.children.append(child)
+        return obj
+    pass
+
+class rre2_star(rre2):
+    def get_regex(self):
+        tmp1 = self.children[0].get_regex()
+        tmp2 = "(" + tmp1 + ")*"
+        return tmp2
+    def get_txt(self):
+        n = self.rgen.randint(0, 5)
+        tmp = self.children[0].get_txt()
+        return tmp * n
+        return
+    @staticmethod
+    def make1(rgen):
+        "star on top of alt"
+        obj = rre2_star(rgen)
+        child = rre2_alt_set.make1(rgen)
+        obj.children.append(child)
+        return obj
+    pass
+
+def rre2_do_test(rgen, robj_maker, n1, n2, tc_obj):
+    for i in xrange(n1):
+        robj = robj_maker(rgen)
+        re_txt = robj.get_regex()
+        if 1:
+            print "re=", re_txt
+
+        lobj = pytoken.lexer()
+        lobj.add_pattern(re_txt, 1)
+        lobj.build_nfa()
+        dfa_obj = lobj.build_dfa()
+        if 0:
+            print "dfa obj"
+            print dfa_obj
+
+        for j in xrange(n2):
+            txt = robj.get_txt()
+            if 1:
+                print "txt=", txt
+            state = tc_obj.walk_dfa(dfa_obj, txt)
+            if 0:
+                print "state=", state
+                print "accepting=", dfa_obj.accepting_states
+                if state in dfa_obj.accepting_states:
+                    print "found"
+                else:
+                    print "not found"
+            tc_obj.assert_(state in dfa_obj.accepting_states)
+    return
+
+########
+
+class rre2_dfa01(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(100)
+        rre2_do_test(rgen, rre2_alt_set.make1, 60, 30, self)
+        return
+    pass
+
+class rre2_dfa02(lex_test):
+    def runTest(self):
+        rgen = random.Random()
+        rgen.seed(101)
+        rre2_do_test(rgen, rre2_star.make1, 60, 30, self)
+        return
+    pass
 
 ##############################################################
 class uval01(lex_test):
@@ -3455,7 +3819,7 @@ class looper(lex_test):
 test_groups = ["tokens", "postfix", "nfa", "dfa", "ir",
                "asm", "asm_full_", "asm_full2_", "manual_x86_",
                "assembler", "full_rand", "full_directed",
-               "errtest", "regtest", "uval", "rand_dfa"]
+               "errtest", "regtest", "uval", "rand_dfa", "rre2_dfa"]
 tests_tbl = {}
 
 def get_all_objs_by_name_prefix(p):
