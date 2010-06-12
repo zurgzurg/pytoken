@@ -5,6 +5,22 @@ bunch of regular expressions - pytoken will generate x86 machine
 code that recognizes those regular expressions. Pytoken will be
 most useful for programmers that want to parse text files.
 
+Install
+----------------------------------------------
+To install pytoken:
+
+    python ./setup.py install
+
+
+Documentation
+----------------------------------------------
+To build the documentation:
+    cd doc
+    make -f Makefile.docs html
+
+
+Getting Started
+----------------------------------------------
 Pytoken has separate objects for scanners and buffers.
 
 Here is a simple example:
