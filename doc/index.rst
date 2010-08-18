@@ -231,9 +231,8 @@ Regular Expression Syntax
 The supported meta characters are:
 
   ``'|'``
-    Alternation. Applies to the two regexs that are directly adjascent to the
-    ``'|'``. For example in ``'abcd|e'`` the alternation applies to the ``'d'``
-    and ``'e'``.
+    Alternation. ``'abc|def'`` matches the string ``'abc'`` or ``'def'``.
+    The precedence of concatenation is higher than alternation.
 
   ``'[]'``
     Character class. The character class extends to the first ``']'``. A
@@ -270,16 +269,21 @@ The supported meta characters are:
 
 Operator Precedence and Compatability with Other Regular Expression Systems
 ---------------------------------------------------------------------------
+pytoken strives to be compatible with Perl where possible. Some Perl
+constructs have no meaning for DFA-type regex matchers - particularly
+concepts like greedy and non-greedy. Kleene star has higher precedence
+than concatenation, which has higher precedence than alternation.
 
 
 Using :mod:`pytoken` with Ply
 --------------------------------
+Nothing here yet.
 
 Benchmarks
 ----------
+Nothing here yet.
+
 
 :mod:`pytoken` Internals
 ------------------------
-
-All patterns are passed to a tokenizer and then a parser which outputs
-a xxx.
+More stuff needed here.
