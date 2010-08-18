@@ -1,0 +1,4 @@
+include *.py
+include bmark_scan.lex
+include bmarkmodule.c
+include example*txt
