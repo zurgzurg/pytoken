@@ -55,3 +55,43 @@ if ( "deff" =~ /abc|def{2}/ ) {
   print "\tno match\n";
 }
 print "\n";
+
+print "checking if abccd matches abc*d\n";
+if ( "abccd" =~ /abc*d/ ) {
+  print "\tmatched\n";
+} else {
+  print "\tno match\n";
+}
+print "\n";
+
+print "checking if abccd matches abc*d\n";
+if ( "abccd" =~ /abc*d/ ) {
+  print "\tmatched\n";
+} else {
+  print "\tno match\n";
+}
+print "\n";
+
+print "checking if barr matches foo|bar*\n";
+if ( "barr" =~ /foo|bar*/ ) {
+  print "\tmatched\n";
+} else {
+  print "\tno match\n";
+}
+print "\n";
+
+print "checking if foox matches foo|bar*x\n";
+if ( "foox" =~ /foo|bar*x/ ) {
+  print "\tmatched\n";
+} else {
+  print "\tno match\n";
+}
+print "\n";
+
+print "checking if barrx matches foo|bar*x\n";
+if ( "barrx" =~ /foo|bar*x/ ) {
+  print "\tmatched\n";
+} else {
+  print "\tno match\n";
+}
+print "\n";
