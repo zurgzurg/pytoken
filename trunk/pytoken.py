@@ -1,6 +1,6 @@
 ########################################################
 ##
-## Copyright (c) 2008-2009, Ram Bhamidipaty
+## Copyright (c) 2008-2010, Ram Bhamidipaty
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -406,12 +406,12 @@ sym2char = {
 # larger numbers have higher precendence
 sym2prec = {
     DOT    : 1,
-    CCAT   : 1,
     PIPE   : 1,
-    STAR   : 2,
-    QMARK  : 2,
-    LPAREN : 3,
-    RPAREN : 3
+    CCAT   : 2,
+    STAR   : 3,
+    QMARK  : 3,
+    LPAREN : 4,
+    RPAREN : 4
     }
     
 
@@ -921,15 +921,6 @@ class lexer(object):
     ##  pop ops off the stack and onto output
     ##
     #######################################
-    def pop_op(self, op1, op2):
-        assert op1 is not None
-        assert op2 is not None
-        if op2 == LPAREN:
-            return False
-        if op1 in (CCAT,PIPE) and sym2prec[op1] <= sym2prec[op2]:
-            return True
-        return False
-
     def parse_as_postfix(self, pat):
         result = []
         operators = []
@@ -951,9 +942,18 @@ class lexer(object):
             else:
                 assert tok in (PIPE, STAR, QMARK, PLUS, CCAT)
 
-                while operators and self.pop_op(tok, operators[-1]):
-                    tmp = operators.pop()
-                    result.append(tmp)
+                while operators:
+                    op2 = operators[-1]
+                    if op2 == LPAREN:
+                        break
+                    if tok not in (CCAT, PIPE):
+                        break
+                    if sym2prec[tok] > sym2prec[op2]:
+                        break
+                    operators.pop()
+                    result.append(op2)
+                    pass
+
                 operators.append(tok)
 
         while operators:

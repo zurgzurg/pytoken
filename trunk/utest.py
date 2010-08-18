@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ########################################################
 ##
-## Copyright (c) 2008-2009, Ram Bhamidipaty
+## Copyright (c) 2008-2010, Ram Bhamidipaty
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -76,8 +76,8 @@ class lex_test(unittest.TestCase):
             try:
                 testMethod()
                 ok = True
-            #except self.failureException:
-            #    result.addFailure(self, self._exc_info())
+            except self.failureException:
+                result.addFailure(self, self._exc_info())
             except KeyboardInterrupt:
                 raise
             except:
@@ -629,16 +629,7 @@ class postfix07(lex_test):
     def runTest(self):
         obj = pytoken.lexer()
         act = obj.parse_as_postfix("a|bc")
-        exp = ("a", "b", PIPE, "c", CCAT)
-        self.check_structure(act, exp)
-        return
-    pass
-
-class postfix08(lex_test):
-    def runTest(self):
-        obj = pytoken.lexer()
-        act = obj.parse_as_postfix("a|bc")
-        exp = ("a", "b", PIPE, "c", CCAT)
+        exp = ("a", "b", "c", CCAT, PIPE)
         self.check_structure(act, exp)
         return
     pass
@@ -1008,7 +999,7 @@ class dfa09(lex_test):
         obj = pytoken.lexer()
         p = obj.parse_as_postfix("foo|bar")
         if 0:
-            print p
+            print pytoken.make_string_from_token_list(p)
         nfa_obj = obj.postfix_to_nfa(p)
         if 0:
             print "nfa="
@@ -1017,7 +1008,9 @@ class dfa09(lex_test):
         if 0:
             print "dfa="
             print dfa_obj
-        s = self.walk_dfa(dfa_obj, "8\\")
+        s = self.walk_dfa(dfa_obj, "foo")
+        self.assert_(s in dfa_obj.accepting_states)
+        s = self.walk_dfa(dfa_obj, "bar")
         self.assert_(s in dfa_obj.accepting_states)
         return
     pass
@@ -1448,7 +1441,7 @@ def rre2_do_test(rgen, robj_maker, n1, n2, tc_obj):
     for i in xrange(n1):
         robj = robj_maker(rgen)
         re_txt = robj.get_regex()
-        if 1:
+        if 0:
             print "re=", re_txt
 
         lobj = pytoken.lexer()
@@ -1461,7 +1454,7 @@ def rre2_do_test(rgen, robj_maker, n1, n2, tc_obj):
 
         for j in xrange(n2):
             txt = robj.get_txt()
-            if 1:
+            if 0:
                 print "txt=", txt
             state = tc_obj.walk_dfa(dfa_obj, txt)
             if 0:
@@ -3914,4 +3907,3 @@ def run_some_tests(argv):
 if __name__=="__main__":
     verbose_mode = False
     run_some_tests(sys.argv)
-    
