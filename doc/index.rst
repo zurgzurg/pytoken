@@ -157,7 +157,8 @@ Otherwise the normal return protocol will be followed.
 
    Instances of class :class:`lexer_state` are used by lexer instances
    to keep track of the current position in a file, stream, buffer or
-   other input source.
+   other input source. Essentially it rememebers where the scanner
+   needs to start when trying to match the next token.
 
    Instances have a buffer that holds the data that is waiting to be
    scanned, a pointer to the start of the current token and a next
