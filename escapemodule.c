@@ -237,13 +237,13 @@ lexer_state_set_cur_offset(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "i:set_cur_offset", &offset))
-    return 0;
+    return NULL;
   if (self->buf==0 || self->size_of_buf==0) {
     PyErr_Format(PyExc_RuntimeError, "set_offset: no input has been set");
-    return 0;
+    return NULL;
   }
   if (!is_valid_ptr(self, self->buf + offset))
-    return 0;
+    return NULL;
   self->next_char_ptr = self->buf + offset;
 
   Py_INCREF(Py_None);
@@ -260,11 +260,11 @@ lexer_state_get_cur_offset(PyObject *arg_self, PyObject *args)
   self = (lexer_state_t *)arg_self;
   if (self->buf==0 || self->size_of_buf==0) {
     PyErr_Format(PyExc_RuntimeError, "get_offset: no input has been set");
-    return 0;
+    return NULL;
   }
 
   if (!is_valid_ptr(self, self->next_char_ptr))
-    return 0;
+    return NULL;
 
   result = PyLong_FromUnsignedLong(self->next_char_ptr - self->buf);
   return result;
@@ -280,11 +280,11 @@ lexer_state_get_cur_addr(PyObject *arg_self, PyObject *args)
   self = (lexer_state_t *)arg_self;
   if (self->buf==0 || self->size_of_buf==0) {
     PyErr_Format(PyExc_RuntimeError, "get_addr: no input has been set");
-    return 0;
+    return NULL;
   }
 
   if (!is_valid_ptr(self, self->next_char_ptr))
-    return 0;
+    return NULL;
 
   result = PyLong_FromUnsignedLong((long)self->next_char_ptr);
   return result;
@@ -300,10 +300,10 @@ lexer_state_set_cur_addr(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "i:set_cur_addr", &ival))
-    return 0;
+    return NULL;
   ptr = (char *)ival;
   if (!is_valid_ptr(self, ptr))
-    return 0;
+    return NULL;
   self->next_char_ptr = (char *)ptr;
 
   Py_INCREF(Py_None);
@@ -320,9 +320,9 @@ lexer_state_get_match_text(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!is_valid_ptr(self, self->next_char_ptr))
-    return 0;
+    return NULL;
   if (!is_valid_ptr(self, self->start_of_token))
-    return 0;
+    return NULL;
 
   n = self->next_char_ptr - self->start_of_token;
   assert (n > 0);
@@ -342,7 +342,7 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "O:set_input", &obj))
-    return 0;
+    return NULL;
 
   if (PyString_Check(obj)) {
     tmp_buf_len = PyString_Size(obj);
@@ -384,7 +384,7 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
   else {
     PyErr_Format(PyExc_RuntimeError, "lexer_state set_input() method called "
 		 "with object not of type file or string. Stopping.");
-    return 0;
+    return NULL;
   }
 
   Py_INCREF(Py_None);
@@ -424,11 +424,11 @@ lexer_state_set_fill_method(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "O:set_fill_method", &fill_obj))
-    return 0;
+    return NULL;
   if ( PyCallable_Check(fill_obj) != 1 && PyFile_Check(fill_obj) != 1) {
     PyErr_Format(PyExc_RuntimeError, "Fill method is not callable "
 		 "and not a file.");
-    return 0;
+    return NULL;
   }
 
   if (self->fill_obj != 0) {
@@ -479,7 +479,7 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
 #endif
 
   if (!PyArg_ParseTuple(args, "O", &obj_to_add))
-    return 0;
+    return NULL;
 
   space_left = self->start_of_token - self->buf;
 #if PYTOKEN_DEBUG
@@ -489,14 +489,14 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
   if ( ! PyString_Check(obj_to_add)) {
     PyErr_Format(PyExc_RuntimeError,
 		 "add_to_buffer: only string objs can be used.");
-    return 0;
+    return NULL;
   }
 
   str_len = PyString_Size(obj_to_add);
   txt = PyString_AsString(obj_to_add);
   if (str_len <= 0) {
     PyErr_Format(PyExc_RuntimeError, "add_to_buffer: received empty string");
-    return 0;
+    return NULL;
   }
 
   if (str_len > space_left) {
@@ -504,7 +504,7 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
     new_size = self->size_of_buf + space_needed;
     if ( ! lexer_state_resize_buffer(self, new_size) ) {
       PyErr_Format(PyExc_RuntimeError, "add_to_buffer: resize failed");
-      return 0;
+      return NULL;
     }
   }
     
@@ -537,12 +537,12 @@ lexer_state_ldb(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "O:ldb", &obj_arg))
-    return 0;
+    return NULL;
   ptr = lexer_state_get_char_ptr(obj_arg);
   if (ptr == 0)
-    return 0;
+    return NULL;
   if (!is_valid_ptr(self, ptr))
-    return 0;
+    return NULL;
   ch = *ptr;
   result = PyInt_FromLong(ch);
   return result;
@@ -560,12 +560,12 @@ lexer_state_ldw(PyObject *arg_self, PyObject *args)
   self = (lexer_state_t *)arg_self;
 
   if (!PyArg_ParseTuple(args, "O:ldw", &obj_arg))
-    return 0;
+    return NULL;
   ptr = lexer_state_get_word_ptr(obj_arg);
   if (ptr == 0)
-    return 0;
+    return NULL;
   if (!is_valid_word_ptr(self, ptr))
-    return 0;
+    return NULL;
   val = *ptr;
   result = PyInt_FromLong(val);
   return result;
@@ -582,16 +582,16 @@ lexer_state_stb(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "Oi:stb", &obj_arg, &val))
-    return 0;
+    return NULL;
   dst_ptr = lexer_state_get_char_ptr(obj_arg);
   if (dst_ptr==0)
-    return 0;
+    return NULL;
   if (!is_valid_ptr(self, dst_ptr))
-    return 0;
+    return NULL;
 
   if (val<0 || val > 0xFF) {
     PyErr_Format(PyExc_RuntimeError, "val out of range to store in byte");
-    return 0;
+    return NULL;
   }
 
   ch = val;
@@ -611,12 +611,12 @@ lexer_state_stw(PyObject *arg_self, PyObject *args)
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
   if (!PyArg_ParseTuple(args, "Oi:stw", &obj_arg, &val))
-    return 0;
+    return NULL;
   dst_ptr = lexer_state_get_word_ptr(obj_arg);
   if (dst_ptr == 0)
-    return 0;
+    return NULL;
   if (!is_valid_word_ptr(self, dst_ptr))
-    return 0;
+    return NULL;
   
   *dst_ptr = val;
 
@@ -638,7 +638,7 @@ lexer_state_get_word_ptr(PyObject *obj)
   }
 
   PyErr_Format(PyExc_RuntimeError, "cannot get word pointer from non-num.");
-  return 0;
+  return NULL;
 }
 
 static char *
@@ -655,7 +655,7 @@ lexer_state_get_char_ptr(PyObject *obj)
   }
 
   PyErr_Format(PyExc_RuntimeError, "cannot get char pointer from non-num.");
-  return 0;
+  return NULL;
 }
 
 static int
@@ -1023,7 +1023,7 @@ code_item(PyObject *arg_self, Py_ssize_t i)
   self = (code_t *)arg_self;
   if (i < 0 || i > self->num_in_buf) {
     PyErr_Format(PyExc_RuntimeError, "code_item index out of range");
-    return 0;
+    return NULL;
   }
 
   if (self->is_vcode) {
@@ -1051,24 +1051,24 @@ code_get_token(PyObject *arg_self, PyObject *args, PyObject *kwdict)
   debug_flag = 0;
   if (!PyArg_ParseTupleAndKeywords(args, kwdict, "O!|i:get_token", kwlist,
 				   &lexer_state_type, &lbuf, &debug_flag))
-    return 0;
+    return NULL;
 
   if (code_obj_ptr->is_vcode) {
     bool_db_flag = PyBool_FromLong(debug_flag);
 
     m = PyImport_ImportModule("pytoken");
     if (m==0)
-      return 0;
+      return NULL;
     d = PyModule_GetDict(m);
     Py_DECREF(m);
     if (d==0)
-      return 0;
+      return NULL;
     func = PyDict_GetItemString(d, "run_vcode_simulation");
     if (func == 0)
-      return 0;
+      return NULL;
     if (!PyFunction_Check(func)) {
       PyErr_Format(PyExc_RuntimeError, "run_vcode_simulation not a function");
-      return 0;
+      return NULL;
     }
     res = PyObject_CallFunctionObjArgs(func, arg_self, lbuf, bool_db_flag, 0);
     return res;
@@ -1090,7 +1090,7 @@ code_set_buf2(PyObject *arg_self, PyObject *args)
   self = (code_t *)arg_self;
 
   if (!PyArg_ParseTuple(args, "O!:", &lexer_state_type, &lbuf))
-    return 0;
+    return NULL;
 
   self->lstate = lbuf;
 
@@ -1127,10 +1127,10 @@ code_set_type(PyObject *arg_self, PyObject *args)
   if (self->num_in_buf != 0) {
     PyErr_Format(PyExc_RuntimeError, "set_type can only be called on "
 		 "empty code objects");
-    return 0;
+    return NULL;
   }
   if (!PyArg_ParseTuple(args, "s:set_type", &type_name))
-    return 0;
+    return NULL;
 
   if (strcmp(type_name, "vcode")==0) {
     self->obj_size = 4;
@@ -1142,7 +1142,7 @@ code_set_type(PyObject *arg_self, PyObject *args)
   }
   else {
     PyErr_Format(PyExc_RuntimeError, "Unknown type for code object");
-    return 0;
+    return NULL;
   }
 
   Py_INCREF(Py_None);
@@ -1162,16 +1162,16 @@ code_append(PyObject *arg_self, PyObject *args)
 
   if (self->is_vcode) {
     if (!PyArg_ParseTuple(args, "O:append", &tup))
-      return 0;
+      return NULL;
     if (!PyTuple_Check(tup)) {
       PyErr_Format(PyExc_RuntimeError, "vcode code objects can only "
 		   "append tuples.");
-      return 0;
+      return NULL;
     }
 
     if (self->num_in_buf == self->size_of_buf)
       if ( ! code_grow(self))
-	return 0;
+	return NULL;
 
     Py_INCREF(tup);
     self->u.obuf[ self->num_in_buf ] = tup;
@@ -1182,11 +1182,11 @@ code_append(PyObject *arg_self, PyObject *args)
   }
 
   if (!PyArg_ParseTuple(args, "i:append", &ival))
-    return 0;
+    return NULL;
 
   if (self->num_in_buf == self->size_of_buf)
     if ( ! code_grow(self))
-      return 0;
+      return NULL;
 
   self->u.buf[ self->num_in_buf ] = (char)(ival & 0xFF);
   self->num_in_buf++;
@@ -1208,7 +1208,7 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
   assert(self->is_vcode == 0);
 
   if (!PyArg_ParseTuple(args, "s#:set_bytes", &sbuf, &slen))
-    return 0;
+    return NULL;
 
   page_size = sysconf(_SC_PAGESIZE);
   desired_size = page_size;
@@ -1216,7 +1216,7 @@ code_set_bytes(PyObject *arg_self, PyObject *args)
     desired_size = desired_size * 2;
 
   if (code_set_size(self, desired_size) != 1)
-    return 0;
+    return NULL;
 
   for (i=0; i<slen; i++)
     self->u.buf[i] = sbuf[i];
@@ -1486,12 +1486,12 @@ escape_get_func_addr(PyObject *self, PyObject *args)
   PyObject *result;
 
   if (!PyArg_ParseTuple(args, "s:get_func_addr", &func_name))
-    return 0;
+    return NULL;
   if (strcmp(func_name, "PyObject_CallMethod")==0)
     func_ptr = &PyObject_CallMethod;
   else {
     PyErr_SetString(PyExc_RuntimeError, "Unknown function name");
-    return 0;
+    return NULL;
   }
 
   result = PyInt_FromLong((long)func_ptr);
@@ -1506,7 +1506,7 @@ escape_get_bytes(PyObject *self, PyObject *args)
   PyObject *result;
 
   if (!PyArg_ParseTuple(args, "ii:get_bytes", &ptr, &n_bytes))
-    return 0;
+    return NULL;
   result = PyString_FromStringAndSize(ptr, n_bytes);
   return result;
 }
@@ -1539,12 +1539,12 @@ escape_get_obj_from_id(PyObject *self, PyObject *args)
   PyObject *obj;
 
   if (!PyArg_ParseTuple(args, "L:get_obj_from_id", &llval))
-    return 0;
+    return NULL;
   lval = llval;
   obj = (PyObject *)lval;
   if (obj->ob_type != &lexer_state_type) {
     PyErr_SetString(PyExc_RuntimeError, "Bad id - not lex_state obj.");
-    return 0;
+    return NULL;
   }
   Py_INCREF(obj);
   return obj;
@@ -1615,7 +1615,7 @@ escape_regtest01(PyObject *self, PyObject *args)
   PyObject *lbuf, *result;
 
   if (!PyArg_ParseTuple(args, "O!:", &lexer_state_type, &lbuf))
-    return 0;
+    return NULL;
   result = PyObject_CallMethod(lbuf, "get_cur_addr", 0);
   return result;
 }
@@ -1623,21 +1623,96 @@ escape_regtest01(PyObject *self, PyObject *args)
 /****************************************************************/
 /* table based dfa                                              */
 /****************************************************************/
+#define DFATABLE_N_ENTRIES_PER_STATE 256
+
 typedef struct {
   PyObject_HEAD
 
-  int            n_states;
-  int           *next_state;
+  Py_ssize_t     n_states;
+  Py_ssize_t    *states;
 } dfatable_t;
 
 static PyTypeObject dfatable_type = {
   PyObject_HEAD_INIT(NULL)
 };
 
+static PyObject *dfatable_set_num_states(PyObject *, PyObject *);
+
 static PyMethodDef dfatable_methods[] = {
-    {NULL, NULL, 0, NULL}
+  {"set_num_states", dfatable_set_num_states, METH_VARARGS,
+   PyDoc_STR("Set num states for a table based DFA.")},  
+
+  {NULL, NULL, 0, NULL}
 };
 
+static PyObject *
+dfatable_set_num_states(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  Py_ssize_t n_states, n_bytes;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+  
+  if (!PyArg_ParseTuple(args, "n:set_num_states", &n_states))
+    return NULL;
+
+  if (n_states <= 0) {
+    PyErr_Format(PyExc_RuntimeError, "set_num_states: out of range");
+    return NULL;
+  }
+
+  if (self->n_states != 0) {
+    free(self->states);
+    self->states = NULL;
+    self->n_states = 0;
+  }
+
+  n_bytes = self->n_states
+    * DFATABLE_N_ENTRIES_PER_STATE
+    * sizeof(Py_ssize_t);
+
+  self->n_states = n_states;
+  self->states = calloc(1, n_bytes);
+
+  if (self->states == NULL) {
+    PyErr_Format(PyExc_RuntimeError, "out of memory");
+    return NULL;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static void
+dfatable_dealloc(PyObject *arg_self)
+{
+  dfatable_t *self;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  if (self->states)
+    free(self->states);
+  self->n_states = 0;
+  self->states = NULL;
+
+  return;
+}
+
+static int
+dfatable_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
+{
+  dfatable_t *self;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  self->n_states = 0;
+  self->states = NULL;
+
+  return 0;
+}
 
 /****************************************************************/
 /* top level                                                    */
@@ -1760,6 +1835,15 @@ initescape(void)
   /****************************/
   /* table based dfas         */
   /****************************/
+  dfatable_type.tp_name        = "escape.dfatable";
+  dfatable_type.tp_basicsize   = sizeof(dfatable_t);
+  dfatable_type.tp_new         = PyType_GenericNew;
+  dfatable_type.tp_dealloc     = dfatable_dealloc;
+  dfatable_type.tp_methods     = dfatable_methods;
+  dfatable_type.tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  dfatable_type.tp_doc         = "Table based DFA.";
+  dfatable_type.tp_init        = dfatable_init;
+
   code = PyType_Ready(&dfatable_type);
   if (code < 0)
     return;
