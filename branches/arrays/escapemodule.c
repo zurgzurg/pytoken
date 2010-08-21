@@ -1620,6 +1620,28 @@ escape_regtest01(PyObject *self, PyObject *args)
   return result;
 }
 
+/****************************************************************/
+/* table based dfa                                              */
+/****************************************************************/
+typedef struct {
+  PyObject_HEAD
+
+  int            n_states;
+  int           *next_state;
+} dfatable_t;
+
+static PyTypeObject dfatable_type = {
+  PyObject_HEAD_INIT(NULL)
+};
+
+static PyMethodDef dfatable_methods[] = {
+    {NULL, NULL, 0, NULL}
+};
+
+
+/****************************************************************/
+/* top level                                                    */
+/****************************************************************/
 static PyMethodDef escape_methods[] = {
   {"get_func_addr",    escape_get_func_addr,     METH_VARARGS,
    PyDoc_STR("Return address of certain python C api functions.")},
@@ -1734,6 +1756,19 @@ initescape(void)
   code = PyModule_AddObject(m, "code", (PyObject *)&code_type);
   if (code < 0)
     return;
+
+  /****************************/
+  /* table based dfas         */
+  /****************************/
+  code = PyType_Ready(&dfatable_type);
+  if (code < 0)
+    return;
+
+  Py_INCREF(&dfatable_type);
+  code = PyModule_AddObject(m, "dfatable", (PyObject *)&dfatable_type);
+  if (code < 0)
+    return;
+
 
   return;
 }
