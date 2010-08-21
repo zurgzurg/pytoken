@@ -77,7 +77,7 @@ Calling :meth:`lexer.get_token()` requires an instance of
 can change on each call. This techique can be used to handle
 switching the input stream on a per-token basis.
 
-The scanners are designed to store all state
+The scanners are designed to store all state.
 
 Protocol for :meth:`lexer.get_token()`
 ----------------------------------------
@@ -266,6 +266,12 @@ The supported meta characters are:
     Backslash. Escapes the next character for all characters other than
     ``'n'``, ``'r'``, and ``'t'``. For those characters a newline, carriage
     return or tab is matched.
+
+Regular Expression Matching
+---------------------------
+Longer matches are preferred over shorter ones. If two regexs can match the
+same text then the earlier one will be matched.
+
 
 Operator Precedence and Compatability with Other Regular Expression Systems
 ---------------------------------------------------------------------------
