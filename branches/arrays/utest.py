@@ -1024,6 +1024,15 @@ class dfatable01(lex_test):
         return
     pass
 
+class dfatable02(lex_test):
+    def runTest(self):
+        assert pytoken.dfatable is not None
+        obj = escape.dfatable()
+        for i in xrange(10000):
+            obj.set_num_states(5000)
+        return
+    pass
+
 ##############################################################
 ##
 ## random regexs
