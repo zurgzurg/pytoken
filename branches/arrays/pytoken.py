@@ -479,7 +479,7 @@ class lexer(object):
     #######################################
     #######################################
     ##
-    ## main user interface
+    ## public API
     ##
     #######################################
     #######################################
@@ -514,23 +514,7 @@ class lexer(object):
         
         For forms 3 and 4 bound methods can be used for the callable.
 
-        Syntax of Regular Expressions:
-
-        Currently the syntax supported by pytoken is limited. The
-        meta characters supported are:
-
-        [] - character classes
-        () - grouping
-        |  - alternation
-        *  - kleene star - zero or more repeats
-        +  - 1 or more repeats
-
-        \\  - backslash - suppresses the meaning of one of the above chars.
-
-        How matching is done:
-
-        The scanner will give first preference to match longer tokens, then
-        tokens that were specified earlier.
+        See the documentation for regex syntax.
         """
         idx = len(self.actions)
         if len(args) == 0 or (len(args)==1 and args[0] is None):
@@ -542,41 +526,14 @@ class lexer(object):
             self.pats.append((pat, idx))
         return
 
-    def build_nfa(self):
-        priority = 1
-        nfa_list = []
-        for p, a_idx in self.pats:
-            postfix = self.parse_as_postfix(p)
-            nfa_obj = self.postfix_to_nfa(postfix)
-            for st in nfa_obj.accepting_states:
-                st.user_action = a_idx
-                if self.actions[a_idx] is None:
-                    st.is_discard = True
-                st.priority    = priority
-            nfa_list.append(nfa_obj)
-            priority += 1
-
-        the_nfa = nfa_list.pop(0)
-        while nfa_list:
-            tmp = nfa_list.pop(0)
-            the_nfa = do_nfa_pipe(self, the_nfa, tmp)
-        self.nfa_obj = the_nfa
-        return the_nfa
-
-    def build_dfa(self):
-        self.dfa_obj = self.nfa_obj.convert_to_dfa()
-        return self.dfa_obj
-
     def compile_to_machine_code(self, debug=False):
+        """Call this function after adding all the regexs to the lexer.
+        Once this is called no more patterns can be added."""
         self.build_nfa()
         self.build_dfa()
         self.compile_to_ir()
         self.code_obj = compile_to_x86_32(self.ir, debug)
         return self.code_obj
-
-    def set_default_lexer_state(self, lstate):
-        self.default_lstate = lstate
-        return
 
     def get_token(self, lstate=None):
         """Return the next token.
@@ -603,6 +560,44 @@ class lexer(object):
         txt = lobj.get_match_text()
         r = action_obj(txt)
         return r
+
+    #######################################
+    #######################################
+    #######################################
+    ##
+    ## end of public API
+    ##
+    #######################################
+    #######################################
+    #######################################
+    def build_nfa(self):
+        priority = 1
+        nfa_list = []
+        for p, a_idx in self.pats:
+            postfix = self.parse_as_postfix(p)
+            nfa_obj = self.postfix_to_nfa(postfix)
+            for st in nfa_obj.accepting_states:
+                st.user_action = a_idx
+                if self.actions[a_idx] is None:
+                    st.is_discard = True
+                st.priority    = priority
+            nfa_list.append(nfa_obj)
+            priority += 1
+
+        the_nfa = nfa_list.pop(0)
+        while nfa_list:
+            tmp = nfa_list.pop(0)
+            the_nfa = do_nfa_pipe(self, the_nfa, tmp)
+        self.nfa_obj = the_nfa
+        return the_nfa
+
+    def build_dfa(self):
+        self.dfa_obj = self.nfa_obj.convert_to_dfa()
+        return self.dfa_obj
+
+    def set_default_lexer_state(self, lstate):
+        self.default_lstate = lstate
+        return
 
     ####################################################
     ####################################################
