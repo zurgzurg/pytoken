@@ -1016,13 +1016,11 @@ class dfa09(lex_test):
     pass
 
 ##############################################################
-class dfa_array01(lex_test):
+# dfa table / dfatable
+##############################################################
+class dfatable01(lex_test):
     def runTest(self):
-        obj = pytoken.lexer()
-        obj.add_pattern("a|b", None)
-        nfa_obj = obj.build_nfa()
-        dfa_obj = obj.build_dfa()
-        
+        assert pytoken.dfatable is not None
         return
     pass
 

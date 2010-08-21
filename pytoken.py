@@ -45,6 +45,8 @@ import pytoken_ply_lex
 
 code        = escape.code
 lexer_state = escape.lexer_state
+dfatable    = escape.dfatable
+
 ply_lex     = pytoken_ply_lex.lex
 
 ##########################################################################
@@ -465,7 +467,7 @@ class lexer(object):
         self.nfa_obj          = None
         self.dfa_obj          = None
         self.ir               = None
-        self.code_obj         = None
+        self.gettoken_obj     = None
 
         self.default_lstate   = None
 
@@ -532,8 +534,14 @@ class lexer(object):
         self.build_nfa()
         self.build_dfa()
         self.compile_to_ir()
-        self.code_obj = compile_to_x86_32(self.ir, debug)
-        return self.code_obj
+        self.gettoken_obj = compile_to_x86_32(self.ir, debug)
+        return self.gettoken_obj
+
+    def compile_to_arrays(self, debug=False):
+        self.build_nfa()
+        self.build_dfa()
+        self.gettoken_obj = xxx()
+        return
 
     def get_token(self, lstate=None):
         """Return the next token.
@@ -542,13 +550,13 @@ class lexer(object):
         not given then the user must have called set_default_lexer_state(),
         the argument given to that function will be used instead. If
         the lexer state obj is given then is must be a lexer state object."""
-        assert self.code_obj is not None
+        assert self.gettoken_obj is not None
 
         if lstate is not None:
             lobj = lstate
         else:
             lobj = self.default_lstate
-        idx = self.code_obj.get_token(lobj)
+        idx = self.gettoken_obj.get_token(lobj)
         action_obj = self.actions[idx]
         #if action_obj is None:
         #    pdb.set_trace()
