@@ -614,9 +614,6 @@ class lexer(object):
         self.gettoken_obj = dfatable()
         n = len(self.dfa_obj.states)
         self.gettoken_obj.set_num_states(n)
-
-        xxx
-
         return
 
     ####################################################
