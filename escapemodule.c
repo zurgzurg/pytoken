@@ -1638,6 +1638,8 @@ static PyTypeObject dfatable_type = {
 
 static PyObject *dfatable_set_num_states(PyObject *, PyObject *);
 static PyObject *dfatable_get_num_states(PyObject *, PyObject *);
+static PyObject *dfatable_set_state(PyObject *, PyObject *);
+static PyObject *dfatable_get_state(PyObject *, PyObject *);
 
 static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
@@ -1646,13 +1648,17 @@ static PyMethodDef dfatable_methods[] = {
   {"get_num_states", dfatable_get_num_states, METH_NOARGS,
    PyDoc_STR("Get num states for a table based DFA.")},  
 
-#if 0
   {"set_state", dfatable_set_state, METH_VARARGS,
-   PyDoc_STR("set_state(state_num, [next_state_num * 256])")},  
+   PyDoc_STR("set_state(state_num, [next_state_num * 256])"
+	     "Any sequence type can be passed as the second argument,"
+	     "it must have length of exactly 256. Each entry of the"
+	     "sequence must be a state number or None. These are the"
+	     "out edges from this state.")},
 
   {"get_state", dfatable_get_state, METH_VARARGS,
-   PyDoc_STR("get_state(state_num) returns an array [next_state_num * 256]")},  
-#endif
+   PyDoc_STR("get_state(state_num) returns a tuple of next state items."
+	     " If an item is None then that char has no next state. "
+	     "Otherwise the item will be a state number.")},
 
   {NULL, NULL, 0, NULL}
 };
@@ -1710,11 +1716,12 @@ dfatable_set_num_states(PyObject *arg_self, PyObject *args)
     self->n_states = 0;
   }
 
+  self->n_states = n_states;
+
   n_bytes = self->n_states
     * DFATABLE_N_ENTRIES_PER_STATE
     * sizeof(Py_ssize_t);
 
-  self->n_states = n_states;
   self->states = calloc(1, n_bytes);
 
   if (self->states == NULL) {
@@ -1744,20 +1751,125 @@ dfatable_get_num_states(PyObject *arg_self, PyObject *args)
   return result;
 }
 
-#if 0
 static PyObject *
 dfatable_set_state(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
-  Py_ssize_t n_states, n_bytes;
+  Py_ssize_t snum, *sptr, i, ssval;
+  PyObject *seq, *next;
+  long lval;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
   
-  if (!PyArg_ParseTuple(args, "n:set_state", &n_states))
+  if (!PyArg_ParseTuple(args, "nO:set_state", &snum, &seq))
     return NULL;
+  if (!PySequence_Check(seq)) {
+    PyErr_Format(PyExc_RuntimeError, "set_state: second arg must be a seq.");
+    return NULL;
+  }
+  if (PySequence_Length(seq) != DFATABLE_N_ENTRIES_PER_STATE) {
+    PyErr_Format(PyExc_RuntimeError, "set_state: Got seq of length %d "
+		 "expecting %d", (int)PySequence_Length(seq),
+		 DFATABLE_N_ENTRIES_PER_STATE);
+    return NULL;
+  }
+  if (snum < 0 || snum >= self->n_states) {
+    PyErr_Format(PyExc_RuntimeError, "set_state: state num out of range");
+    return NULL;
+  }
+
+  sptr = &self->states[snum * DFATABLE_N_ENTRIES_PER_STATE];
+  for (i = 0; i < DFATABLE_N_ENTRIES_PER_STATE; i++) {
+    next = PySequence_GetItem(seq, i);
+
+    if (next == Py_None) {
+      sptr[i] = -1;
+      Py_DECREF(next);
+      continue;
+    }
+
+    if (PyInt_CheckExact(next)) {
+      lval = PyInt_AS_LONG(next);
+      if (lval < 0 || lval > self->n_states) {
+	PyErr_Format(PyExc_RuntimeError, "set_state: Failed to set state "
+		     "%d at position %d: next state out of range",
+		     (int)snum, i);
+	return NULL;
+      }
+      sptr[i] = lval;
+      Py_DECREF(next);
+      continue;
+    }
+
+
+    if (PyLong_CheckExact(next)) {
+      ssval = PyLong_AsSsize_t(next);
+      if (ssval == -1 && PyErr_Occurred() != NULL) {
+	return NULL;
+      }
+      if (ssval < 0 || ssval > self->n_states) {
+	PyErr_Format(PyExc_RuntimeError, "set_state: Failed to set state "
+		     "%d at position %d: next state out of range",
+		     (int)snum, i);
+	return NULL;
+      }
+      sptr[i] = ssval;
+      Py_DECREF(next);
+      continue;
+    }
+
+    Py_DECREF(next);
+    PyErr_Format(PyExc_RuntimeError, "set_state: Failed to set state "
+		     "%d at position %d: next state not int or long",
+		     (int)snum, i);
+    return NULL;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
-#endif
+
+static PyObject *
+dfatable_get_state(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  Py_ssize_t snum, next, *sptr;
+  PyObject *result, *item;
+  int i;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+  
+  if (!PyArg_ParseTuple(args, "n:get_state", &snum))
+    return NULL;
+  if (snum < 0 || snum >= self->n_states) {
+    PyErr_Format(PyExc_RuntimeError, "set_state: state num out of range");
+    return NULL;
+  }
+
+  result = PyTuple_New(DFATABLE_N_ENTRIES_PER_STATE);
+  if (result == NULL)
+    return NULL;
+
+  sptr = &self->states[snum * DFATABLE_N_ENTRIES_PER_STATE];
+  for (i = 0; i < DFATABLE_N_ENTRIES_PER_STATE; i++) {
+    next = sptr[i];
+    if (next == -1) {
+      Py_INCREF(Py_None);
+      item = Py_None;
+    }
+    else {
+      item = PyLong_FromSsize_t(next);
+      if (item == NULL)
+	return NULL;
+    }
+    if (PyTuple_SetItem(result, i, item) != 0)
+      return NULL;
+  }
+
+  return result;
+}
 
 /****************************************************************/
 /* top level                                                    */
