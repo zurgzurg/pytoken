@@ -1079,6 +1079,31 @@ class dfatable06(lex_test):
         return
     pass
 
+class dfatable07(lex_test):
+    def runTest(self):
+        self.assert_(pytoken.dfatable is not None)
+        obj = escape.dfatable()
+        obj.set_num_states(1)
+        for i in xrange(10000):
+            svec = [0] * 256
+            obj.set_state(0, svec)
+            svec2 = obj.get_state(0)
+            self.assert_(len(svec) == len(svec2))
+            for j in xrange(len(svec)):
+                self.assert_(svec[j] == svec2[j])
+        return
+    pass
+
+class dfatable08(lex_test):
+    def runTest(self):
+        self.assert_(pytoken.dfatable is not None)
+        obj = escape.dfatable()
+        obj.set_num_states(1)
+        obj.set_start_state(0)
+        self.assert_(obj.get_start_state() == 0)
+        return
+    pass
+
 ##############################################################
 ##
 ## random regexs
