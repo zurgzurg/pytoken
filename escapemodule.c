@@ -1637,12 +1637,13 @@ static PyTypeObject dfatable_type = {
 };
 
 static PyObject *dfatable_set_num_states(PyObject *, PyObject *);
+static PyObject *dfatable_get_num_states(PyObject *, PyObject *);
 
 static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
    PyDoc_STR("Set num states for a table based DFA.")},  
 
-  {"get_num_states", dfatable_set_num_states, METH_NOARGS,
+  {"get_num_states", dfatable_get_num_states, METH_NOARGS,
    PyDoc_STR("Get num states for a table based DFA.")},  
 
 #if 0
