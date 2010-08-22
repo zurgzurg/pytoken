@@ -2409,10 +2409,10 @@ class asm_full_18(lex_test):
         buf = pytoken.lexer_state()
         buf.set_input("a a")
 
-        lexer_obj.code_obj.set_buf2(buf)
+        lexer_obj.gettoken_obj.set_buf2(buf)
 
-        t1 = lexer_obj.code_obj.get_token2()
-        t2 = lexer_obj.code_obj.get_token2()
+        t1 = lexer_obj.gettoken_obj.get_token2()
+        t2 = lexer_obj.gettoken_obj.get_token2()
         self.assert_(t1 == t2)
 
         return
@@ -2541,10 +2541,10 @@ class full_directed01(lex_test):
                 print "ASM"
                 pytoken.print_instructions(l)
                 r = pytoken.asm_list_x86_32_to_code(l)
-                obj.code_obj = r
+                obj.gettoken_obj = r
             else:
                 debug_compile = False
-                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
+                obj.gettoken_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
 
         buf = pytoken.lexer_state()
         buf.set_input(chr(244))
@@ -2584,10 +2584,10 @@ class full_directed02(lex_test):
                 print "ASM"
                 pytoken.print_instructions(l)
                 r = pytoken.asm_list_x86_32_to_code(l)
-                obj.code_obj = r
+                obj.gettoken_obj = r
             else:
                 debug_compile = False
-                obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
+                obj.gettoken_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
 
         buf = pytoken.lexer_state()
         buf.set_input(chr(244))
@@ -2630,9 +2630,9 @@ class full_directed03(lex_test):
                 print "IR"
                 pytoken.print_instructions(obj.ir)
             debug_compile = False
-            obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
+            obj.gettoken_obj = pytoken.compile_to_x86_32(obj.ir, debug_compile)
             sys.stdout.flush()
-            addr = obj.code_obj.get_start_addr()
+            addr = obj.gettoken_obj.get_start_addr()
             sys.stdout.flush()
 
             for targ in range(1, 255):
@@ -2663,50 +2663,6 @@ class full_directed04(lex_test):
             exp = chr(ord(exp) + 1)
         return
     pass
-
-#class full_directed05(lex_test):
-#    def runTest(self):
-#        obj = pytoken.lexer()
-#        obj.add_pattern(chr(0), 22)
-#
-#        obj.build_nfa()
-#        obj.build_dfa()
-#        if 1:
-#            print "DFA"
-#            print obj.dfa_obj
-#        obj.compile_to_ir()
-#        obj.code_obj = pytoken.compile_to_x86_32(obj.ir, debug=False)
-#
-#        buf = pytoken.lexer_state()
-#        buf.set_input(chr(0))
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 22)
-#        return
-#    pass
-
-#class full_directed06(lex_test):
-#    def runTest(self):
-#        obj = pytoken.lexer()
-#        obj.add_pattern(chr(0), 0)
-#        obj.add_pattern('a', 1)
-#        obj.compile_to_machine_code()
-#        buf = pytoken.lexer_state()
-#        buf.set_input("\x00a\x00a\x00")
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 0)
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 1)
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 0)
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 1)
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == 0)
-#        tok = obj.get_token(buf)
-#        self.assert_(tok == "EOB")
-#        return
-#    pass
-
 
 class full_rand01(lex_test):
     def runTest(self):

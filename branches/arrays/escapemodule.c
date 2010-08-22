@@ -1642,8 +1642,49 @@ static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
    PyDoc_STR("Set num states for a table based DFA.")},  
 
+  {"get_num_states", dfatable_set_num_states, METH_NOARGS,
+   PyDoc_STR("Get num states for a table based DFA.")},  
+
+#if 0
+  {"set_state", dfatable_set_state, METH_VARARGS,
+   PyDoc_STR("set_state(state_num, [next_state_num * 256])")},  
+
+  {"get_state", dfatable_get_state, METH_VARARGS,
+   PyDoc_STR("get_state(state_num) returns an array [next_state_num * 256]")},  
+#endif
+
   {NULL, NULL, 0, NULL}
 };
+
+static void
+dfatable_dealloc(PyObject *arg_self)
+{
+  dfatable_t *self;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  if (self->states)
+    free(self->states);
+  self->n_states = 0;
+  self->states = NULL;
+
+  return;
+}
+
+static int
+dfatable_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
+{
+  dfatable_t *self;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  self->n_states = 0;
+  self->states = NULL;
+
+  return 0;
+}
 
 static PyObject *
 dfatable_set_num_states(PyObject *arg_self, PyObject *args)
@@ -1684,35 +1725,38 @@ dfatable_set_num_states(PyObject *arg_self, PyObject *args)
   return Py_None;
 }
 
-static void
-dfatable_dealloc(PyObject *arg_self)
+static PyObject *
+dfatable_get_num_states(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
+  PyObject *result;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
-
-  if (self->states)
-    free(self->states);
-  self->n_states = 0;
-  self->states = NULL;
-
-  return;
+  
+  if (self->states == NULL) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+    
+  result = PyLong_FromSsize_t(self->n_states);
+  return result;
 }
 
-static int
-dfatable_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
+#if 0
+static PyObject *
+dfatable_set_state(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
+  Py_ssize_t n_states, n_bytes;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
-
-  self->n_states = 0;
-  self->states = NULL;
-
-  return 0;
+  
+  if (!PyArg_ParseTuple(args, "n:set_state", &n_states))
+    return NULL;
 }
+#endif
 
 /****************************************************************/
 /* top level                                                    */
