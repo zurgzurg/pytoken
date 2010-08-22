@@ -1630,6 +1630,7 @@ typedef struct {
 
   Py_ssize_t     n_states;
   Py_ssize_t    *states;
+  Py_ssize_t     start;
 } dfatable_t;
 
 static PyTypeObject dfatable_type = {
@@ -1640,6 +1641,8 @@ static PyObject *dfatable_set_num_states(PyObject *, PyObject *);
 static PyObject *dfatable_get_num_states(PyObject *, PyObject *);
 static PyObject *dfatable_set_state(PyObject *, PyObject *);
 static PyObject *dfatable_get_state(PyObject *, PyObject *);
+static PyObject *dfatable_set_start_state(PyObject *, PyObject *);
+static PyObject *dfatable_get_start_state(PyObject *, PyObject *);
 
 static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
@@ -1660,6 +1663,13 @@ static PyMethodDef dfatable_methods[] = {
 	     " If an item is None then that char has no next state. "
 	     "Otherwise the item will be a state number.")},
 
+  {"set_start_state", dfatable_set_start_state, METH_VARARGS,
+   PyDoc_STR("set_start_state(state_num)")},
+
+  {"get_start_state", dfatable_get_start_state, METH_NOARGS,
+   PyDoc_STR("get_start_state() Returns a state number or None if it has"
+	     " not been set yet.")},
+
   {NULL, NULL, 0, NULL}
 };
 
@@ -1673,8 +1683,10 @@ dfatable_dealloc(PyObject *arg_self)
 
   if (self->states)
     free(self->states);
+
   self->n_states = 0;
-  self->states = NULL;
+  self->states   = NULL;
+  self->start    = -1;
 
   return;
 }
@@ -1688,7 +1700,8 @@ dfatable_init(PyObject *arg_self, PyObject *args, PyObject *kwds)
   self = (dfatable_t *)arg_self;
 
   self->n_states = 0;
-  self->states = NULL;
+  self->states   = NULL;
+  self->start    = -1;
 
   return 0;
 }
@@ -1866,6 +1879,48 @@ dfatable_get_state(PyObject *arg_self, PyObject *args)
     }
     if (PyTuple_SetItem(result, i, item) != 0)
       return NULL;
+  }
+
+  return result;
+}
+
+static PyObject *
+dfatable_set_start_state(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  Py_ssize_t snum;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+  
+  if (!PyArg_ParseTuple(args, "n:set_start_state", &snum))
+    return NULL;
+  if (snum < 0 || snum >= self->n_states) {
+    PyErr_Format(PyExc_RuntimeError, "set_start_state: state num out of range");
+    return NULL;
+  }
+
+  self->start = snum;
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject *
+dfatable_get_start_state(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  if (self->start == -1) {
+    result = Py_None;
+    Py_INCREF(Py_None);
+  }
+  else {
+    result = PyInt_FromSsize_t(self->start);
   }
 
   return result;
