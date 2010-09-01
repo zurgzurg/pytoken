@@ -1104,6 +1104,25 @@ class dfatable08(lex_test):
         return
     pass
 
+class dfatable09(lex_test):
+    def runTest(self):
+        self.assert_(pytoken.dfatable is not None)
+        obj = escape.dfatable()
+        obj.set_num_states(1)
+        obj.set_state_info([])
+        return
+    pass
+
+class dfatable10(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.build_nfa()
+        obj.build_dfa()
+        obj.make_table_dfa()
+        return
+    pass
+
 ##############################################################
 ##
 ## random regexs
