@@ -614,6 +614,30 @@ class lexer(object):
         self.gettoken_obj = dfatable()
         n = len(self.dfa_obj.states)
         self.gettoken_obj.set_num_states(n)
+
+        state2num = {}
+        for idx, st in enumerate(self.dfa_obj.states):
+            state2num[st] = idx
+
+        start_num = state2num[ self.dfa_obj.init_state ]
+        self.gettoken_obj.set_start_state(start_num)
+
+        for snum in xrange(n):
+            state = self.dfa_obj.states[snum]
+            vec = []
+            for ch_code in xrange(256):
+                ch = chr(ch_code)
+                k = (state, ch)
+                if k in self.dfa_obj.trans_tbl:
+                    next = self.dfa_obj.trans_tbl[k]
+                    assert len(next) == 1
+                    next = next[0]
+                    next_num = state2num[next]
+                    vec.append(next_num)
+                else:
+                    vec.append(None)
+            self.gettoken_obj.set_state(snum, vec)
+                
         return
 
     ####################################################

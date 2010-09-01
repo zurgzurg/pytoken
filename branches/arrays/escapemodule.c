@@ -1625,12 +1625,18 @@ escape_regtest01(PyObject *self, PyObject *args)
 /****************************************************************/
 #define DFATABLE_N_ENTRIES_PER_STATE 256
 
+struct state_info {
+  unsigned int    is_accepting :  1;
+  unsigned int    action_num    : 31;
+};
+
 typedef struct {
   PyObject_HEAD
 
-  Py_ssize_t     n_states;
-  Py_ssize_t    *states;
-  Py_ssize_t     start;
+  Py_ssize_t          n_states;
+  Py_ssize_t         *states;
+  Py_ssize_t          start;
+  struct state_info  *info;
 } dfatable_t;
 
 static PyTypeObject dfatable_type = {
@@ -1643,6 +1649,9 @@ static PyObject *dfatable_set_state(PyObject *, PyObject *);
 static PyObject *dfatable_get_state(PyObject *, PyObject *);
 static PyObject *dfatable_set_start_state(PyObject *, PyObject *);
 static PyObject *dfatable_get_start_state(PyObject *, PyObject *);
+static PyObject *dfatable_set_state_info(PyObject *, PyObject *);
+static PyObject *dfatable_get_state_info(PyObject *, PyObject *);
+static PyObject *dfatable_walk(PyObject *, PyObject *);
 
 static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
@@ -1669,6 +1678,15 @@ static PyMethodDef dfatable_methods[] = {
   {"get_start_state", dfatable_get_start_state, METH_NOARGS,
    PyDoc_STR("get_start_state() Returns a state number or None if it has"
 	     " not been set yet.")},
+
+  {"set_state_info", dfatable_set_state_info, METH_VARARGS,
+   PyDoc_STR("set_state_info(state_num, [info])")},
+
+  {"get_state_info", dfatable_get_state_info, METH_NOARGS,
+   PyDoc_STR("get_state_info() returns a vector of all state info.")},
+
+  {"walk", dfatable_walk, METH_VARARGS,
+   PyDoc_STR("walk() ...")},
 
   {NULL, NULL, 0, NULL}
 };
@@ -1923,6 +1941,89 @@ dfatable_get_start_state(PyObject *arg_self, PyObject *args)
     result = PyInt_FromSsize_t(self->start);
   }
 
+  return result;
+}
+
+static PyObject *
+dfatable_set_state_info(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+    result = Py_None;
+    Py_INCREF(Py_None);
+    return result;
+}
+
+static PyObject *
+dfatable_get_state_info(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  PyObject *result;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+    result = Py_None;
+    Py_INCREF(Py_None);
+    return result;
+}
+
+static PyObject *
+dfatable_walk(PyObject *arg_self, PyObject *args)
+{
+  dfatable_t *self;
+  PyObject *lstate_obj, *result;
+  lexer_state_t *lstate;
+
+  assert(arg_self->ob_type == &dfatable_type);
+  self = (dfatable_t *)arg_self;
+
+  if (!PyArg_ParseTuple(args, "O:walk", &lstate_obj))
+    return NULL;
+  if (lstate_obj->ob_type != &lexer_state_type ) {
+    PyErr_Format(PyExc_RuntimeError, "walk: Did not get lexer state obj "
+		 "as sole parameter.");
+    return NULL;
+  }
+  lstate = (lexer_state_t *)lstate_obj;
+
+  {
+    Py_ssize_t *cur_state, next, have_prev_state, prev_state;
+    unsigned int ch, remain;
+
+    remain = lstate->chars_in_buf - 2 - (lstate->next_char_ptr - lstate->buf);
+    lstate->start_of_token = lstate->next_char_ptr;
+    cur_state = &self->states[ self->start * DFATABLE_N_ENTRIES_PER_STATE];
+
+    have_prev_state = 0;
+    prev_state = 0;
+
+    while (remain > 0) {
+      ch = *lstate->next_char_ptr++;
+      remain--;
+
+      next = cur_state[ch];
+      if (next < 0) {
+	if (have_prev_state) {
+	}
+	else {
+	}
+      }
+
+      cur_state = &self->states[ next * DFATABLE_N_ENTRIES_PER_STATE];
+      if (self->info[ next ].is_accepting) {
+	have_prev_state = 1;
+	prev_state = self->info[ next ].action_num;
+      }
+    }
+  }
+
+  result = Py_None;
+  Py_INCREF(Py_None);
   return result;
 }
 
