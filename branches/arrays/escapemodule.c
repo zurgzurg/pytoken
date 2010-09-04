@@ -352,6 +352,8 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
       free(self->buf);
 
     self->buf            = malloc(tmp_buf_len + 2);
+    if (self->buf == NULL)
+      return PyErr_NoMemory();
     self->next_char_ptr  = self->buf;
     self->start_of_token = 0;
     self->size_of_buf    = tmp_buf_len + 2;
@@ -370,6 +372,8 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
     if (self->buf)
       free(self->buf);
     self->buf            = malloc(4096 + 2);
+    if (self->buf == NULL)
+      return PyErr_NoMemory();
     self->next_char_ptr  = self->buf;
     self->start_of_token = 0;
     self->size_of_buf    = 4096 + 2;
@@ -1236,21 +1240,19 @@ code_grow(code_t *self)
     if (self->size_of_buf == 0) {
       self->size_of_buf = 1024;
       self->u.buf = malloc (self->size_of_buf * self->obj_size);
-      if (self->u.buf == 0)
-	{
-	  PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
-	  return 0;
-	}
+      if (self->u.buf == 0) {
+	PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
+	return 0;
+      }
       return 1;
     }
     self->size_of_buf = 2 * self->size_of_buf;
     self->u.buf         = realloc(self->u.buf,
 				  self->size_of_buf * self->obj_size);
-    if (self->u.buf == 0)
-      {
-	PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
-	return 0;
-      }
+    if (self->u.buf == 0) {
+      PyErr_Format(PyExc_RuntimeError, "Unable to allocate memory");
+      return 0;
+    }
     return 1;
   }
 
@@ -1651,7 +1653,7 @@ static PyObject *dfatable_set_start_state(PyObject *, PyObject *);
 static PyObject *dfatable_get_start_state(PyObject *, PyObject *);
 static PyObject *dfatable_set_state_info(PyObject *, PyObject *);
 static PyObject *dfatable_get_state_info(PyObject *, PyObject *);
-static PyObject *dfatable_walk(PyObject *, PyObject *);
+static PyObject *dfatable_get_token(PyObject *, PyObject *);
 
 static PyMethodDef dfatable_methods[] = {
   {"set_num_states", dfatable_set_num_states, METH_VARARGS,
@@ -1680,13 +1682,16 @@ static PyMethodDef dfatable_methods[] = {
 	     " not been set yet.")},
 
   {"set_state_info", dfatable_set_state_info, METH_VARARGS,
-   PyDoc_STR("set_state_info(state_num, [info])")},
+   PyDoc_STR("set_state_info(state_num, is_accepting, action_num)."
+	     "is_accepting is True or False."
+	     "action_num should be None if is_accepting is false."
+	     "Otherwise action_num should be the resulting action number.")},
 
   {"get_state_info", dfatable_get_state_info, METH_NOARGS,
    PyDoc_STR("get_state_info() returns a vector of all state info.")},
 
-  {"walk", dfatable_walk, METH_VARARGS,
-   PyDoc_STR("walk() ...")},
+  {"get_token", dfatable_get_token, METH_VARARGS,
+   PyDoc_STR("get_token(lexer_state) get the next token.")},
 
   {NULL, NULL, 0, NULL}
 };
@@ -1743,7 +1748,9 @@ dfatable_set_num_states(PyObject *arg_self, PyObject *args)
 
   if (self->n_states != 0) {
     free(self->states);
+    free(self->info);
     self->states = NULL;
+    self->info = NULL;
     self->n_states = 0;
   }
 
@@ -1754,11 +1761,12 @@ dfatable_set_num_states(PyObject *arg_self, PyObject *args)
     * sizeof(Py_ssize_t);
 
   self->states = calloc(1, n_bytes);
+  if (self->states == NULL)
+    return PyErr_NoMemory();
 
-  if (self->states == NULL) {
-    PyErr_Format(PyExc_RuntimeError, "out of memory");
-    return NULL;
-  }
+  self->info = calloc(self->n_states, sizeof(*self->info));
+  if (self->states == NULL)
+    return PyErr_NoMemory();
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -1948,14 +1956,54 @@ static PyObject *
 dfatable_set_state_info(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
-  PyObject *result;
+  Py_ssize_t snum;
+  PyObject *is_accepting, *act_num_obj;
+  struct state_info *sinfo;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
 
-    result = Py_None;
-    Py_INCREF(Py_None);
-    return result;
+  if (!PyArg_ParseTuple(args, "nOO:set_state_info",
+			&snum, &is_accepting, &act_num_obj))
+    return NULL;
+  if (is_accepting != Py_True && is_accepting != Py_False) {
+    PyErr_Format(PyExc_RuntimeError, "set_state_info: is_accepting "
+		 "must be True or False");
+    return NULL;
+  }
+
+  if (snum < 0 || snum > self->n_states) {
+    PyErr_Format(PyExc_RuntimeError, "state number is out of range");
+    return NULL;
+  }
+  
+  sinfo = self->info + snum;
+
+  if (is_accepting == Py_True) {
+    sinfo->is_accepting = 1;
+    if (!PyInt_CheckExact(act_num_obj)) {
+      PyErr_Format(PyExc_RuntimeError, "action number is not an int");
+      return NULL;
+    }
+    long lval = PyInt_AsLong(act_num_obj);
+    if (lval < 0 || lval > 0x7FFFffff) {
+      PyErr_Format(PyExc_RuntimeError, "action number out of range");
+      return NULL;
+    }
+    sinfo->action_num = lval;
+  }
+  else {
+    if (act_num_obj != Py_None) {
+      PyErr_Format(PyExc_RuntimeError, "is_accepting is false but "
+		   "act_num is not None");
+      return NULL;
+    }
+    sinfo->is_accepting = 0;
+    sinfo->action_num = 0;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static PyObject *
@@ -1963,68 +2011,91 @@ dfatable_get_state_info(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
   PyObject *result;
+  Py_ssize_t i;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
 
-    result = Py_None;
+  if (self->n_states == 0) {
     Py_INCREF(Py_None);
-    return result;
+    return Py_None;
+  }
+
+  result = PyList_New(self->n_states);
+  for (i = 0; i < self->n_states; i++) {
+    if (self->info[i].is_accepting == 0) {
+      Py_INCREF(Py_None);
+      PyList_SetItem(result, i, Py_None);
+    }
+    else {
+      PyObject *obj;
+      obj = PyInt_FromLong(self->info[i].action_num);
+      if (obj == NULL)
+	return NULL;
+      PyList_SetItem(result, i, obj);
+    }
+  }
+
+  return result;
 }
 
 static PyObject *
-dfatable_walk(PyObject *arg_self, PyObject *args)
+dfatable_get_token(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
   PyObject *lstate_obj, *result;
   lexer_state_t *lstate;
+  Py_ssize_t *cur_state, next, have_prev_result, prev_result;
+  unsigned int ch, remain;
 
   assert(arg_self->ob_type == &dfatable_type);
   self = (dfatable_t *)arg_self;
 
-  if (!PyArg_ParseTuple(args, "O:walk", &lstate_obj))
+  if (!PyArg_ParseTuple(args, "O:get_token", &lstate_obj))
     return NULL;
   if (lstate_obj->ob_type != &lexer_state_type ) {
-    PyErr_Format(PyExc_RuntimeError, "walk: Did not get lexer state obj "
+    PyErr_Format(PyExc_RuntimeError, "get_token: Did not get lexer state obj "
 		 "as sole parameter.");
     return NULL;
   }
+
   lstate = (lexer_state_t *)lstate_obj;
 
-  {
-    Py_ssize_t *cur_state, next, have_prev_state, prev_state;
-    unsigned int ch, remain;
+  remain = lstate->chars_in_buf - 2 - (lstate->next_char_ptr - lstate->buf);
+  lstate->start_of_token = lstate->next_char_ptr;
+  cur_state = &self->states[ self->start * DFATABLE_N_ENTRIES_PER_STATE];
 
-    remain = lstate->chars_in_buf - 2 - (lstate->next_char_ptr - lstate->buf);
-    lstate->start_of_token = lstate->next_char_ptr;
-    cur_state = &self->states[ self->start * DFATABLE_N_ENTRIES_PER_STATE];
+  have_prev_result = 0;
+  prev_result = 0;
 
-    have_prev_state = 0;
-    prev_state = 0;
+  while (remain > 0) {
+    ch = *lstate->next_char_ptr++;
+    remain--;
 
-    while (remain > 0) {
-      ch = *lstate->next_char_ptr++;
-      remain--;
-
-      next = cur_state[ch];
-      if (next < 0) {
-	if (have_prev_state) {
-	}
-	else {
-	}
+    next = cur_state[ch];
+    if (next < 0) {
+      if (have_prev_result) {
+	result = PyInt_FromSsize_t(prev_result);
+	return result;
       }
+      result = Py_BuildValue("(C)", ch);
+      return result;
+    }
 
-      cur_state = &self->states[ next * DFATABLE_N_ENTRIES_PER_STATE];
-      if (self->info[ next ].is_accepting) {
-	have_prev_state = 1;
-	prev_state = self->info[ next ].action_num;
-      }
+    cur_state = &self->states[ next * DFATABLE_N_ENTRIES_PER_STATE];
+    if (self->info[ next ].is_accepting) {
+      have_prev_result = 1;
+      prev_result = self->info[ next ].action_num;
     }
   }
 
-  result = Py_None;
+  if (have_prev_result) {
+    result = PyInt_FromSsize_t(prev_result);
+    return result;
+  }
+
   Py_INCREF(Py_None);
-  return result;
+  return Py_None;
 }
 
 /****************************************************************/

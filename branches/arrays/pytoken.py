@@ -38,6 +38,8 @@ import os
 import os.path
 import re
 import dl
+import string
+
 import pdb
 
 import escape
@@ -87,6 +89,7 @@ class fsa(object):
     def set_accepting_state(self, state):
         if state not in self.accepting_states:
             self.accepting_states.append(state)
+            state.is_accepting = True
         return
 
     ##
@@ -638,6 +641,39 @@ class lexer(object):
                     vec.append(None)
             self.gettoken_obj.set_state(snum, vec)
                 
+        for snum in xrange(n):
+            state = self.dfa_obj.states[snum]
+            if state in self.dfa_obj.accepting_states:
+                assert type(state.user_action) is int
+                assert state.is_accepting is True
+                self.gettoken_obj.set_state_info(snum, True, state.user_action)
+            else:
+                self.gettoken_obj.set_state_info(snum, False, None)
+
+        return
+
+    def dump_table_dfa(self):
+        print "dumping table based dfa info"
+        n = self.gettoken_obj.get_num_states()
+        print "num states=", n
+        sinfo = self.gettoken_obj.get_state_info()
+        print "State info[] = ", sinfo
+        for i in xrange(n):
+            print "state", i
+            self.table_dfa_dump_one_state(i)
+        return
+
+    def table_dfa_dump_one_state(self, snum):
+        tbl = self.gettoken_obj.get_state(snum)
+        for code in xrange(256):
+            ch = chr(code)
+            next = tbl[code]
+            if next is None:
+                continue
+            if ch in string.printable:
+                print '  <%s> -> %d' % (ch, next)
+            else:
+                print '  <0x%02x> -> %d' % (code, next)
         return
 
     ####################################################

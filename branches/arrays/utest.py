@@ -1123,6 +1123,27 @@ class dfatable10(lex_test):
         return
     pass
 
+class dfatable11(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.build_nfa()
+        obj.build_dfa()
+        if 0:
+            print "dfa:"
+            print obj.dfa_obj
+        obj.make_table_dfa()
+        if 0:
+            obj.dump_table_dfa()
+
+        lstate = pytoken.lexer_state();
+        lstate.set_input("a")
+
+        tok = obj.get_token(lstate)
+        self.assert_(tok == 1)
+        return
+    pass
+
 ##############################################################
 ##
 ## random regexs
