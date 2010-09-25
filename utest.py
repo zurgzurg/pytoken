@@ -1109,7 +1109,7 @@ class dfatable09(lex_test):
         self.assert_(pytoken.dfatable is not None)
         obj = escape.dfatable()
         obj.set_num_states(1)
-        obj.set_state_info([])
+        obj.set_state_info(0, False, None)
         return
     pass
 
@@ -1140,7 +1140,30 @@ class dfatable11(lex_test):
         lstate.set_input("a")
 
         tok = obj.get_token(lstate)
+        print "tok is", tok
         self.assert_(tok == 1)
+        return
+    pass
+
+class dfatable12(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.build_nfa()
+        obj.build_dfa()
+        if 0:
+            print "dfa:"
+            print obj.dfa_obj
+        obj.make_table_dfa()
+        if 0:
+            obj.dump_table_dfa()
+
+        lstate = pytoken.lexer_state();
+        lstate.set_input("")
+
+        tok = obj.get_token(lstate)
+        self.assert_(isinstance(tok, pytoken.EndOfBuffer))
+
         return
     pass
 
