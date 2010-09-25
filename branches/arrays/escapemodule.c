@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2008-2009, Ram Bhamidipaty
+Copyright (c) 2008-2010, Ram Bhamidipaty
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static int  escape_stop_here_counter = 0;
 void escape_stop_here(void);
+
+/***************************************************************/
+/* gettoken protocol objs                                      */
+/***************************************************************/
+static PyObject *gettoken_proto_eob_obj = NULL;
 
 /***************************************************************/
 /***************************************************************/
@@ -1622,6 +1627,31 @@ escape_regtest01(PyObject *self, PyObject *args)
   return result;
 }
 
+/***************************************************************/
+/*                                                             */
+/***************************************************************/
+static PyObject *
+escape_set_protocol_obj(PyObject *self, PyObject *args)
+{
+  char *what;
+  PyObject *obj;
+
+  if (!PyArg_ParseTuple(args, "sO:set_protocol_obj", &what, &obj))
+    return NULL;
+
+  if (strcmp(what, "eob") == 0) {
+    gettoken_proto_eob_obj = obj;
+    Py_INCREF(obj);
+  }
+  else {
+    PyErr_SetString(PyExc_RuntimeError, "unknown protocol obj name");
+    return NULL;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 /****************************************************************/
 /* table based dfa                                              */
 /****************************************************************/
@@ -2043,7 +2073,8 @@ static PyObject *
 dfatable_get_token(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
-  PyObject *lstate_obj, *result;
+  PyObject *lstate_obj, *result, *tup;
+;
   lexer_state_t *lstate;
   Py_ssize_t *cur_state, next, have_prev_result, prev_result;
   unsigned int ch, remain;
@@ -2067,8 +2098,35 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 
   have_prev_result = 0;
   prev_result = 0;
+  result = NULL;
 
-  while (remain > 0) {
+  while (remain >= 0) {
+    if (remain == 0) {
+      int fstatus;
+
+      fstatus = code_call_lexer_state_fill_func(lstate);
+      switch (fstatus) {
+      case 1: /* got more */
+	remain = lstate->chars_in_buf - 2 - (lstate->next_char_ptr
+					     - lstate->buf);
+	break;
+      case 2: /* no more */
+	if (!have_prev_result) {
+	  tup = PyTuple_New(0);
+	  if (tup != NULL)
+	    result = PyObject_Call(gettoken_proto_eob_obj, tup, NULL);
+	  else
+	    result = NULL;
+	}
+	goto done;
+
+      case 3: /* fail */
+      default:
+	PyErr_Format(PyExc_RuntimeError, "fill failed.");
+	return NULL;
+      }
+    }
+
     ch = *lstate->next_char_ptr++;
     remain--;
 
@@ -2088,6 +2146,10 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
       prev_result = self->info[ next ].action_num;
     }
   }
+
+ done:
+  if (result)
+    return result;
 
   if (have_prev_result) {
     result = PyInt_FromSsize_t(prev_result);
@@ -2126,6 +2188,10 @@ static PyMethodDef escape_methods[] = {
    PyDoc_STR("Execute an x86 serializing instruction."
 	     "Forces cache flushes to allow code written as data to be"
 	     "loaded as instructions.")},
+
+  {"set_protocol_obj", escape_set_protocol_obj, METH_VARARGS,
+   PyDoc_STR("Set obj for the the Python/C gettoken protocol.")},
+
 
   {"regtest01",        escape_regtest01,         METH_VARARGS, NULL},
    

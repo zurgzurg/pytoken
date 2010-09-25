@@ -86,7 +86,7 @@ Protocol for :meth:`lexer.get_token()`
 end of the current :class:`pytoken.lexer_state` buffer is reached.
 If input text is encountered that does not match any pattern an
 a RuntimeError will be raised. A RuntimeError will also be raised
-if the scanner find itself in some kind of illegal state - mostly
+if the scanner finds itself in some kind of illegal state - most
 likely due to a bug in pytoken itself.
 
 Otherwise the normal return protocol will be followed.

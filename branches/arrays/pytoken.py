@@ -52,6 +52,26 @@ dfatable    = escape.dfatable
 ply_lex     = pytoken_ply_lex.lex
 
 ##########################################################################
+class Error(Exception):
+    """Base class for all exceptions in this module."""
+    def __init__(self, value):
+        self.value = value
+        return
+    def __str__(self):
+        return "pytokenerror<" + repr(self.value) + ">"
+    pass
+
+class EndOfBuffer(object):
+    pass
+
+##########################################################################
+ACTION_FOUND_UNEXP    = 0
+ACTION_ERR_IN_FILL    = 1
+ACTION_BAD_FILL_RET   = 2
+
+escape.set_protocol_obj("eob", EndOfBuffer)
+
+##########################################################################
 class fsa(object):
     """Base class for DFA and NFA classes. This implementation is slightly
     unusual: states are not 'owned' by a state machine. Instead states
@@ -450,15 +470,11 @@ class fsa_state(object):
     pass
 
 class lexer(object):
-    ACTION_FOUND_UNEXP    = 0
-    ACTION_ERR_IN_FILL    = 1
-    ACTION_BAD_FILL_RET   = 2
-
     FILL_RESULT_NO_NEW_DATA    = 0
     FILL_RESULT_NEW_DATA_READY = 1
     FILL_RESULT_ERROR          = 2
 
-    def __init__(self, end_of_buffer="\x00\x00"):
+    def __init__(self):
         self.pats             = []
         self.actions          = [self.runtime_unhandled_input,
                                  self.runtime_internal_error,
@@ -474,8 +490,9 @@ class lexer(object):
 
         self.default_lstate   = None
 
-        self.add_pattern(end_of_buffer, "EOB")
+        self.add_pattern(None, "EOB")
         assert len(self.pats) == 1 and len(self.pats[0]) == 2
+        # unused for table based dfas - here for backward compat
         lexer.ACTION_FOUND_EOB = self.pats[0][1]
 
         return
@@ -559,8 +576,10 @@ class lexer(object):
             lobj = lstate
         else:
             lobj = self.default_lstate
-        idx = self.gettoken_obj.get_token(lobj)
-        action_obj = self.actions[idx]
+        res_obj = self.gettoken_obj.get_token(lobj)
+        if type(res_obj) is not int:
+            return res_obj
+        action_obj = self.actions[res_obj]
         #if action_obj is None:
         #    pdb.set_trace()
         assert action_obj is not None
@@ -585,6 +604,8 @@ class lexer(object):
         priority = 1
         nfa_list = []
         for p, a_idx in self.pats:
+            if p is None:
+                continue
             postfix = self.parse_as_postfix(p)
             nfa_obj = self.postfix_to_nfa(postfix)
             for st in nfa_obj.accepting_states:
@@ -836,7 +857,7 @@ class lexer(object):
         #--
         ir.ladd_ir_com(lst, "hit unmatched char")
         ir.ladd_ir_label(lst, lab_bad_char)
-        ir.ladd_ir_ret(lst, lexer.ACTION_FOUND_UNEXP)
+        ir.ladd_ir_ret(lst, ACTION_FOUND_UNEXP)
 
         #############
 
@@ -884,11 +905,11 @@ class lexer(object):
 
         # 3 = something went wrong in fill
         ir.ladd_ir_label(lst, lab_fill_err)
-        ir.ladd_ir_ret(lst, lexer.ACTION_ERR_IN_FILL)
+        ir.ladd_ir_ret(lst, ACTION_ERR_IN_FILL)
 
         # 4 = last case = fill returns illegal val
         ir.ladd_ir_label(lst, lab_fill_bad_ret)
-        ir.ladd_ir_ret(lst, lexer.ACTION_BAD_FILL_RET)
+        ir.ladd_ir_ret(lst, ACTION_BAD_FILL_RET)
 
         return lst
 
