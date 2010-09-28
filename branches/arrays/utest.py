@@ -1140,7 +1140,6 @@ class dfatable11(lex_test):
         lstate.set_input("a")
 
         tok = obj.get_token(lstate)
-        print "tok is", tok
         self.assert_(tok == 1)
         return
     pass
@@ -1165,6 +1164,35 @@ class dfatable12(lex_test):
         self.assert_(isinstance(tok, pytoken.EndOfBuffer))
 
         return
+    pass
+
+class dfatable13(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.build_nfa()
+        obj.build_dfa()
+        if 0:
+            print "dfa:"
+            print obj.dfa_obj
+        obj.make_table_dfa()
+        if 0:
+            obj.dump_table_dfa()
+
+        #escape.print_gdb_info()
+
+        lstate = pytoken.lexer_state();
+        lstate.set_input("b")
+
+        try:
+            obj.get_token(lstate)
+            self.assert_(False)
+        except pytoken.UnmatchedInputError, e:
+            self.assert_(e.idx == 0)
+            self.assert_(e.ch == 'b')
+
+        return
+
     pass
 
 ##############################################################
