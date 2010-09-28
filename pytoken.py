@@ -61,7 +61,18 @@ class Error(Exception):
         return "pytokenerror<" + repr(self.value) + ">"
     pass
 
+class UnmatchedInputError(Error):
+    """Returned when there is no regex that matched the input.
+    idx is the position in lexer_state where the unmatched char was found."""
+    def __init__(self, idx, ch):
+        self.idx = idx
+        self.ch  = ch
+        return
+    pass
+
+##########################################################################
 class EndOfBuffer(object):
+    """Signals that the end of the input was reached."""
     pass
 
 ##########################################################################
@@ -70,6 +81,7 @@ ACTION_ERR_IN_FILL    = 1
 ACTION_BAD_FILL_RET   = 2
 
 escape.set_protocol_obj("eob", EndOfBuffer)
+escape.set_protocol_obj("unmatched", UnmatchedInputError)
 
 ##########################################################################
 class fsa(object):

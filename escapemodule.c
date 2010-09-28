@@ -51,6 +51,7 @@ void escape_stop_here(void);
 /* gettoken protocol objs                                      */
 /***************************************************************/
 static PyObject *gettoken_proto_eob_obj = NULL;
+static PyObject *gettoken_proto_unmatched_obj = NULL;
 
 /***************************************************************/
 /***************************************************************/
@@ -1640,7 +1641,13 @@ escape_set_protocol_obj(PyObject *self, PyObject *args)
     return NULL;
 
   if (strcmp(what, "eob") == 0) {
+    assert(gettoken_proto_eob_obj == NULL);
     gettoken_proto_eob_obj = obj;
+    Py_INCREF(obj);
+  }
+  else if (strcmp(what, "unmatched") == 0) {
+    assert(gettoken_proto_unmatched_obj == NULL);
+    gettoken_proto_unmatched_obj = obj;
     Py_INCREF(obj);
   }
   else {
@@ -2074,9 +2081,8 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 {
   dfatable_t *self;
   PyObject *lstate_obj, *result, *tup;
-;
   lexer_state_t *lstate;
-  Py_ssize_t *cur_state, next, have_prev_result, prev_result;
+  Py_ssize_t *cur_state, next, have_prev_result, prev_result, idx;
   unsigned int ch, remain;
 
   assert(arg_self->ob_type == &dfatable_type);
@@ -2136,8 +2142,15 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 	result = PyInt_FromSsize_t(prev_result);
 	return result;
       }
-      result = Py_BuildValue("(C)", ch);
-      return result;
+      idx = (lstate->next_char_ptr - 1) - lstate->buf;
+      tup = Py_BuildValue("(ic)", (int)idx, ch);
+      if (tup == NULL)
+	return NULL;
+      result = PyObject_Call(gettoken_proto_unmatched_obj, tup, NULL);
+      Py_DECREF(tup);
+      Py_INCREF(gettoken_proto_unmatched_obj);
+      PyErr_SetObject(gettoken_proto_unmatched_obj, result);
+      return NULL;
     }
 
     cur_state = &self->states[ next * DFATABLE_N_ENTRIES_PER_STATE];
