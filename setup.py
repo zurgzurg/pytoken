@@ -11,8 +11,8 @@ from distutils import sysconfig
 ##################################################################
 def customize_compiler2(compiler):
     (cc, cxx, opt, cflags, ccshared, ldshared, so_ext) = \
-         sysconfig.get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
-                                   'CCSHARED', 'LDSHARED', 'SO')
+        sysconfig.get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
+                                  'CCSHARED', 'LDSHARED', 'SO')
 
     if 0:
         print "cc=", cc

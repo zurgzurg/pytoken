@@ -43,13 +43,13 @@ import string
 import pdb
 
 import escape
-import pytoken_ply_lex
+#import pytoken_ply_lex
 
 code        = escape.code
 lexer_state = escape.lexer_state
 dfatable    = escape.dfatable
 
-ply_lex     = pytoken_ply_lex.lex
+#ply_lex     = pytoken_ply_lex.lex
 
 ##########################################################################
 class Error(Exception):
@@ -558,6 +558,10 @@ class lexer(object):
             assert args[0] is not None
             self.actions.append(args[0])
             self.pats.append((pat, idx))
+        else:
+            assert len(args) == 2
+            self.actions.append((args[0], args[1]))
+            self.pats.append((pat, idx))
         return
 
     def compile_to_machine_code(self, debug=False):
@@ -572,7 +576,7 @@ class lexer(object):
     def compile_to_arrays(self, debug=False):
         self.build_nfa()
         self.build_dfa()
-        self.gettoken_obj = xxx()
+        self.make_table_dfa()
         return
 
     def get_token(self, lstate=None):
@@ -592,16 +596,18 @@ class lexer(object):
         if type(res_obj) is not int:
             return res_obj
         action_obj = self.actions[res_obj]
-        #if action_obj is None:
-        #    pdb.set_trace()
         assert action_obj is not None
 
-        if not callable(action_obj):
-            return action_obj
-
-        txt = lobj.get_match_text()
-        r = action_obj(txt)
-        return r
+        if callable(action_obj):
+            txt = lobj.get_match_text()
+            r = action_obj(txt)
+            return r
+        elif type(action_obj) is tuple:
+            fn, fn_arg = action_obj
+            txt = lobj.get_match_text()
+            r = fn(txt, fn_arg)
+            return r
+        return action_obj
 
     #######################################
     #######################################
