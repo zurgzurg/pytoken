@@ -70,6 +70,30 @@ class check_ply05(ply_test):
         return
     pass
 
+class check_ply06(ply_test):
+    def runTest(self):
+        import utest_ply06
+
+        l1 = utest_ply06.ply_lexer
+        l2 = utest_ply06.ptok_lexer
+
+        if 1:
+            l1.input('b')
+            l2.input('b')
+
+            tok1 = l1.token()
+            tok2 = l2.token()
+            self.assert_toks_equal(tok1, tok2)
+
+        l1.input('bb')
+        l2.input('bb')
+
+        tok1 = l1.token()
+        tok2 = l2.token()
+        self.assert_toks_equal(tok1, tok2)
+        return
+    pass
+
 if __name__ == "__main__":
     unittest.main()
 
