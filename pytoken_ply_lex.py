@@ -57,21 +57,38 @@ class lex(object):
         #print "tok names =", tok_names
         toks = [TokenInfo(tname) for tname in md['tokens']]
         
+        simple_toks = []
+        func_toks = []
         for tinfo in toks:
             tval = md['t_' + tinfo.name]
             if type(tval) is str:
                 tinfo.regex = tval
+                simple_toks.append(tinfo)
             else:
                 assert callable(tval)
                 tinfo.regex = tval.__doc__
                 tinfo.func = tval
                 tinfo.line_num = tval.func_code.co_firstlineno
-        return toks
+                func_toks.append(tinfo)
+
+
+        def tok_sorter1(a, b):
+            return cmp(a.line_num, b.line_num)
+        def tok_sorter2(a, b):
+            return cmp(len(b.regex), len(a.regex))
+        
+        func_toks.sort(tok_sorter1)
+        simple_toks.sort(tok_sorter2)
+        toks2 = []
+        toks2.extend(func_toks)
+        toks2.extend(simple_toks)
+        return toks2
 
     def make_lexer(self, toks):
         lobj = pytoken.lexer()
         for idx, tinfo in enumerate(toks):
-            #print "Adding regex", tinfo.regex
+            if 0:
+                print "Adding regex", tinfo.regex
             lobj.add_pattern(tinfo.regex, tok_func, tinfo)
         lobj.compile_to_arrays()
         return lobj
@@ -91,6 +108,8 @@ class lex(object):
     pass
 
 def tok_func(tup, tok_info):
+    if 0:
+        print "tok match=", tup, tok_info, tok_info.name
     res = LexToken()
     res.type = tok_info.name
     res.lineno = 1
