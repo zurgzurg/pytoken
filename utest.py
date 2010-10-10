@@ -1195,6 +1195,35 @@ class dfatable13(lex_test):
 
     pass
 
+class dfatable14(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("a", 1)
+        obj.add_pattern("b", 2)
+        obj.build_nfa()
+        obj.build_dfa()
+        if 0:
+            print "dfa:"
+            print obj.dfa_obj
+        obj.make_table_dfa()
+        if 0:
+            obj.dump_table_dfa()
+
+        #escape.print_gdb_info()
+
+        lstate = pytoken.lexer_state();
+        lstate.set_input("ab")
+
+        tok1 = obj.get_token(lstate)
+        self.assert_(tok1 == 1)
+
+        tok2 = obj.get_token(lstate)
+        self.assert_(tok2 == 2)
+
+        return
+
+    pass
+
 ##############################################################
 ##
 ## random regexs
@@ -2383,6 +2412,7 @@ class asm_full_13(lex_test):
         buf = pytoken.lexer_state()
         buf.set_input("ab ab")
 
+        #escape.print_gdb_info()
         tok = lexer_obj.get_token(buf)
         self.assert_(tok == "foobar")
 
@@ -2397,9 +2427,9 @@ class asm_full_13(lex_test):
     pass
 
 class asm_full_14(lex_test):
-    def action(self, txt):
+    def action(self, tup):
         self.n_calls += 1
-        self.txt += txt
+        self.txt += tup[1]
         return "foobar"
 
     def runTest(self):
@@ -2548,7 +2578,7 @@ class asm_full_17(lex_test):
         txt2 = "a" + "b" * 2000 + "c"
 
         tok = lo.get_token(buf)
-        self.assert_(tok == txt2)
+        self.assertEqual(tok[1], txt2)
 
         tok = lo.get_token(buf)
         self.assert_(tok == "EOB")
@@ -2629,8 +2659,11 @@ class asm_full_20(lex_test):
 
 class asm_full_21(lex_test):
     def runTest(self):
+        def int_convert(tup):
+            return int(tup[1])
+
         lexer_obj = pytoken.lexer()
-        lexer_obj.add_pattern("[0123456789]+", int)
+        lexer_obj.add_pattern("[0123456789]+", int_convert)
         lexer_obj.add_pattern(" ")
         lexer_obj.compile_to_machine_code(debug=False)
 

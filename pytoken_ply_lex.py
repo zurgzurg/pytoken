@@ -1,3 +1,38 @@
+########################################################
+##
+## Copyright (c) 2008-2010, Ram Bhamidipaty
+## All rights reserved.
+## 
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted provided that the following conditions are
+## met:
+## 
+##     * Redistributions of source code must retain the above
+##       copyright notice, this list of conditions and the
+##       following disclaimer.
+## 
+##     * Redistributions in binary form must reproduce the above
+##       copyright notice, this list of conditions and the following
+##       disclaimer in the documentation and/or other materials
+##       provided with the distribution.
+## 
+##     * Neither the name of Ram Bhamidipaty nor the names of its
+##       contributors may be used to endorse or promote products
+##       derived from this software without specific prior written permission.
+## 
+## THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+## "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+## LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+## A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+## OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+## SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+## LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+## DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+## THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+## 
+########################################################
 import sys
 import pytoken
 
@@ -11,7 +46,7 @@ class lex(object):
     def __init__(self):
         self.toks = self.get_tok_info()
         self.lobj = self.make_lexer(self.toks)
-
+        self.lstate = None
         return
 
     def get_tok_info(self):
@@ -19,19 +54,25 @@ class lex(object):
         if 'tokens' not in md:
             raise RuntimeError, "Unable to find ply required list of tokens."
         tok_names = md['tokens']
+        #print "tok names =", tok_names
         toks = [TokenInfo(tname) for tname in md['tokens']]
         
         for tinfo in toks:
             tval = md['t_' + tinfo.name]
             if type(tval) is str:
                 tinfo.regex = tval
-
+            else:
+                assert callable(tval)
+                tinfo.regex = tval.__doc__
+                tinfo.func = tval
+                tinfo.line_num = tval.func_code.co_firstlineno
         return toks
 
     def make_lexer(self, toks):
         lobj = pytoken.lexer()
         for idx, tinfo in enumerate(toks):
-            lobj.add_pattern(tinfo.regex, tok_func, tinfo.name)
+            #print "Adding regex", tinfo.regex
+            lobj.add_pattern(tinfo.regex, tok_func, tinfo)
         lobj.compile_to_arrays()
         return lobj
 
@@ -49,18 +90,22 @@ class lex(object):
 
     pass
 
-def tok_func(txt, tname):
+def tok_func(tup, tok_info):
     res = LexToken()
-    res.type = tname
-    res.value = txt
+    res.type = tok_info.name
     res.lineno = 1
-    res.lexpos = 0
+    res.lexpos = tup[0]
+    res.value = tup[1]
+    if tok_info.func:
+        tok_info.func(res)
     return res
 
 class TokenInfo:
     def __init__(self, name):
         self.name = name
         self.regex = None
+        self.func = None
+        self.line_num = None
         return
     pass
 
@@ -81,6 +126,7 @@ class LexToken(object):
     pass
 
 #####################################################
+## copied from plex
 #####################################################
 def get_caller_module_dict(levels):
     try:
