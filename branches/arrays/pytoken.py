@@ -43,13 +43,10 @@ import string
 import pdb
 
 import escape
-#import pytoken_ply_lex
 
 code        = escape.code
 lexer_state = escape.lexer_state
 dfatable    = escape.dfatable
-
-#ply_lex     = pytoken_ply_lex.lex
 
 ##########################################################################
 class Error(Exception):
@@ -536,15 +533,15 @@ class lexer(object):
         the next token.
 
         Form 3: if obj1 is a callable then when REGEXP is recognized
-        obj1 will be called with a single argument - the text of the
-        buffer that matched REGEXP. The return value from calling
+        obj1 will be called with a tuple of the index of matched text
+        and the matched text itself. The return value from calling
         obj1 will be returned by get_token(). If obj1 is not callable
         obj1 will be returned by get_token().
 
         Form 4: obj1 must be a callable that accepts two argumens. The
-        first argument will be the buffer object passed to get_token()
-        and the second argument will be obj2. The return value from
-        calling obj1 will be returned by get_token().
+        first argument will be a tuple of the index of the matched text
+        and the text itself. The second argument will be obj2. The return
+        value from calling obj1 will be returned by get_token().
         
         For forms 3 and 4 bound methods can be used for the callable.
 
@@ -599,13 +596,13 @@ class lexer(object):
         assert action_obj is not None
 
         if callable(action_obj):
-            txt = lobj.get_match_text()
-            r = action_obj(txt)
+            tup = lobj.get_match()
+            r = action_obj(tup)
             return r
         elif type(action_obj) is tuple:
             fn, fn_arg = action_obj
-            txt = lobj.get_match_text()
-            r = fn(txt, fn_arg)
+            tup = lobj.get_match()
+            r = fn(tup, fn_arg)
             return r
         return action_obj
 

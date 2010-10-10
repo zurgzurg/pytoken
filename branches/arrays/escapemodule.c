@@ -70,7 +70,7 @@ static PyObject *lexer_state_set_cur_offset(PyObject *, PyObject *);
 static PyObject *lexer_state_get_cur_offset(PyObject *, PyObject *);
 static PyObject *lexer_state_set_cur_addr(PyObject *, PyObject *);
 static PyObject *lexer_state_get_cur_addr(PyObject *, PyObject *);
-static PyObject *lexer_state_get_match_text(PyObject *, PyObject *);
+static PyObject *lexer_state_get_match(PyObject *, PyObject *);
 static PyObject *lexer_state_set_input(PyObject *, PyObject *);
 static PyObject *lexer_state_set_fill_method(PyObject *, PyObject *);
 static PyObject *lexer_state_get_all_state(PyObject *, PyObject *);
@@ -83,7 +83,7 @@ static PyObject *lexer_state_stb(PyObject *, PyObject *);
 static PyObject *lexer_state_stw(PyObject *, PyObject *);
 
 static int  *lexer_state_get_word_ptr(PyObject *);
-static char *lexer_state_get_char_ptr(PyObject *);
+static unsigned char *lexer_state_get_char_ptr(PyObject *);
 
 static PyObject *lexer_state_repr(PyObject *);
 static PyObject *lexer_state_str(PyObject *);
@@ -116,12 +116,12 @@ static PyObject *uval32_get_str(PyObject *, PyObject *);
 typedef struct {
   PyObject_HEAD
 
-  char           *buf;
-  char           *next_char_ptr;
-  char           *start_of_token;
-  int             size_of_buf;
+  unsigned char  *buf;
+  unsigned char  *next_char_ptr;
+  unsigned char  *start_of_token;
+  size_t          size_of_buf;
 
-  int             chars_in_buf;
+  size_t          chars_in_buf;
   /* there are two extra null chars in the buffer - used to mark the end
      of buffer. Those two are always counted as being part of the number
      of chars in the buffer. */
@@ -129,12 +129,12 @@ typedef struct {
   PyObject       *fill_obj;
 } lexer_state_t;
 
-static int is_valid_ptr(lexer_state_t *, char *);
+static int is_valid_ptr(lexer_state_t *, unsigned char *);
 static int is_valid_word_ptr(lexer_state_t *, int *);
 static int is_valid_lstate_ptr(lexer_state_t *self, void *ptr);
 
 #if PYTOKEN_DEBUG
-static void lexer_state_print_buf(lexer_state_t *, int n_to_print);
+static void lexer_state_print_buf(lexer_state_t *, size_t n_to_print);
 #endif
 
 static PyTypeObject lexer_state_type = {
@@ -155,7 +155,7 @@ static PyMethodDef lexer_state_methods[] = {
     {"get_cur_addr",      lexer_state_get_cur_addr,      METH_NOARGS,
      "Return index of next char to scan."},
 
-    {"get_match_text",     lexer_state_get_match_text,   METH_NOARGS,
+    {"get_match",        lexer_state_get_match,   METH_NOARGS,
      "Add ARG to buffer. ARG can be a string."},
 
 
@@ -300,27 +300,28 @@ static PyObject *
 lexer_state_set_cur_addr(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  int ival;
-  char *ptr;
+  Py_ssize_t ival;
+  unsigned char *ptr;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
-  if (!PyArg_ParseTuple(args, "i:set_cur_addr", &ival))
+  if (!PyArg_ParseTuple(args, "n:set_cur_addr", &ival))
     return NULL;
-  ptr = (char *)ival;
+    
+  ptr = (unsigned char *)(size_t)ival;
   if (!is_valid_ptr(self, ptr))
     return NULL;
-  self->next_char_ptr = (char *)ptr;
+  self->next_char_ptr = ptr;
 
   Py_INCREF(Py_None);
   return Py_None;
 }
 
 static PyObject *
-lexer_state_get_match_text(PyObject *arg_self, PyObject *args)
+lexer_state_get_match(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  PyObject *str;
+  PyObject *str, *idx, *result;
   size_t n;
 
   assert(arg_self->ob_type == &lexer_state_type);
@@ -333,8 +334,20 @@ lexer_state_get_match_text(PyObject *arg_self, PyObject *args)
   n = self->next_char_ptr - self->start_of_token;
   assert (n > 0);
 
- str = PyString_FromStringAndSize(self->start_of_token, n);
- return str;
+  idx = PyInt_FromSize_t((size_t)(self->start_of_token - self->buf));
+  if (idx == NULL)
+    return NULL;
+  str = PyString_FromStringAndSize((char *)self->start_of_token, n);
+  if (str == NULL)
+    return NULL;
+  result = PyTuple_New(2);
+  if (result == NULL)
+    return NULL;
+  if (PyTuple_SetItem(result, 0, idx))
+    return NULL;
+  if (PyTuple_SetItem(result, 1, str))
+    return NULL;
+  return result;
 }
 
 static PyObject *
@@ -402,10 +415,10 @@ lexer_state_set_input(PyObject *arg_self, PyObject *args)
 }
 
 static int
-lexer_state_resize_buffer(lexer_state_t *self, int new_size)
+lexer_state_resize_buffer(lexer_state_t *self, size_t new_size)
 {
-  char *new_buf;
-  int n_remaining;
+  unsigned char *new_buf;
+  size_t n_remaining;
 
   new_buf = malloc(new_size + 2);
   if (new_buf == 0)
@@ -472,9 +485,9 @@ lexer_state_add_to_buffer(PyObject *arg_self, PyObject *args)
   lexer_state_t *self;
   PyObject *obj_to_add;
   Py_ssize_t str_len;
-  int space_left, new_size, space_needed;
+  size_t space_left, new_size, space_needed;
   const char *txt;
-  char *dst;
+  unsigned char *dst;
 
   assert(arg_self->ob_type == &lexer_state_type);
   self = (lexer_state_t *)arg_self;
@@ -541,7 +554,7 @@ static PyObject *
 lexer_state_ldb(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
-  char *ptr, ch;
+  unsigned char *ptr, ch;
   PyObject *obj_arg, *result;
 
   assert(arg_self->ob_type == &lexer_state_type);
@@ -586,7 +599,7 @@ lexer_state_stb(PyObject *arg_self, PyObject *args)
 {
   lexer_state_t *self;
   int val;
-  char *dst_ptr, ch;
+  unsigned char *dst_ptr, ch;
   PyObject *obj_arg;
 
   assert(arg_self->ob_type == &lexer_state_type);
@@ -651,16 +664,16 @@ lexer_state_get_word_ptr(PyObject *obj)
   return NULL;
 }
 
-static char *
+static unsigned char *
 lexer_state_get_char_ptr(PyObject *obj)
 {
   unsigned long ul;
-  char *result;
+  unsigned char *result;
 
   assert(obj != 0);
   if (PyInt_Check(obj) || PyLong_Check(obj)) {
     ul = PyInt_AsUnsignedLongMask(obj);
-    result = (char *)ul;
+    result = (unsigned char *)ul;
     return result;
   }
 
@@ -669,7 +682,7 @@ lexer_state_get_char_ptr(PyObject *obj)
 }
 
 static int
-is_valid_ptr(lexer_state_t *self, char *ch_ptr)
+is_valid_ptr(lexer_state_t *self, unsigned char *ch_ptr)
 {
   if (is_valid_lstate_ptr(self, ch_ptr))
     return 1;
@@ -689,11 +702,11 @@ is_valid_word_ptr(lexer_state_t *self, int *w_ptr)
 {
   if (is_valid_lstate_ptr(self, w_ptr))
     return 1;
-  if ((char *)w_ptr < self->buf) {
+  if ((unsigned char *)w_ptr < self->buf) {
     PyErr_Format(PyExc_RuntimeError, "Invalid word pointer: before buf");
     return 0;
   }
-  if ((char *)w_ptr >= self->buf + self->size_of_buf - sizeof(int)) {
+  if ((unsigned char *)w_ptr >= self->buf + self->size_of_buf - sizeof(int)) {
     PyErr_Format(PyExc_RuntimeError, "Invalid word pointer: after buf");
     return 0;
   }
@@ -716,9 +729,9 @@ is_valid_lstate_ptr(lexer_state_t *self, void *ptr)
 
 #if PYTOKEN_DEBUG
 static void
-lexer_state_print_buf(lexer_state_t *self, int n_to_print)
+lexer_state_print_buf(lexer_state_t *self, size_t n_to_print)
 {
-  int i, lim, remain;
+  size_t i, lim, remain;
   char ch;
 
   printf("lexer_state=0x%x buf=0x%x next_char=0x%x token_start=0x%x "
@@ -2082,7 +2095,8 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
   dfatable_t *self;
   PyObject *lstate_obj, *result, *tup;
   lexer_state_t *lstate;
-  Py_ssize_t *cur_state, next, have_prev_result, prev_result, idx;
+  Py_ssize_t *cur_state, next, prev_result, idx;
+  unsigned char *last_accepting_char;
   unsigned int ch, remain;
 
   assert(arg_self->ob_type == &dfatable_type);
@@ -2102,7 +2116,7 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
   lstate->start_of_token = lstate->next_char_ptr;
   cur_state = &self->states[ self->start * DFATABLE_N_ENTRIES_PER_STATE];
 
-  have_prev_result = 0;
+  last_accepting_char = NULL;
   prev_result = 0;
   result = NULL;
 
@@ -2117,7 +2131,7 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 					     - lstate->buf);
 	break;
       case 2: /* no more */
-	if (!have_prev_result) {
+	if (last_accepting_char == NULL) {
 	  tup = PyTuple_New(0);
 	  if (tup != NULL)
 	    result = PyObject_Call(gettoken_proto_eob_obj, tup, NULL);
@@ -2138,7 +2152,8 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 
     next = cur_state[ch];
     if (next < 0) {
-      if (have_prev_result) {
+      if (last_accepting_char) {
+	lstate->next_char_ptr = last_accepting_char;
 	result = PyInt_FromSsize_t(prev_result);
 	return result;
       }
@@ -2155,7 +2170,7 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 
     cur_state = &self->states[ next * DFATABLE_N_ENTRIES_PER_STATE];
     if (self->info[ next ].is_accepting) {
-      have_prev_result = 1;
+      last_accepting_char = lstate->next_char_ptr;
       prev_result = self->info[ next ].action_num;
     }
   }
@@ -2164,7 +2179,7 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
   if (result)
     return result;
 
-  if (have_prev_result) {
+  if (last_accepting_char) {
     result = PyInt_FromSsize_t(prev_result);
     return result;
   }
