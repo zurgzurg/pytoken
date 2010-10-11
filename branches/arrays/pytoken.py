@@ -578,22 +578,32 @@ class lexer(object):
 
     def get_token(self, lstate=None):
         """Return the next token.
-        This is done according to the rules listed under add_pattern().
-        There is an optional argument, a lexer_state object. If it
-        not given then the user must have called set_default_lexer_state(),
-        the argument given to that function will be used instead. If
-        the lexer state obj is given then is must be a lexer state object."""
+        See the docs under add_pattern() for more details about how
+        user code interacts with creating or returning tokens.
+
+        If the end of buffer is reached an instance of EndOfBuffer will
+        be returned.
+
+        The optional argument lstate must be a lexer state object or
+        not specified and set_default_lexer_state() must have been called
+        with a lexer state object.
+
+        The lexer state object is the buffer that will be scanned for
+        the next token."""
         assert self.gettoken_obj is not None
 
         if lstate is not None:
             lobj = lstate
         else:
             lobj = self.default_lstate
-        res_obj = self.gettoken_obj.get_token(lobj)
-        if type(res_obj) is not int:
-            return res_obj
-        action_obj = self.actions[res_obj]
-        assert action_obj is not None
+
+        while True:
+            res_obj = self.gettoken_obj.get_token(lobj)
+            if type(res_obj) is not int:
+                return res_obj
+            action_obj = self.actions[res_obj]
+            if action_obj:
+                break
 
         if callable(action_obj):
             tup = lobj.get_match()

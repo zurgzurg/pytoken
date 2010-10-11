@@ -54,13 +54,20 @@ class lex(object):
         if 'tokens' not in md:
             raise RuntimeError, "Unable to find ply required list of tokens."
         tok_names = md['tokens']
-        #print "tok names =", tok_names
         toks = [TokenInfo(tname) for tname in md['tokens']]
         
         simple_toks = []
         func_toks = []
         for tinfo in toks:
-            tval = md['t_' + tinfo.name]
+            basic_name = 't_' + tinfo.name
+            if basic_name in md:
+                tval = md[basic_name]
+            else:
+                ign_name = 't_ignore_' + tinfo.name
+                if not ign_name in md:
+                    raise RuntimeError, 'No token def for ' + tinfo.name
+                tval = md[ign_name]
+                tinfo.is_ignore = True
             if type(tval) is str:
                 tinfo.regex = tval
                 simple_toks.append(tinfo)
@@ -89,7 +96,10 @@ class lex(object):
         for idx, tinfo in enumerate(toks):
             if 0:
                 print "Adding regex", tinfo.regex
-            lobj.add_pattern(tinfo.regex, tok_func, tinfo)
+            if tinfo.is_ignore:
+                lobj.add_pattern(tinfo.regex)
+            else:    
+                lobj.add_pattern(tinfo.regex, tok_func, tinfo)
         lobj.compile_to_arrays()
         return lobj
 
@@ -103,6 +113,8 @@ class lex(object):
         
     def token(self):
         tok = self.lobj.get_token( self.lstate )
+        if isinstance(tok, pytoken.EndOfBuffer):
+            return None
         return tok
 
     pass
@@ -116,7 +128,7 @@ def tok_func(tup, tok_info):
     res.lexpos = tup[0]
     res.value = tup[1]
     if tok_info.func:
-        tok_info.func(res)
+        return tok_info.func(res)
     return res
 
 class TokenInfo:
@@ -125,6 +137,7 @@ class TokenInfo:
         self.regex = None
         self.func = None
         self.line_num = None
+        self.is_ignore = False
         return
     pass
 

@@ -1,4 +1,5 @@
 import unittest
+import pytoken
 
 class ply_test(unittest.TestCase):
     def assert_toks_equal(self, tok1, tok2):
@@ -91,6 +92,39 @@ class check_ply06(ply_test):
         tok1 = l1.token()
         tok2 = l2.token()
         self.assert_toks_equal(tok1, tok2)
+        return
+    pass
+
+class check_ply07(ply_test):
+    def runTest(self):
+        import utest_ply07
+
+        l1 = utest_ply07.ply_lexer
+        l2 = utest_ply07.ptok_lexer
+
+        l1.input('abc')
+        l2.input('abc')
+
+        ply_list = []
+        while True:
+            tok = l1.token()
+            #print "ply got a tok", len(ply_list), tok
+            if not tok or len(ply_list) > 5:
+                break
+            ply_list.append(tok)
+        #print "ply_list=", ply_list
+
+        ptok_list = []
+        while True:
+            tok = l2.token()
+            #print "pytoken got a tok", len(ptok_list), tok
+            if not tok or len(ply_list) > 5:
+                break
+            ptok_list.append(tok)
+        #print "ptok_list=", ptok_list
+        
+        self.assertEqual(len(ply_list), len(ptok_list))
+
         return
     pass
 
