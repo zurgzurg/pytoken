@@ -1134,8 +1134,6 @@ class lexer(object):
                     self.add_token_to_list(result, ch)
 
             elif ch == '[':
-                self.add_token_to_list(result, LPAREN)
-
                 is_negation = False
                 if len(pat) > 0 and pat[0] == '^':
                     is_negation = True
@@ -1217,7 +1215,7 @@ class lexer(object):
         return chars2
 
     def add_token_to_list(self, tok_list, tok):
-        if self.need_add_ccat_to_tok_list(tok_list):
+        if tok != RPAREN and self.need_add_ccat_to_tok_list(tok_list):
             tok_list.append(CCAT)
         tok_list.append(tok)
         return
