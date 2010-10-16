@@ -1103,13 +1103,38 @@ class lexer(object):
                     self.add_token_to_list(result, "\t")
                 elif ch == "r":
                     self.add_token_to_list(result, "\r")
+                elif ch == "d":
+                    self.add_range_to_list(result, string.digits)
+                elif ch == "D":
+                    negate = True
+                    self.add_range_to_list(result, string.digits, negate)
+                elif ch == "s":
+                    self.add_range_to_list(result, string.whitespace)
+                elif ch == "S":
+                    negate = True
+                    self.add_range_to_list(result, string.whitespace, negate)
+                elif ch == "w":
+                    chars = string.letters + string.digits + "_"
+                    self.add_range_to_list(result, chars)
+                elif ch == "W":
+                    negate = True
+                    chars = string.letters + string.digits + "_"
+                    self.add_range_to_list(result, chars, negate)
+                elif ch == "Q":
+                    while pat:
+                        if pat.startswith("\\E"):
+                            break
+                        ch = pat[0]
+                        pat = pat[1:]
+                        self.add_token_to_list(result, ch)
+                    if not pat.startswith("\\E"):
+                        raise RuntimeError, "Unterminate \Q found"
+                    pat = pat[2:]
                 else:
                     self.add_token_to_list(result, ch)
 
             elif ch == '[':
-                if len(result) > 0 and type( result[-1] ) is str:
-                    result.append(CCAT)
-                result.append(LPAREN)
+                self.add_token_to_list(result, LPAREN)
 
                 is_negation = False
                 if len(pat) > 0 and pat[0] == '^':
@@ -1140,28 +1165,7 @@ class lexer(object):
                 if not end_found:
                     raise RuntimeError, "'[' without matching ']'"
 
-                if is_negation:
-                    need_pipe = False
-                    for code in range(0, 128):
-                        if chr(code) in chars:
-                            continue
-                        if need_pipe:
-                            result.append(PIPE)
-                        need_pipe = True
-                        result.append(chr(code))
-                        pass
-                    pass
-                else:
-                    need_pipe = False
-                    for ch in chars:
-                        if need_pipe:
-                            result.append(PIPE)
-                        need_pipe = True
-                        result.append(ch)
-                        pass
-                    pass
-                result.append(RPAREN)
-
+                self.add_range_to_list(result, chars, is_negation)
 
             elif ch == '.':
                 result.append(LPAREN)
@@ -1190,6 +1194,27 @@ class lexer(object):
         if n_paren != 0:
             raise RuntimeError, "Unbalanced parens found"
         return result
+
+    def add_range_to_list(self, tok_list, chars, negate=False):
+        if negate:
+            chars = self.calc_char_class_negation(chars)
+        self.add_token_to_list(tok_list, LPAREN)
+        need_pipe = False
+        for ch in chars:
+            if need_pipe:
+                tok_list.append(PIPE)
+            tok_list.append(ch)
+            need_pipe = True
+        self.add_token_to_list(tok_list, RPAREN)
+        return
+
+    def calc_char_class_negation(self, chars):
+        chars2 = []
+        for code in range(0, 128):
+            if chr(code) in chars:
+                continue
+            chars2.append(chr(code))
+        return chars2
 
     def add_token_to_list(self, tok_list, tok):
         if self.need_add_ccat_to_tok_list(tok_list):

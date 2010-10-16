@@ -89,6 +89,13 @@ class lex(object):
         toks2 = []
         toks2.extend(func_toks)
         toks2.extend(simple_toks)
+
+        if 'literals' in md:
+            for ch in md['literals']:
+                tinfo = TokenInfo(ch)
+                tinfo.regex = "\Q" + ch + "\E"
+                toks2.append(tinfo)
+
         return toks2
 
     def make_lexer(self, toks):

@@ -570,6 +570,15 @@ class tokens28(lex_test):
         return
     pass
 
+class tokens29(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        act = obj.tokenize_pattern("\Qa*\E")
+        exp = ('a', CCAT, '*')
+        self.check_structure(act, exp)
+        return
+    pass
+
 ##############################################################
 class postfix01(lex_test):
     def runTest(self):
@@ -1249,6 +1258,32 @@ class dfatable15(lex_test):
         lstate.set_input("aa")
         tok2 = obj.get_token(lstate)
         self.assert_(tok2 == 2)
+
+        return
+
+    pass
+
+
+class dfatable16(lex_test):
+    def runTest(self):
+        obj = pytoken.lexer()
+        obj.add_pattern("\Qa*\E", 1)
+        obj.build_nfa()
+        obj.build_dfa()
+        if 0:
+            print "dfa:"
+            print obj.dfa_obj
+        obj.make_table_dfa()
+        if 0:
+            obj.dump_table_dfa()
+
+        #escape.print_gdb_info()
+
+        lstate = pytoken.lexer_state();
+        lstate.set_input("a*")
+
+        tok1 = obj.get_token(lstate)
+        self.assert_(tok1 == 1)
 
         return
 
