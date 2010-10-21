@@ -2157,7 +2157,8 @@ dfatable_get_token(PyObject *arg_self, PyObject *args)
 	result = PyInt_FromSsize_t(prev_result);
 	return result;
       }
-      idx = (lstate->next_char_ptr - 1) - lstate->buf;
+      lstate->next_char_ptr--;
+      idx = lstate->next_char_ptr - lstate->buf;
       tup = Py_BuildValue("(ic)", (int)idx, ch);
       if (tup == NULL)
 	return NULL;

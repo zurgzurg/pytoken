@@ -44,17 +44,22 @@ import pytoken
 #####################################################
 class lex(object):
     def __init__(self):
+        self.lstate = None
+        self.err_action = None
+
         self.toks = self.get_tok_info()
         self.lobj = self.make_lexer(self.toks)
-        self.lstate = None
         return
 
     def get_tok_info(self):
         md = get_caller_module_dict(3)
         if 'tokens' not in md:
             raise RuntimeError, "Unable to find ply required list of tokens."
+        if 't_error' not in md:
+            raise RuntimeError, "Unable to find error token t_error"
+        self.err_action = md['t_error']
         tok_names = md['tokens']
-        toks = [TokenInfo(tname) for tname in md['tokens']]
+        toks = [UserTokenDef(tname, self) for tname in md['tokens']]
         
         simple_toks = []
         func_toks = []
@@ -92,7 +97,7 @@ class lex(object):
 
         if 'literals' in md:
             for ch in md['literals']:
-                tinfo = TokenInfo(ch)
+                tinfo = UserTokenDef(ch, self)
                 tinfo.regex = "\Q" + ch + "\E"
                 toks2.append(tinfo)
 
@@ -100,13 +105,13 @@ class lex(object):
 
     def make_lexer(self, toks):
         lobj = pytoken.lexer()
-        for idx, tinfo in enumerate(toks):
+        for idx, u_tok_def in enumerate(toks):
             if 0:
-                print "Adding regex", tinfo.regex
-            if tinfo.is_ignore:
-                lobj.add_pattern(tinfo.regex)
+                print "Adding regex", u_tok_def.regex
+            if u_tok_def.is_ignore:
+                lobj.add_pattern(u_tok_def.regex)
             else:    
-                lobj.add_pattern(tinfo.regex, tok_func, tinfo)
+                lobj.add_pattern(u_tok_def.regex, tok_func, u_tok_def)
         lobj.compile_to_arrays()
         return lobj
 
@@ -118,33 +123,46 @@ class lex(object):
         self.lstate.set_input(obj)
         return
         
+    def skip(self, num_to_skip):
+        pos = self.lstate.get_cur_offset()
+        pos += num_to_skip
+        self.lstate.set_cur_offset(pos)
+        return
+
     def token(self):
-        tok = self.lobj.get_token( self.lstate )
-        if isinstance(tok, pytoken.EndOfBuffer):
-            return None
-        return tok
+        while True:
+            try:
+                tok = self.lobj.get_token( self.lstate )
+                if isinstance(tok, pytoken.EndOfBuffer):
+                    return None
+                return tok
+            except pytoken.UnmatchedInputError:
+                tok = LexToken()
+                tok.lexer = self
+                self.err_action(tok)
 
     pass
 
-def tok_func(tup, tok_info):
+def tok_func(tup, user_tok_def):
     if 0:
-        print "tok match=", tup, tok_info, tok_info.name
+        print "tok match=", tup, user_tok_def, user_tok_def.name
     res = LexToken()
-    res.type = tok_info.name
+    res.type = user_tok_def.name
     res.lineno = 1
     res.lexpos = tup[0]
     res.value = tup[1]
-    if tok_info.func:
-        return tok_info.func(res)
+    if user_tok_def.func:
+        return user_tok_def.func(res)
     return res
 
-class TokenInfo:
-    def __init__(self, name):
+class UserTokenDef:
+    def __init__(self, name, lexer):
         self.name = name
         self.regex = None
         self.func = None
         self.line_num = None
         self.is_ignore = False
+        self.lexer = lexer
         return
     pass
 
@@ -156,6 +174,7 @@ class LexToken(object):
         self.value = None
         self.lineno = None
         self.lexpos = None
+        self.lexer = None
         return
     def __str__(self):
         return "LexToken(%s,%r,%d,%d)" % \
