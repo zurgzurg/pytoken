@@ -149,6 +149,25 @@ class check_ply08(ply_test):
         return
     pass
 
+class check_ply09(ply_test):
+    def runTest(self):
+        import utest_ply09
+
+        l1 = utest_ply09.ply_lexer
+        l2 = utest_ply09.ptok_lexer
+
+        l1.input('xa')
+        l2.input('xa')
+
+        tok1 = l1.token()
+        self.assert_(utest_ply09.err_count == 1)
+        tok2 = l2.token()
+        self.assert_(utest_ply09.err_count == 2)
+        self.assert_toks_equal(tok1, tok2)
+
+        return
+    pass
+
 if __name__ == "__main__":
     unittest.main()
 
