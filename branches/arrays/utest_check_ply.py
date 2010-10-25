@@ -168,6 +168,41 @@ class check_ply09(ply_test):
         return
     pass
 
+##############################################################
+def get_all_test_names():
+    sym_tab = globals()
+
+    all_tests = []
+    all_sym_names = sym_tab.keys()
+    all_sym_names.sort()
+    for sym_name in all_sym_names:
+        sym_val = sym_tab[sym_name]
+        if type(sym_val) is not type:
+            continue
+        if sym_name in ('ply_test', ):
+            continue
+        if not issubclass(sym_val, ply_test):
+            continue
+        all_tests.append(sym_name)
+        pass
+    return all_tests
+
+def make_suite_from_name_list(name_list):
+    result = unittest.TestSuite()
+    sym_tab = globals()
+    for nm in name_list:
+        val = sym_tab[nm]
+        obj = val()
+        result.addTest(obj)
+    return result
+
+##############################################################
+def get_suite_of_all_tests():
+    tlist = get_all_test_names()
+    s = make_suite_from_name_list(tlist)
+    return s
+
+##############################################################
 if __name__ == "__main__":
     unittest.main()
 

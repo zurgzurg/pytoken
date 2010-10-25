@@ -43,8 +43,6 @@ import traceback
 import random
 import time
 
-#sys.path.append("./build/lib.linux-i686-2.6")
-
 import pytoken
 import escape
 
@@ -4043,8 +4041,43 @@ class looper(lex_test):
 ##
 ##############################################################
 ##############################################################
+def get_all_test_names():
+    sym_tab = globals()
+
+    all_tests = []
+    all_sym_names = sym_tab.keys()
+    all_sym_names.sort()
+    for sym_name in all_sym_names:
+        sym_val = sym_tab[sym_name]
+        if type(sym_val) is not type:
+            continue
+        if sym_name in ('looper', 'lex_test'):
+            continue
+        if not issubclass(sym_val, lex_test):
+            continue
+        all_tests.append(sym_name)
+        pass
+    all_tests.append('looper')
+    return all_tests
+
+def make_suite_from_name_list(name_list):
+    result = unittest.TestSuite()
+    sym_tab = globals()
+    for nm in name_list:
+        val = sym_tab[nm]
+        obj = val()
+        result.addTest(obj)
+    return result
+
+##############################################################
+def get_suite_of_all_tests():
+    tlist = get_all_test_names()
+    s = make_suite_from_name_list(tlist)
+    return s
+
+##############################################################
 test_groups = ["tokens", "postfix", "nfa", "dfa", "ir",
-               "asm", "asm_full_", "asm_full2_", "manual_x86_",
+               "dfatable", "asm", "asm_full_", "asm_full2_", "manual_x86_",
                "assembler", "full_rand", "full_directed",
                "errtest", "regtest", "uval", "rand_dfa", "rre2_dfa"]
 tests_tbl = {}
@@ -4066,29 +4099,6 @@ def get_all_objs_by_name_prefix(p):
     result = [symtab[n] for n in matching_names]
     return result
 
-def get_all_tests():
-    "Return a list of all test case class objects"
-    symtab = globals()
-
-    all_tests = []
-    for g in test_groups:
-        tests_tbl[g] = get_all_objs_by_name_prefix(g)
-        all_tests.extend(tests_tbl[g])
-    all_tests.append(symtab['looper'])
-
-    for sym, obj in symtab.items():
-        match = False
-        if type(obj) is not type:
-            continue
-        for gname in test_groups:
-            if sym.startswith(gname):
-                match = True
-        if sym == "looper" or sym=="lex_test":
-            match = True
-        assert match != None
-
-    return all_tests
-
 def make_suite(tlist):
     symtab = globals()
     suite = unittest.TestSuite()
@@ -4103,6 +4113,7 @@ def make_suite(tlist):
             t_obj = cls_obj()
             suite.addTest(t_obj)
         else:
+            #print "working on", tname
             cls_obj = tname
             t_obj = cls_obj()
             suite.addTest(t_obj)
@@ -4138,6 +4149,8 @@ def run_some_tests(argv):
         runner.run(suite)
     return
 
+verbose_mode = False
+
 if __name__=="__main__":
-    verbose_mode = False
+    get_all_tests()
     run_some_tests(sys.argv)
